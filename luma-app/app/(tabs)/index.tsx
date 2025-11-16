@@ -34,8 +34,8 @@ export default function DashboardScreen() {
       <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
       <Text style={styles.subtitle}>
         {houseId
-          ? 'Acompanhe como anda a rotina da casa hoje.'
-          : 'Conecte-se a uma casa para ver seus indicadores.'}
+          ? 'Veja, em um só lugar, como estão as finanças e as tarefas da sua casa hoje.'
+          : 'Crie ou entre em uma casa para ver os indicadores do seu lar.'}
       </Text>
 
       <View style={styles.cardRow}>
@@ -45,7 +45,7 @@ export default function DashboardScreen() {
             <Text style={styles.cardValue}>{formatCurrency(totalExpenses)}</Text>
             <Text style={styles.cardHint}>
               {houseId
-                ? 'Somatório das despesas registradas este mês.'
+                ? 'Somatório das despesas registradas neste mês.'
                 : 'Selecione uma casa para carregar os dados.'}
             </Text>
           </View>
@@ -64,8 +64,8 @@ export default function DashboardScreen() {
       <View style={[styles.cardLarge, cardShadowStyle]}>
         <Text style={styles.cardTitle}>Assistente Luma</Text>
         <Text style={styles.cardHint}>
-          Faça uma pergunta ou peça ajuda em finanças, tarefas e dispositivos. Vá até a aba Luma para
-          começar uma conversa.
+          Converse com a Luma para registrar despesas, criar tarefas ou tirar dúvidas sobre a rotina da
+          casa. Acesse a aba Luma para começar.
         </Text>
       </View>
     </ScrollView>
@@ -82,17 +82,17 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#0b1220',
     gap: 20,
   },
   greeting: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#f9fafb',
   },
   subtitle: {
     fontSize: 16,
-    color: '#475569',
+    color: '#9ca3af',
   },
   cardRow: {
     flexDirection: 'row',
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#020617',
     borderRadius: 16,
     padding: 20,
     gap: 12,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardLarge: {
-    backgroundColor: '#fff',
+    backgroundColor: '#020617',
     borderRadius: 16,
     padding: 20,
     gap: 12,
@@ -117,15 +117,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#e5e7eb',
   },
   cardValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#f9fafb',
   },
   cardHint: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#9ca3af',
   },
 });
