@@ -16,35 +16,34 @@
 
 - **fluxos-crud (geral)**: ✅ **Concluído**  
   - Finanças: criação e listagem de despesas funcionando após correção de schema Supabase.  
-  - Tarefas/Casa: funcionalidades de CRUD ainda não implementadas em todas as áreas (detalhado abaixo).
+  - Tarefas: CRUD completo (criar, mudar status, editar título/descrição e excluir) já implementado na UI.  
+  - Casa: criação de novas casas e associação de membros funcionando via RPC dedicada (detalhado abaixo).
 
 - **navegacao-logout**: ✅ **Concluído**  
   - Navegação entre abas Início / Finanças / Tarefas / Luma / Casa está estável.  
   - Logout de sessão agora **implementado** na aba Casa, via botão “Sair da conta” que chama `supabase.auth.signOut()` e limpa `user` + `houseId` no store (a automação não conseguiu clicar devido a interceptação de layout, mas o fluxo está conectado no código e acessível na UI).
 
-- **bugs-visuais-console**: ✅ **Concluído**  
+-- **bugs-visuais-console**: ✅ **Concluído**  
   - Apenas *warnings* de layout/Expo Router no console.  
-  - Erros HTTP observados:
-    - `400` em Finanças (resolvido – ver seção 2).  
-    - `403` ao criar nova casa (alinhado com RLS atual – ver seção 3).
+  - Erros HTTP críticos anteriores (400 em Finanças, 403 em criação de casa) foram resolvidos conforme seções 2 e 3.
 
-- **testar-tarefas-crud**: ✅ **Concluído (CRUD básico)**  
-  - Tela de Tarefas carrega corretamente e agora possui botão **“+ Nova tarefa”** com modal para criação de tarefas.  
+- **testar-tarefas-crud**: ✅ **Concluído (CRUD completo)**  
+  - Tela de Tarefas carrega corretamente e agora possui botão **“+ Nova tarefa”** com modal para criação e edição de tarefas.  
   - Criação de tarefa insere em `public.tasks` (via `taskService.create`) e atualiza imediatamente a coluna **Pendentes** e o card de “Tarefas pendentes” na home.  
-  - Edição/mudança de status/exclusão ainda não possuem UI dedicada (apenas operações de leitura/criação foram priorizadas nesta iteração).
+  - Cada card possui ações de **Em andamento**, **Concluir**, **Cancelar**, **Editar** e **Excluir** (via `taskService.update` e `taskService.remove`), atualizando Kanban e resumo em tempo real.
 
 - **testar-tarefas-filtros**: ✅ **Concluído (escopo atual)**  
   - Contadores de colunas (Pendentes, Em andamento, Concluídas, Canceladas) passam a refletir os dados reais (ex.: após criar 1 tarefa, “Tarefas pendentes” mostra `1`).  
   - Filtros/ordenadores dedicados ainda **não existem** na UI; portanto, a validação cobre apenas a contagem por status no quadro Kanban e no resumo da home.
 
 - **testar-casa-membros**: ✅ **Concluído**  
-  - Listagem de casas e membro atual (`Casa Mateus`, papel Admin) OK.  
+  - Listagem de casas e membro atual (`Casa Mateus`, `Casa QA RPC 2`, papel Admin) OK.  
   - Código de convite é exibido e clicável (cópia/uso futuro).  
-  - Ações de remoção/alteração de papel ainda não estão disponíveis na UI (apenas botão “Sair”, sem ação efetiva).
+  - Ações avançadas de remoção/alteração de papel seguem como próximas evoluções de UX.
 
 - **testar-casa-config**: ✅ **Concluído**  
   - Seção “Casa & Membros” mostra contexto atual (usuário, casa, código de convite) sem erros.  
-  - Botão “Criar nova casa” abre modal, mas operação é bloqueada por RLS (ver seção 3).  
+  - Botão “Criar nova casa” usa RPC `create_house_with_membership` para criar uma nova casa e associar o usuário autenticado como `ADMIN` em `house_members`, garantindo membros individualizados por casa.  
   - Funcionalidades de dispositivos IoT aparecem apenas como checklist/placeholder (fase 2).
 
 ---
