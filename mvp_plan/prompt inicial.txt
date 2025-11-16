@@ -1,0 +1,6 @@
+@flowchart mermaid.md @luma_prd.md @luma_prisma_schema.txt
+analise o PRD, prisma e flowchart para entender nosso objetivo.
+
+
+utilize o prompt para cursor AI para entender quais passos iniciais e posteriores deve tomar para começarmos o desenvolvimento.
+ @Prompt para Cursor AI - Projeto Luma.md 

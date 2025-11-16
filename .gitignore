@@ -26,3 +26,5 @@ supabase/.temp/
 Luma-workflows/*.ps1
 Luma-workflows/verify_api_key.md
 Luma-workflows/api_key_test_results.md
+Luma-workflows/openai_api_key_setup.md
+Luma-workflows/supabase_credentials_setup.md

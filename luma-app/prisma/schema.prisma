@@ -1,0 +1,341 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ========================================
+// AUTHENTICATION & USERS
+// ========================================
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String?
+  avatar_url    String?
+  phone         String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  last_login_at DateTime?
+
+  // Relations
+  house_members  HouseMember[]
+  expenses       Expense[]
+  tasks_created  Task[]           @relation("TaskCreator")
+  tasks_assigned Task[]           @relation("TaskAssignee")
+  conversations  Conversation[]
+  task_comments  TaskComment[]
+  notifications  Notification[]
+
+  @@map("users")
+}
+
+// ========================================
+// HOUSES (Multi-Tenant Core)
+// ========================================
+
+model House {
+  id           String   @id @default(uuid())
+  name         String
+  address      String?
+  photo_url    String?
+  invite_code  String   @unique @default(cuid())
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  members              HouseMember[]
+  expenses             Expense[]
+  expense_categories   ExpenseCategory[]
+  tasks                Task[]
+  conversations        Conversation[]
+  devices              Device[]
+  monthly_budgets      MonthlyBudget[]
+  notifications        Notification[]
+
+  @@map("houses")
+}
+
+model HouseMember {
+  id         String           @id @default(uuid())
+  house_id   String
+  user_id    String
+  role       HouseMemberRole  @default(MEMBER)
+  joined_at  DateTime         @default(now())
+  is_active  Boolean          @default(true)
+
+  // Relations
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([house_id, user_id])
+  @@index([house_id])
+  @@index([user_id])
+  @@map("house_members")
+}
+
+enum HouseMemberRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ========================================
+// FINANCIAL MANAGEMENT
+// ========================================
+
+model ExpenseCategory {
+  id         String   @id @default(uuid())
+  house_id   String
+  name       String
+  icon       String?
+  color      String?
+  created_at DateTime @default(now())
+
+  // Relations
+  house    House     @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([house_id, name])
+  @@index([house_id])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id                String    @id @default(uuid())
+  house_id          String
+  category_id       String?
+  created_by_id     String
+  amount            Decimal   @db.Decimal(10, 2)
+  description       String
+  expense_date      DateTime
+  receipt_url       String?
+  is_recurring      Boolean   @default(false)
+  recurrence_period String?   // 'monthly', 'weekly', 'yearly'
+  is_paid           Boolean   @default(false)
+  paid_at           DateTime?
+  notes             String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  house      House            @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  category   ExpenseCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  created_by User             @relation(fields: [created_by_id], references: [id])
+  splits     ExpenseSplit[]
+
+  @@index([house_id])
+  @@index([expense_date])
+  @@index([category_id])
+  @@map("expenses")
+}
+
+model ExpenseSplit {
+  id          String  @id @default(uuid())
+  expense_id  String
+  user_id     String
+  amount      Decimal @db.Decimal(10, 2)
+  is_paid     Boolean @default(false)
+
+  // Relations
+  expense Expense @relation(fields: [expense_id], references: [id], onDelete: Cascade)
+
+  @@index([expense_id])
+  @@map("expense_splits")
+}
+
+model MonthlyBudget {
+  id         String   @id @default(uuid())
+  house_id   String
+  month      String   // Format: 'YYYY-MM'
+  amount     Decimal  @db.Decimal(10, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+
+  @@unique([house_id, month])
+  @@index([house_id])
+  @@map("monthly_budgets")
+}
+
+// ========================================
+// TASK MANAGEMENT
+// ========================================
+
+model Task {
+  id             String       @id @default(uuid())
+  house_id       String
+  created_by_id  String
+  assigned_to_id String?
+  title          String
+  description    String?
+  status         TaskStatus   @default(PENDING)
+  priority       TaskPriority @default(MEDIUM)
+  due_date       DateTime?
+  completed_at   DateTime?
+  is_recurring   Boolean      @default(false)
+  recurrence     String?      // 'daily', 'weekly', 'monthly'
+  tags           String[]
+  points         Int          @default(10)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+
+  // Relations
+  house       House         @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  created_by  User          @relation("TaskCreator", fields: [created_by_id], references: [id])
+  assigned_to User?         @relation("TaskAssignee", fields: [assigned_to_id], references: [id])
+  comments    TaskComment[]
+
+  @@index([house_id])
+  @@index([assigned_to_id])
+  @@index([due_date])
+  @@index([status])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model TaskComment {
+  id         String   @id @default(uuid())
+  task_id    String
+  user_id    String
+  content    String
+  created_at DateTime @default(now())
+
+  // Relations
+  task Task @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([task_id])
+  @@map("task_comments")
+}
+
+// ========================================
+// AI ASSISTANT (LUMA)
+// ========================================
+
+model Conversation {
+  id         String   @id @default(uuid())
+  house_id   String
+  user_id    String
+  message    String
+  response   String?
+  metadata   Json?    // Store context, processing time, sources used
+  created_at DateTime @default(now())
+
+  // Relations
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@index([house_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("conversations")
+}
+
+// ========================================
+// IOT DEVICES (Future)
+// ========================================
+
+model Device {
+  id           String       @id @default(uuid())
+  house_id     String
+  name         String
+  type         DeviceType
+  brand        String?
+  model        String?
+  room         String?
+  is_online    Boolean      @default(false)
+  capabilities String[]     // ['clean', 'vacuum', 'mop', 'schedule']
+  api_endpoint String?
+  api_key      String?      // Encrypted
+  metadata     Json?
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  last_seen_at DateTime?
+
+  // Relations
+  house   House         @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  actions DeviceAction[]
+
+  @@index([house_id])
+  @@index([type])
+  @@map("devices")
+}
+
+enum DeviceType {
+  VACUUM_ROBOT
+  VOICE_ASSISTANT
+  CAMERA
+  THERMOSTAT
+  LOCK
+  LIGHT
+  SENSOR
+  OTHER
+}
+
+model DeviceAction {
+  id          String   @id @default(uuid())
+  device_id   String
+  action      String   // 'start_cleaning', 'stop', 'go_to_room', etc.
+  parameters  Json?
+  status      String   @default("pending") // 'pending', 'success', 'failed'
+  result      Json?
+  executed_at DateTime @default(now())
+
+  // Relations
+  device Device @relation(fields: [device_id], references: [id], onDelete: Cascade)
+
+  @@index([device_id])
+  @@index([executed_at])
+  @@map("device_actions")
+}
+
+// ========================================
+// NOTIFICATIONS
+// ========================================
+
+model Notification {
+  id         String   @id @default(uuid())
+  house_id   String
+  user_id    String
+  title      String
+  body       String
+  type       String   // 'task_reminder', 'bill_due', 'budget_alert', etc.
+  is_read    Boolean  @default(false)
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  // Relations
+  house House @relation(fields: [house_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([is_read])
+  @@index([created_at])
+  @@map("notifications")
+}
