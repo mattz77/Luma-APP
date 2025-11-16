@@ -18,7 +18,7 @@ export default function TasksScreen() {
 
   if (!houseId) {
     return (
-      <ScrollView contentContainerStyle={[styles.container, styles.centered]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, styles.centered]}>
         <Text style={styles.emptyTitle}>Selecione uma casa</Text>
         <Text style={styles.emptySubtitle}>
           Associe-se a uma casa para acompanhar o Kanban de tarefas colaborativas.
@@ -45,6 +45,7 @@ export default function TasksScreen() {
 
   return (
     <ScrollView
+      style={styles.scroll}
       contentContainerStyle={styles.container}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
@@ -100,7 +101,12 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,

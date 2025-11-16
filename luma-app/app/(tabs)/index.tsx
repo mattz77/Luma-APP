@@ -25,7 +25,7 @@ export default function DashboardScreen() {
     tasks?.filter((task) => task.status === 'PENDING' || task.status === 'IN_PROGRESS').length ?? 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
       <Text style={styles.subtitle}>
         {houseId
@@ -68,7 +68,12 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,

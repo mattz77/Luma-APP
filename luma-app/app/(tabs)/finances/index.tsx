@@ -86,7 +86,7 @@ export default function FinancesScreen() {
 
   if (!houseId) {
     return (
-      <ScrollView contentContainerStyle={[styles.container, styles.centered]}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, styles.centered]}>
         <Text style={styles.emptyTitle}>Nenhuma casa selecionada</Text>
         <Text style={styles.emptySubtitle}>
           Vincule-se a uma casa ou crie uma nova para começar a registrar despesas.
@@ -219,6 +219,7 @@ export default function FinancesScreen() {
 
   return (
     <ScrollView
+      style={styles.scroll}
       contentContainerStyle={styles.container}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
@@ -298,7 +299,12 @@ export default function FinancesScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
