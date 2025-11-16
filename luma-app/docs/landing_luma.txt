@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luma - Gestão Inteligente da Sua Casa</title>
+  
+  <!-- Carrega o Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Carrega a fonte Inter do Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Carrega o Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <!-- Configuração do Tailwind para usar a fonte Inter -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            // Cores personalizadas para a marca Luma (exemplo)
+            'luma-primary': {
+              50: '#f0faff',
+              100: '#e0f5ff',
+              200: '#b9eaff',
+              300: '#7ddfff',
+              400: '#3acfff',
+              500: '#0fb2ff',
+              600: '#008bff',
+              700: '#0070ff',
+              800: '#0058c7',
+              900: '#004c9f',
+              950: '#002f63',
+            },
+            'luma-secondary': {
+              50: '#f7f7f8',
+              100: '#eceef0',
+              200: '#d9dde2',
+              300: '#c0c6ce',
+              400: '#a3acb9',
+              500: '#8c95a5',
+              600: '#788191',
+              700: '#687081',
+              800: '#59606d',
+              900: '#4f5560',
+              950: '#31353b',
+            }
+          }
+        },
+      },
+    }
+  </script>
+  
+  <!-- Estilos CSS personalizados -->
+  <style>
+    /* Suavização de fonte para melhor legibilidade */
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    /* Um gradiente sutil para o "hero" */
+    .hero-gradient {
+      background: radial-gradient(circle at 50% -20%, #f0faff 10%, rgba(255, 255, 255, 0) 60%);
+    }
+
+    /* Mockup de celular estilizado */
+    .phone-mockup {
+      width: 280px;
+      height: 560px;
+      background: #1a1a1a;
+      border-radius: 40px;
+      border: 2px solid #333;
+      padding: 16px;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+      transform: rotate(-3deg);
+      transition: all 0.3s ease-in-out;
+    }
+
+    .phone-mockup:hover {
+      transform: rotate(0deg) scale(1.02);
+    }
+    
+    .phone-screen {
+      background: #ffffff;
+      width: 100%;
+      height: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Estilo para os cards de feature */
+    .feature-card {
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid #e0f5ff;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 1.5rem; /* 24px */
+      overflow: hidden;
+      transform: translateZ(0); /* Melhora performance de animação */
+    }
+  </style>
+</head>
+
+<body class="bg-luma-secondary-50 text-luma-secondary-800 antialiased">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-luma-secondary-50/80 backdrop-blur-md">
+    <div class="container mx-auto max-w-5xl px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="ph-bold ph-sparkle text-3xl text-luma-primary-700"></i>
+        <span class="font-bold text-2xl text-luma-secondary-900 tracking-tight">Luma</span>
+      </div>
+      <a href="#cta" class="hidden md:block bg-luma-primary-700 text-white px-5 py-2 rounded-full font-semibold text-sm shadow-lg hover:bg-luma-primary-800 transition-colors">
+        Acesso Antecipado
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="overflow-x-hidden">
+    <section class="relative pt-32 pb-16 md:pt-48 md:pb-24 hero-gradient overflow-hidden">
+      <div class="container mx-auto max-w-5xl px-6 text-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold text-luma-secondary-900 tracking-tighter leading-tight">
+          A sua casa, finalmente <span class="text-luma-primary-700">organizada</span>.
+        </h1>
+        <p class="mt-6 text-lg md:text-xl text-luma-secondary-600 max-w-2xl mx-auto">
+          Conheça Luma. A inteligência artificial que centraliza finanças, tarefas e a rotina da sua família em um só lugar.
+        </p>
+        <div class="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+          <a href="#cta" class="bg-luma-primary-700 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:bg-luma-primary-800 transition-all duration-300 transform hover:scale-105">
+            Quero acesso antecipado
+          </a>
+          <a href="#features" class="bg-white text-luma-secondary-700 px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-luma-secondary-50 transition-all duration-300 transform hover:scale-105 border border-luma-secondary-100">
+            Ver funcionalidades
+          </a>
+        </div>
+      </div>
+      
+      <!-- Mockup do Celular -->
+      <div class="mt-16 md:mt-24 flex justify-center">
+        <div class="phone-mockup">
+          <div class="phone-screen p-4">
+            <!-- Header do Chat Falso -->
+            <div class="flex-shrink-0 flex items-center gap-3 p-2 border-b border-luma-secondary-100">
+              <div class="w-10 h-10 rounded-full bg-luma-primary-100 flex items-center justify-center">
+                <i class="ph-bold ph-sparkle text-2xl text-luma-primary-700"></i>
+              </div>
+              <div>
+                <p class="font-bold text-luma-secondary-900">Luma</p>
+                <p class="text-sm text-luma-secondary-500">Online</p>
+              </div>
+            </div>
+            <!-- Mensagens Falsas -->
+            <div class="flex-grow flex flex-col gap-3 py-4">
+              <div class="bg-luma-secondary-100 text-luma-secondary-800 p-3 rounded-t-xl rounded-r-xl self-start max-w-[80%]">
+                <p class="text-sm">Olá! Como posso ajudar a organizar sua casa hoje?</p>
+              </div>
+              <div class="bg-luma-primary-700 text-white p-3 rounded-t-xl rounded-l-xl self-end max-w-[80%]">
+                <p class="text-sm">Como está a situação financeira este mês?</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção de Pilares -->
+    <section id="features" class="py-20 md:py-32">
+      <div class="container mx-auto max-w-5xl px-6">
+        <div class="text-center max-w-2xl mx-auto">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-luma-secondary-900 tracking-tighter">
+            Chega de caos. Um app para tudo.
+          </h2>
+          <p class="mt-4 text-lg text-luma-secondary-600">
+            Esqueça as planilhas, os blocos de notas e os grupos de WhatsApp. Luma é o único ponto de controle para a sua casa.
+          </p>
+        </div>
+        
+        <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Pilar 1: Finanças -->
+          <div class="feature-card p-8 shadow-sm">
+            <div class="w-14 h-14 bg-luma-primary-100 text-luma-primary-700 rounded-2xl flex items-center justify-center">
+              <i class="ph-bold ph-money text-3xl"></i>
+            </div>
+            <h3 class="mt-6 text-xl font-bold text-luma-secondary-900">Gestão Financeira</h3>
+            <p class="mt-2 text-luma-secondary-600">
+              Controle gastos, divida contas e veja relatórios inteligentes. Tudo com categorização automática por IA.
+            </p>
+          </div>
+          
+          <!-- Pilar 2: Tarefas -->
+          <div class="feature-card p-8 shadow-sm">
+            <div class="w-14 h-14 bg-luma-primary-100 text-luma-primary-700 rounded-2xl flex items-center justify-center">
+              <i class="ph-bold ph-check-square-offset text-3xl"></i>
+            </div>
+            <h3 class="mt-6 text-xl font-bold text-luma-secondary-900">Gestão de Tarefas</h3>
+            <p class="mt-2 text-luma-secondary-600">
+              Organize a rotina da casa, atribua responsáveis e receba lembretes. Ninguém mais esquece de tirar o lixo.
+            </p>
+          </div>
+          
+          <!-- Pilar 3: Colaboração -->
+          <div class="feature-card p-8 shadow-sm">
+            <div class="w-14 h-14 bg-luma-primary-100 text-luma-primary-700 rounded-2xl flex items-center justify-center">
+              <i class="ph-bold ph-users-three text-3xl"></i>
+            </div>
+            <h3 class="mt-6 text-xl font-bold text-luma-secondary-900">Colaboração Familiar</h3>
+            <p class="mt-2 text-luma-secondary-600">
+              Um ambiente compartilhado para todos os membros da casa. Sincronização em tempo real para que todos vejam a mesma informação.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção: Assistente Luma (O Coração) -->
+    <section class="py-20 md:py-32 bg-luma-secondary-100">
+      <div class="container mx-auto max-w-5xl px-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <!-- Texto -->
+          <div class="pr-0 md:pr-12">
+            <h2 class="text-3xl md:text-4xl font-extrabold text-luma-secondary-900 tracking-tighter">
+              Converse com a sua casa.
+            </h2>
+            <p class="mt-4 text-lg text-luma-secondary-600">
+              O coração do Luma é sua assistente de IA. Ela entende o contexto da sua casa, aprende com sua rotina e responde em linguagem natural.
+            </p>
+            <ul class="mt-6 space-y-3">
+              <li class="flex items-start gap-3">
+                <i class="ph-bold ph-check-circle text-xl text-luma-primary-700 mt-1"></i>
+                <span class="text-luma-secondary-700">Analisa o contexto histórico da casa</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i class="ph-bold ph-check-circle text-xl text-luma-primary-700 mt-1"></i>
+                <span class="text-luma-secondary-700">Cria tarefas e registra despesas por voz</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <i class="ph-bold ph-check-circle text-xl text-luma-primary-700 mt-1"></i>
+                <span class="text-luma-secondary-700">Sugestões proativas ("A conta de água está 30% acima do normal")</span>
+              </li>
+            </ul>
+          </div>
+          
+          <!-- Visual: Chat -->
+          <div class="bg-white rounded-3xl p-6 shadow-lg">
+            <div class="flex flex-col gap-4">
+              <!-- Mensagem 1 (Usuário) -->
+              <div class="flex flex-col items-end">
+                <div class="bg-luma-primary-700 text-white p-4 rounded-t-2xl rounded-l-2xl max-w-[85%]">
+                  <p>Como está a situação financeira este mês?</p>
+                </div>
+              </div>
+              
+              <!-- Mensagem 2 (Luma) -->
+              <div class="flex flex-col items-start">
+                <div class="bg-luma-secondary-100 text-luma-secondary-800 p-4 rounded-t-2xl rounded-r-2xl max-w-[85%]">
+                  <p>Olá! 💰 Até agora vocês gastaram R$ 3.450 de um orçamento de R$ 4.000 (86%). As maiores despesas foram Aluguel (R$ 1.500) e Supermercado (R$ 980).</p>
+                </div>
+              </div>
+
+              <!-- Mensagem 3 (Usuário) -->
+              <div class="flex flex-col items-end">
+                <div class="bg-luma-primary-700 text-white p-4 rounded-t-2xl rounded-l-2xl max-w-[85%]">
+                  <p>Quais as tarefas dessa semana?</p>
+                </div>
+              </div>
+
+              <!-- Mensagem 4 (Luma) -->
+              <div class="flex flex-col items-start">
+                <div class="bg-luma-secondary-100 text-luma-secondary-800 p-4 rounded-t-2xl rounded-r-2xl max-w-[85%]">
+                  <p>Aqui estão: 📋 Fazer compras (João - Pendente, vence amanhã) e ⚠️ Pagar conta de luz (Você - Atrasada 2 dias).</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção: Futuro (IoT) -->
+    <section class="py-20 md:py-32">
+      <div class="container mx-auto max-w-5xl px-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <!-- Visual: Ícones IoT -->
+          <div class="flex justify-center items-center gap-6">
+            <div class="w-24 h-24 bg-luma-secondary-100 rounded-3xl flex items-center justify-center shadow-md transform -rotate-12">
+              <i class="ph-bold ph-robot text-5xl text-luma-primary-700"></i>
+            </div>
+            <div class="w-32 h-32 bg-luma-secondary-100 rounded-3xl flex items-center justify-center shadow-lg">
+              <i class="ph-bold ph-lightbulb text-6xl text-luma-primary-700"></i>
+            </div>
+            <div class="w-24 h-24 bg-luma-secondary-100 rounded-3xl flex items-center justify-center shadow-md transform rotate-12">
+              <i class="ph-bold ph-lock text-5xl text-luma-primary-700"></i>
+            </div>
+          </div>
+          
+          <!-- Texto -->
+          <div class="md:order-first">
+            <span class="text-luma-primary-700 font-semibold bg-luma-primary-100 px-3 py-1 rounded-full text-sm">EM BREVE</span>
+            <h2 class="mt-4 text-3xl md:text-4xl font-extrabold text-luma-secondary-900 tracking-tighter">
+              Pronta para o futuro.
+            </h2>
+            <p class="mt-4 text-lg text-luma-secondary-600">
+              Luma está sendo construída para ser o cérebro da sua casa conectada. Em breve, controle dispositivos IoT usando a mesma interface de chat.
+            </p>
+            <blockquote class="mt-6 border-l-4 border-luma-primary-700 pl-6 italic text-luma-secondary-700">
+              "Luma, gostaria que você limpe o quarto."<br>
+              "Entendido! Vou enviar o Roomba para limpar o quarto. Tempo estimado: 25 minutos. 🤖"
+            </blockquote>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção: Segurança -->
+    <section class="py-20 md:py-32 bg-white">
+      <div class="container mx-auto max-w-5xl px-6">
+        <div class="text-center max-w-2xl mx-auto">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-luma-secondary-900 tracking-tighter">
+            Sua casa, seus dados.
+          </h2>
+          <p class="mt-4 text-lg text-luma-secondary-600">
+            Privacidade não é um "extra", é a fundação. Usamos a melhor tecnologia para garantir que seus dados sejam apenas seus.
+          </p>
+        </div>
+        
+        <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+          <!-- Segurança 1: RLS -->
+          <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 w-12 h-12 bg-luma-primary-100 text-luma-primary-700 rounded-xl flex items-center justify-center">
+              <i class="ph-bold ph-shield-check text-2xl"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-luma-secondary-900">Isolamento Multi-Tenant (RLS)</h3>
+              <p class="mt-1 text-luma-secondary-600">
+                Usando Row Level Security do Supabase, garantimos que os membros de uma casa SÓ podem ver os dados daquela casa.
+              </p>
+            </div>
+          </div>
+          
+          <!-- Segurança 2: Criptografia -->
+          <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 w-12 h-12 bg-luma-primary-100 text-luma-primary-700 rounded-xl flex items-center justify-center">
+              <i class="ph-bold ph-lock-laminated text-2xl"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-luma-secondary-900">Criptografia e Compliance</h3>
+              <p class="mt-1 text-luma-secondary-600">
+                Dados criptografados em trânsito (TLS 1.3) e em repouso (AES-256). Totalmente em compliance com a LGPD.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- CTA Final -->
+    <section id="cta" class="py-20 md:py-32 bg-luma-primary-700">
+      <div class="container mx-auto max-w-2xl px-6 text-center">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-white tracking-tighter">
+          Junte-se à revolução da gestão doméstica.
+        </h2>
+        <p class="mt-4 text-lg text-luma-primary-100">
+          Deixe a inteligência artificial cuidar da organização para que você possa focar no que realmente importa. Inscreva-se para o acesso antecipado.
+        </p>
+        <div class="mt-10">
+          <form class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <label for="email" class="sr-only">Seu e-mail</label>
+            <input type="email" id="email" placeholder="seu.email@familia.com" class="flex-grow w-full px-6 py-4 rounded-full text-luma-secondary-900 placeholder-luma-secondary-400 focus:outline-none focus:ring-4 focus:ring-luma-primary-100/50" required>
+            <button type="submit" class="bg-luma-secondary-900 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-black transition-colors transform hover:scale-105">
+              Participar
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="py-12 bg-luma-secondary-100">
+    <div class="container mx-auto max-w-5xl px-6 flex flex-col md:flex-row justify-between items-center text-center md:text-left">
+      <div class="flex items-center gap-2">
+        <i class="ph-bold ph-sparkle text-2xl text-luma-primary-700"></i>
+        <span class="font-bold text-lg text-luma-secondary-900">Luma</span>
+      </div>
+      <p class="mt-4 md:mt-0 text-sm text-luma-secondary-500">
+        &copy; 2025 Luma. Todos os direitos reservados.
+      </p>
+      <div class="mt-4 md:mt-0 flex gap-4">
+        <a href="#" class="text-luma-secondary-500 hover:text-luma-primary-700"><i class="ph-bold ph-twitter-logo text-2xl"></i></a>
+        <a href="#" class="text-luma-secondary-500 hover:text-luma-primary-700"><i class="ph-bold ph-instagram-logo text-2xl"></i></a>
+        <a href="#" class="text-luma-secondary-500 hover:text-luma-primary-700"><i class="ph-bold ph-linkedin-logo text-2xl"></i></a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

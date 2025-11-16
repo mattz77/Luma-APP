@@ -1,0 +1,28 @@
+# Node / Expo
+node_modules/
+npm-debug.log*
+yarn.lock
+.expo/
+.expo-shared/
+dist/
+build/
+
+# Editor
+.vscode/
+.idea/
+*.log
+
+# Env / segredos
+.env
+.env.*.local
+.env.local
+luma-app/.env.local
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# Workflows com possíveis segredos
+Luma-workflows/*.ps1
+Luma-workflows/verify_api_key.md
+Luma-workflows/api_key_test_results.md
