@@ -105,33 +105,19 @@ export const houseService = {
   },
 
   async createHouse(input: CreateHouseInput): Promise<House> {
-    const payload: HouseInsert = {
-      name: input.name.trim(),
-      address: input.address ?? null,
-      photo_url: input.photoUrl ?? null,
-    };
+    const name = input.name.trim();
+    const address = input.address?.trim() || null;
 
-    const { data, error } = await supabase.from('houses').insert(payload).select().single();
+    const { data, error } = await supabase.rpc('create_house_with_membership', {
+      p_name: name,
+      p_address: address,
+    });
 
     if (error || !data) {
       throw error ?? new Error('Não foi possível criar a casa.');
     }
 
     const house = data as HouseRow;
-
-    // Adiciona o criador como ADMIN
-    const { error: memberError } = await supabase.from('house_members').insert({
-      house_id: house.id,
-      user_id: input.creatorUserId,
-      role: 'ADMIN',
-    });
-
-    if (memberError) {
-      // Se falhar ao adicionar membro, tenta remover a casa criada
-      await supabase.from('houses').delete().eq('id', house.id);
-      throw memberError;
-    }
-
     return mapHouse(house);
   },
 

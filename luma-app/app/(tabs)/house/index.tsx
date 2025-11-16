@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useCreateHouse,
@@ -37,7 +38,9 @@ export default function HouseScreen() {
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
   const setHouseId = useAuthStore((state) => state.setHouseId);
+  const signOut = useAuthStore((state) => state.signOut);
   const { top } = useSafeAreaInsets();
+  const router = useRouter();
 
   const { data: houses = [], isLoading: housesLoading } = useUserHouses(user?.id);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
@@ -292,6 +295,26 @@ export default function HouseScreen() {
         </View>
       </View>
 
+      <View style={[styles.card, cardShadowStyle]}>
+        <Text style={styles.cardTitle}>Sessão</Text>
+        <Text style={styles.helperText}>
+          Encerre sua sessão neste dispositivo. Você poderá entrar novamente com seu e-mail e senha.
+        </Text>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={async () => {
+            try {
+              await signOut();
+              router.replace('/login');
+            } catch (error) {
+              Alert.alert('Erro ao sair', (error as Error).message);
+            }
+          }}
+        >
+          <Text style={styles.logoutButtonText}>Sair da conta</Text>
+        </TouchableOpacity>
+      </View>
+
       <Modal
         animationType="slide"
         transparent
@@ -529,6 +552,20 @@ const styles = StyleSheet.create({
   listItem: {
     fontSize: 14,
     color: '#475569',
+  },
+  logoutButton: {
+    marginTop: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    alignSelf: 'flex-start',
+  },
+  logoutButtonText: {
+    color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 14,
   },
   helperText: {
     fontSize: 14,

@@ -146,6 +146,7 @@ model ExpenseSplit {
 
   // Relations
   expense Expense @relation(fields: [expense_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id])
 
   @@index([expense_id])
   @@map("expense_splits")
