@@ -159,10 +159,12 @@ O app usa padrão **Shared Database with Tenant Identifier**:
 ### Criar uma Casa
 
 Ao criar uma casa:
-1. Registro é inserido em `houses`
-2. Trigger `add_creator_as_admin()` adiciona criador como ADMIN
+1. Registro é inserido em `houses` via função RPC `create_house_with_membership`
+2. A função RPC cria automaticamente o membro ADMIN para o usuário autenticado
 3. Código de convite único é gerado automaticamente
 4. Outros usuários podem entrar via código
+
+**Nota:** O trigger `add_house_creator_as_admin` está desabilitado porque `auth.uid()` não está disponível em todos os contextos (ex: Android, execução SQL direta). A criação de membros é feita pela função RPC `create_house_with_membership`.
 
 ## 🤖 Integração Luma AI (n8n)
 

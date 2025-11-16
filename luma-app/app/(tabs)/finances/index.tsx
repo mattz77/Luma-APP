@@ -244,22 +244,22 @@ export default function FinancesScreen() {
             Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
           </Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => router.push('/(tabs)/finances/reports')}
-          >
-            <BarChart3 size={18} color="#1d4ed8" />
-            <Text style={styles.headerActionText}>Relatórios</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => router.push('/(tabs)/finances/budget')}
-          >
-            <Wallet size={18} color="#1d4ed8" />
-            <Text style={styles.headerActionText}>Orçamento</Text>
-          </TouchableOpacity>
-        </View>
+      </View>
+      <View style={styles.headerActionsRow}>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={() => router.push('/(tabs)/finances/reports')}
+        >
+          <BarChart3 size={18} color="#1d4ed8" />
+          <Text style={styles.headerActionText}>Relatórios</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={() => router.push('/(tabs)/finances/budget')}
+        >
+          <Wallet size={18} color="#1d4ed8" />
+          <Text style={styles.headerActionText}>Orçamento</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.summaryCard, cardShadowStyle]}>
@@ -353,11 +353,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 16,
   },
   headerText: {
     flex: 1,
@@ -371,10 +367,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#475569',
     marginTop: 4,
+    lineHeight: 22,
   },
-  headerActions: {
+  headerActionsRow: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 20,
   },
   headerActionButton: {
     flexDirection: 'row',
