@@ -138,6 +138,18 @@ export default function TabLayout() {
           href: null, // Oculta do dock
         }}
       />
+      <Tabs.Screen
+        name="finances/reports"
+        options={{
+          href: null, // Oculta do dock
+        }}
+      />
+      <Tabs.Screen
+        name="tasks/[id]"
+        options={{
+          href: null, // Oculta do dock - rota dinâmica
+        }}
+      />
     </Tabs>
   );
 }

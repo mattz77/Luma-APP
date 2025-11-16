@@ -31,7 +31,10 @@ export const useLumaChat = (houseId: string | null | undefined, userId: string |
       return response;
     },
     onSuccess: () => {
+      // Invalida as queries para forçar refetch
       queryClient.invalidateQueries({ queryKey: ['conversations', houseId ?? ''] });
+      // Também força um refetch imediato
+      queryClient.refetchQueries({ queryKey: ['conversations', houseId ?? ''] });
     },
   });
 };

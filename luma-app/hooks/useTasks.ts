@@ -15,6 +15,19 @@ export const useTasks = (houseId: string | null | undefined) => {
   });
 };
 
+export const useTask = (taskId: string | null | undefined) => {
+  return useQuery({
+    queryKey: ['task', taskId],
+    queryFn: () => {
+      if (!taskId) {
+        return Promise.resolve(null);
+      }
+      return taskService.getById(taskId);
+    },
+    enabled: Boolean(taskId),
+  });
+};
+
 export const useCreateTask = () => {
   const queryClient = useQueryClient();
 

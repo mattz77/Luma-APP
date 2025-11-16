@@ -13,10 +13,13 @@ import Animated, {
 // Drag and drop funcionará apenas em mobile nativo (iOS/Android)
 
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Task, TaskStatus, TaskPriority } from '@/types/models';
 import { cardShadowStyle } from '@/lib/styles';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TagInput } from '@/components/TagInput';
+import { useRouter } from 'expo-router';
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   PENDING: 'Pendentes',
@@ -35,12 +38,14 @@ const EMPTY_STATE_LABELS: Record<TaskStatus, string> = {
 type ColumnPosition = { x: number; width: number };
 
 export default function TasksScreen() {
+  const router = useRouter();
   const houseId = useAuthStore((state) => state.houseId);
   const user = useAuthStore((state) => state.user);
   const { top } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 768;
   const { data: tasks, isLoading, isRefetching, refetch } = useTasks(houseId);
+  useRealtimeTasks(houseId); // Atualização em tempo real
   
   // Refs para posições das colunas (para detectar drop zone)
   const columnRefs = useRef<Record<TaskStatus, ColumnPosition>>({
@@ -59,6 +64,8 @@ export default function TasksScreen() {
   const [titleInput, setTitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [priorityInput, setPriorityInput] = useState<TaskPriority>('MEDIUM');
+  const [tagsInput, setTagsInput] = useState<string[]>([]);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   if (!houseId) {
     return (
@@ -74,9 +81,27 @@ export default function TasksScreen() {
     );
   }
 
+  // Filtrar tarefas por tag se selecionada
+  const filteredTasks = useMemo(() => {
+    if (!selectedTagFilter || !tasks) return tasks;
+    return tasks.filter((task) => task.tags && task.tags.includes(selectedTagFilter));
+  }, [tasks, selectedTagFilter]);
+
+  // Obter todas as tags únicas para o filtro
+  const allTags = useMemo(() => {
+    if (!tasks) return [];
+    const tagSet = new Set<string>();
+    tasks.forEach((task) => {
+      if (task.tags) {
+        task.tags.forEach((tag) => tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [tasks]);
+
   const grouped = useMemo(
     () =>
-      (tasks ?? []).reduce<Record<TaskStatus, typeof tasks>>(
+      (filteredTasks ?? []).reduce<Record<TaskStatus, typeof filteredTasks>>(
         (accumulator, task) => {
           const list = accumulator[task.status] ?? [];
           return {
@@ -91,7 +116,7 @@ export default function TasksScreen() {
           CANCELLED: [],
         },
       ),
-    [tasks],
+    [filteredTasks],
   );
 
   const handleColumnLayout = (status: TaskStatus, x: number, width: number) => {
@@ -115,6 +140,33 @@ export default function TasksScreen() {
             : 'Segure e arraste tarefas entre colunas para mudar o status. Ou use os botões de ação rápida.'}
         </Text>
 
+        {allTags.length > 0 && (
+          <View style={styles.tagsFilterContainer}>
+            <Text style={styles.filterLabel}>Filtrar por tag:</Text>
+            <View style={styles.tagsFilterRow}>
+              <TouchableOpacity
+                style={[styles.filterTag, !selectedTagFilter && styles.filterTagActive]}
+                onPress={() => setSelectedTagFilter(null)}
+              >
+                <Text style={[styles.filterTagText, !selectedTagFilter && styles.filterTagTextActive]}>
+                  Todas
+                </Text>
+              </TouchableOpacity>
+              {allTags.map((tag) => (
+                <TouchableOpacity
+                  key={tag}
+                  style={[styles.filterTag, selectedTagFilter === tag && styles.filterTagActive]}
+                  onPress={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+                >
+                  <Text style={[styles.filterTagText, selectedTagFilter === tag && styles.filterTagTextActive]}>
+                    {tag}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={styles.primaryAction}
@@ -122,6 +174,7 @@ export default function TasksScreen() {
                   setTitleInput('');
                   setDescriptionInput('');
                   setPriorityInput('MEDIUM');
+                  setTagsInput([]);
                   setCreateOpen(true);
                 }}
           >
@@ -179,11 +232,18 @@ export default function TasksScreen() {
                           setEditingTaskId(task.id);
                           setTitleInput(task.title);
                           setDescriptionInput(task.description ?? '');
+                          setPriorityInput(task.priority);
+                          setTagsInput(task.tags || []);
                           setCreateOpen(true);
                         }}
                         onDelete={() =>
                           deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(refetch)
                         }
+                        onViewDetails={() => {
+                          if (task.id) {
+                            router.push(`/(tabs)/tasks/${task.id}`);
+                          }
+                        }}
                       />
                     ))
                   )}
@@ -214,34 +274,40 @@ export default function TasksScreen() {
                   <Text style={styles.emptyColumnText}>{EMPTY_STATE_LABELS[status]}</Text>
                 ) : (
                   columnTasks.map((task) => (
-                    <DraggableTask
-                      key={task.id}
-                      task={task}
-                      currentStatus={status}
-                      columnRefs={columnRefs.current}
-                      isMobile={false}
-                      onUpdateStatus={(newStatus) =>
-                        updateTaskMutation
-                          .mutateAsync({
-                            id: task.id,
-                            updates: {
-                              status: newStatus,
-                              ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
-                            },
-                          })
-                          .then(refetch)
-                      }
-                      onEdit={() => {
-                        setEditingTaskId(task.id);
-                        setTitleInput(task.title);
-                        setDescriptionInput(task.description ?? '');
-                        setPriorityInput(task.priority);
-                        setCreateOpen(true);
-                      }}
-                      onDelete={() =>
-                        deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(refetch)
-                      }
-                    />
+                        <DraggableTask
+                          key={task.id}
+                          task={task}
+                          currentStatus={status}
+                          columnRefs={columnRefs.current}
+                          isMobile={false}
+                          onUpdateStatus={(newStatus) =>
+                            updateTaskMutation
+                              .mutateAsync({
+                                id: task.id,
+                                updates: {
+                                  status: newStatus,
+                                  ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
+                                },
+                              })
+                              .then(refetch)
+                          }
+                          onEdit={() => {
+                            setEditingTaskId(task.id);
+                            setTitleInput(task.title);
+                            setDescriptionInput(task.description ?? '');
+                            setPriorityInput(task.priority);
+                            setTagsInput(task.tags || []);
+                            setCreateOpen(true);
+                          }}
+                          onDelete={() =>
+                            deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(refetch)
+                          }
+                          onViewDetails={() => {
+                          if (task.id) {
+                            router.push(`/(tabs)/tasks/${task.id}`);
+                          }
+                        }}
+                        />
                   ))
                 )}
               </View>
@@ -268,6 +334,9 @@ export default function TasksScreen() {
               style={[styles.modalInput, styles.modalInputMultiline]}
               multiline
             />
+            
+            <Text style={styles.modalLabel}>Tags</Text>
+            <TagInput tags={tagsInput} onChange={setTagsInput} placeholder="Digite e pressione Enter" />
             
             <Text style={styles.modalLabel}>Prioridade</Text>
             <View style={styles.prioritySelector}>
@@ -305,6 +374,7 @@ export default function TasksScreen() {
                   setTitleInput('');
                   setDescriptionInput('');
                   setPriorityInput('MEDIUM');
+                  setTagsInput([]);
                 }}
                 disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
               >
@@ -324,6 +394,7 @@ export default function TasksScreen() {
                         title: titleInput.trim(),
                         description: descriptionInput.trim() || null,
                         priority: priorityInput,
+                        tags: tagsInput,
                       },
                     });
                   } else {
@@ -333,6 +404,7 @@ export default function TasksScreen() {
                       title: titleInput.trim(),
                       description: descriptionInput.trim() || null,
                       priority: priorityInput,
+                      tags: tagsInput,
                     });
                   }
                   setCreateOpen(false);
@@ -340,6 +412,7 @@ export default function TasksScreen() {
                   setTitleInput('');
                   setDescriptionInput('');
                   setPriorityInput('MEDIUM');
+                  setTagsInput([]);
                   refetch();
                 }}
               >
@@ -367,6 +440,7 @@ function DraggableTask({
   onUpdateStatus,
   onEdit,
   onDelete,
+  onViewDetails,
 }: {
   task: Task;
   currentStatus: TaskStatus;
@@ -375,6 +449,7 @@ function DraggableTask({
   onUpdateStatus: (status: TaskStatus) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onViewDetails?: () => void;
 }) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -390,6 +465,7 @@ function DraggableTask({
           onUpdateStatus={onUpdateStatus}
           onEdit={onEdit}
           onDelete={onDelete}
+          onViewDetails={onViewDetails}
           isDragging={false}
         />
       );
@@ -422,6 +498,15 @@ function DraggableTask({
           </View>
         </View>
         {task.description ? <Text style={styles.taskDescription}>{task.description}</Text> : null}
+        {task.tags && task.tags.length > 0 && (
+          <View style={styles.taskTagsContainer}>
+            {task.tags.map((tag) => (
+              <View key={tag} style={styles.taskTag}>
+                <Text style={styles.taskTagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         <View style={styles.taskMeta}>
           {task.assignee?.name ? (
             <Text style={styles.taskMetaText}>Responsável: {task.assignee?.name}</Text>
@@ -454,6 +539,11 @@ function DraggableTask({
                 <Text style={styles.taskActionLink}>Cancelar</Text>
               </TouchableOpacity>
             </>
+          )}
+          {onViewDetails && (
+            <TouchableOpacity onPress={onViewDetails}>
+              <Text style={styles.taskActionLink}>Ver detalhes</Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity onPress={onEdit}>
             <Text style={styles.taskActionLink}>Editar</Text>
@@ -538,12 +628,14 @@ function TaskCardMobile({
   onUpdateStatus,
   onEdit,
   onDelete,
+  onViewDetails,
   isDragging = false,
 }: {
   task: Task;
   onUpdateStatus: (status: TaskStatus) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onViewDetails?: () => void;
   isDragging?: boolean;
 }) {
   const getQuickActions = () => {
@@ -591,6 +683,15 @@ function TaskCardMobile({
         </View>
       </View>
       {task.description ? <Text style={styles.taskDescriptionMobile}>{task.description}</Text> : null}
+      {task.tags && task.tags.length > 0 && (
+        <View style={styles.taskTagsContainer}>
+          {task.tags.map((tag) => (
+            <View key={tag} style={styles.taskTag}>
+              <Text style={styles.taskTagText}>{tag}</Text>
+            </View>
+          ))}
+        </View>
+      )}
       <View style={styles.taskMetaMobile}>
         {task.assignee?.name ? (
           <Text style={styles.taskMetaTextMobile}>👤 {task.assignee.name}</Text>
@@ -625,14 +726,22 @@ function TaskCardMobile({
           })}
         </View>
       )}
-      <View style={styles.taskActionsMobile}>
-        <TouchableOpacity style={styles.taskActionButtonMobile} onPress={onEdit}>
-          <Text style={styles.taskActionTextMobile}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.taskActionButtonMobile, styles.taskActionDangerMobile]} onPress={onDelete}>
-          <Text style={[styles.taskActionTextMobile, styles.taskActionDangerTextMobile]}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.taskActionsMobile}>
+            {onViewDetails && (
+              <TouchableOpacity
+                style={[styles.taskActionButtonMobile, styles.taskActionButtonPrimaryMobile]}
+                onPress={onViewDetails}
+              >
+                <Text style={[styles.taskActionTextMobile, styles.taskActionTextPrimaryMobile]}>Ver detalhes</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.taskActionButtonMobile} onPress={onEdit}>
+              <Text style={styles.taskActionTextMobile}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.taskActionButtonMobile, styles.taskActionDangerMobile]} onPress={onDelete}>
+              <Text style={[styles.taskActionTextMobile, styles.taskActionDangerTextMobile]}>Excluir</Text>
+            </TouchableOpacity>
+          </View>
     </View>
   );
 }
@@ -818,6 +927,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f8fafc',
   },
+  taskActionButtonPrimaryMobile: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#1d4ed8',
+  },
   taskActionDangerMobile: {
     backgroundColor: '#fef2f2',
   },
@@ -825,6 +939,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1d4ed8',
     fontWeight: '600',
+  },
+  taskActionTextPrimaryMobile: {
+    color: '#1d4ed8',
+    fontWeight: '700',
   },
   taskActionDangerTextMobile: {
     color: '#dc2626',
@@ -1065,6 +1183,60 @@ const styles = StyleSheet.create({
   },
   priorityBadgeTextLight: {
     color: '#0f172a',
+  },
+  tagsFilterContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  tagsFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  filterTagActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#1d4ed8',
+  },
+  filterTagText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  filterTagTextActive: {
+    color: '#1d4ed8',
+  },
+  taskTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  taskTag: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#1d4ed8',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  taskTagText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1d4ed8',
   },
 });
 

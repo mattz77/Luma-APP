@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Wallet } from 'lucide-react-native';
+import { Wallet, BarChart3 } from 'lucide-react-native';
 
 import {
   useCreateExpense,
@@ -21,6 +21,7 @@ import {
   useToggleExpensePaid,
   useUpdateExpense,
 } from '@/hooks/useExpenses';
+import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
 import {
   useCreateExpenseCategory,
   useDeleteExpenseCategory,
@@ -67,6 +68,7 @@ export default function FinancesScreen() {
   }
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
+  useRealtimeExpenses(houseId); // Atualização em tempo real
   const { data: categories = [], isLoading: categoriesLoading } = useExpenseCategories(houseId);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId ?? undefined);
 
@@ -242,13 +244,22 @@ export default function FinancesScreen() {
             Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.budgetButton}
-          onPress={() => router.push('/(tabs)/finances/budget')}
-        >
-          <Wallet size={20} color="#1d4ed8" />
-          <Text style={styles.budgetButtonText}>Orçamento</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => router.push('/(tabs)/finances/reports')}
+          >
+            <BarChart3 size={18} color="#1d4ed8" />
+            <Text style={styles.headerActionText}>Relatórios</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => router.push('/(tabs)/finances/budget')}
+          >
+            <Wallet size={18} color="#1d4ed8" />
+            <Text style={styles.headerActionText}>Orçamento</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={[styles.summaryCard, cardShadowStyle]}>
@@ -361,19 +372,23 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
   },
-  budgetButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: '#eff6ff',
     borderWidth: 1,
     borderColor: '#1d4ed8',
   },
-  budgetButtonText: {
-    fontSize: 14,
+  headerActionText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#1d4ed8',
   },

@@ -15,6 +15,7 @@ import { useLocalSearchParams } from 'expo-router';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
+import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUserHouses } from '@/hooks/useHouses';
 import { bubbleShadowStyle, cardShadowStyle } from '@/lib/styles';
@@ -35,6 +36,7 @@ export default function LumaChatScreen() {
     isRefetching,
   } = useConversations(houseId);
   const { mutateAsync: sendMessage, isPending } = useLumaChat(houseId, userId);
+  useRealtimeConversations(houseId); // Atualização em tempo real
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const currentHouseName =
@@ -68,14 +70,24 @@ export default function LumaChatScreen() {
       return;
     }
 
+    const messageToSend = message.trim();
+    setMessage(''); // Limpa o input imediatamente para melhor UX
+    setErrorMessage(null);
+
     try {
-      await sendMessage(message.trim());
-      setMessage('');
-      setErrorMessage(null);
+      await sendMessage(messageToSend);
+      
+      // Aguarda um pouco para o n8n processar e salvar no banco
+      // O realtime subscription também vai atualizar automaticamente
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      
+      // Força um refetch para garantir que está atualizado
+      // O realtime subscription também vai atualizar, mas este é um fallback
       await refetch();
     } catch (error) {
       console.error(error);
       setErrorMessage((error as Error).message || 'Não foi possível enviar a mensagem.');
+      setMessage(messageToSend); // Restaura a mensagem em caso de erro
     }
   };
 
