@@ -44,7 +44,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data, error } = await supabase.auth.getUser();
 
     if (error) {
-      console.error('Erro ao recuperar usuário:', error);
+      // Quando não há sessão salva (primeiro acesso / após logout),
+      // o Supabase lança AuthSessionMissingError. Tratamos como "sem usuário"
+      // sem logar como erro crítico para evitar ruído no console.
+      if (error.name !== 'AuthSessionMissingError') {
+        console.error('Erro ao recuperar usuário:', error);
+      }
       set({ user: null, loading: false });
       return;
     }
