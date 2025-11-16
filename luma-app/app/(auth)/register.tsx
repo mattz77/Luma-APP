@@ -45,14 +45,17 @@ export default function RegisterScreen() {
   }
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
-      setErrorMessage('Informe nome, e-mail e senha.');
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedEmail || !password) {
+      setErrorMessage('Informe nome, e-mail e uma senha segura.');
       return;
     }
 
     try {
       setErrorMessage(null);
-      await signUp(email.trim().toLowerCase(), password, name.trim());
+      await signUp(trimmedEmail, password, trimmedName);
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
@@ -65,28 +68,50 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      <View style={styles.header}>
+        <Text style={styles.brand}>Luma</Text>
+        <Text style={styles.headerTitle}>Comece a organizar a sua casa.</Text>
+        <Text style={styles.headerSubtitle}>
+          Crie sua conta e, em poucos minutos, registre despesas, tarefas e convide sua família.
+        </Text>
+      </View>
+
       <View style={[styles.form, cardShadowStyle]}>
         <Text style={styles.title}>Criar conta</Text>
         <Text style={styles.subtitle}>Organize sua casa com a Luma</Text>
 
-        <TextInput value={name} onChangeText={setName} placeholder="Nome" style={styles.input} />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Nome</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Seu nome"
+            style={styles.input}
+          />
+        </View>
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="E-mail"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="voce@email.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+          />
+        </View>
 
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Senha"
-          secureTextEntry
-          style={styles.input}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Senha</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Mínimo de 6 caracteres"
+            secureTextEntry
+            style={styles.input}
+          />
+        </View>
 
         {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
@@ -116,35 +141,69 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0b1220',
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+  header: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  brand: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#e5e7eb',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    marginTop: 8,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f9fafb',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#9ca3af',
+    textAlign: 'center',
   },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: '#020617',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     gap: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: '#f9fafb',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#9ca3af',
     textAlign: 'center',
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    color: '#e5e7eb',
+    fontWeight: '500',
   },
   input: {
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#1f2937',
     paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#020617',
     fontSize: 16,
+    color: '#f9fafb',
   },
   primaryButton: {
     height: 52,
@@ -159,7 +218,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    marginTop: 24,
+    marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
@@ -170,7 +229,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footerText: {
-    color: '#6b7280',
+    color: '#9ca3af',
     fontSize: 14,
   },
   footerLink: {
