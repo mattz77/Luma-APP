@@ -1,9 +1,12 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Bell } from 'lucide-react-native';
 
 import { useExpenses } from '@/hooks/useExpenses';
 import { useTasks } from '@/hooks/useTasks';
+import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useCanAccessFinances } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
 import { cardShadowStyle } from '@/lib/styles';
@@ -22,10 +25,18 @@ export default function DashboardScreen() {
   const { top } = useSafeAreaInsets();
   const { data: expenses } = useExpenses(houseId);
   const { data: tasks } = useTasks(houseId);
+  
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+  const { data: unreadNotificationCount = 0 } = useUnreadNotificationCount(user?.id);
 
   const totalExpenses = expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0;
   const totalExpensesCount = expenses?.length ?? 0;
   const paidExpensesCount = expenses?.filter((expense) => expense.isPaid).length ?? 0;
+  
+  const budgetAmount = monthlyBudget ? Number(monthlyBudget.amount) : 0;
+  const budgetProgress = budgetAmount > 0 ? (totalExpenses / budgetAmount) * 100 : 0;
+  const budgetRemaining = budgetAmount > 0 ? budgetAmount - totalExpenses : 0;
 
   const now = new Date();
   const pendingTasks =
@@ -43,18 +54,57 @@ export default function DashboardScreen() {
       style={styles.scroll}
       contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
     >
-      <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
-      <Text style={styles.subtitle}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
+          <Text style={styles.subtitle}>
         {houseId
           ? 'Resumo de hoje da sua casa: finanças, tarefas e Luma em um só lugar.'
           : 'Crie ou entre em uma casa para ver o resumo da sua rotina.'}
-      </Text>
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => router.push('/(tabs)/notifications')}
+        >
+          <Bell size={24} color="#0f172a" />
+          {unreadNotificationCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.cardRow}>
         {canAccessFinances && (
           <View style={[styles.card, cardShadowStyle]}>
             <Text style={styles.cardTitle}>Despesas do mês</Text>
             <Text style={styles.cardValue}>{formatCurrency(totalExpenses)}</Text>
+            {monthlyBudget && budgetAmount > 0 && (
+              <View style={styles.budgetProgressContainer}>
+                <View style={styles.budgetProgressBar}>
+                  <View
+                    style={[
+                      styles.budgetProgressFill,
+                      {
+                        width: `${Math.min(budgetProgress, 100)}%`,
+                        backgroundColor: budgetProgress >= 100 ? '#ef4444' : budgetProgress >= 80 ? '#f59e0b' : '#10b981',
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.budgetProgressText}>
+                  {budgetProgress >= 100
+                    ? `Orçamento excedido em ${formatCurrency(Math.abs(budgetRemaining))}`
+                    : budgetProgress >= 80
+                      ? `${budgetProgress.toFixed(0)}% usado - Restam ${formatCurrency(budgetRemaining)}`
+                      : `${budgetProgress.toFixed(0)}% usado - Restam ${formatCurrency(budgetRemaining)}`}
+                </Text>
+              </View>
+            )}
             <Text style={styles.cardHint}>
               {houseId
                 ? `Você registrou ${totalExpensesCount} despesa(s); ${paidExpensesCount} já marcada(s) como paga(s).`
@@ -156,6 +206,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     gap: 20,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  headerText: {
+    flex: 1,
+  },
   greeting: {
     fontSize: 28,
     fontWeight: '700',
@@ -164,6 +223,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#64748b',
+    marginTop: 4,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  notificationBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   cardRow: {
     flexDirection: 'row',
@@ -213,6 +300,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#1d4ed8',
+  },
+  budgetProgressContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  budgetProgressBar: {
+    height: 8,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  budgetProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  budgetProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
   },
   chipsRow: {
     marginTop: 8,

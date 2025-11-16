@@ -108,10 +108,12 @@ export default function LumaChatScreen() {
 
       {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
-      {isLoadingConversations ? (
+      {isLoadingConversations || isPending ? (
         <View style={[styles.messagesContainer, styles.centered]}>
           <ActivityIndicator size="large" color="#1d4ed8" />
-          <Text style={styles.helperText}>Carregando histórico...</Text>
+          <Text style={styles.helperText}>
+            {isPending ? 'Luma está pensando...' : 'Carregando histórico...'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -124,15 +126,20 @@ export default function LumaChatScreen() {
           renderItem={({ item }) => (
             <View style={styles.messageWrapper}>
               <View style={[styles.bubble, styles.userBubble, bubbleShadowStyle]}>
-                <Text style={styles.bubbleLabel}>Você</Text>
-                <Text style={styles.bubbleText}>{item.message}</Text>
+                <Text style={[styles.bubbleLabel, styles.userLabel]}>Você</Text>
+                <Text style={[styles.bubbleText, styles.userBubbleText]}>{item.message}</Text>
               </View>
               {item.response ? (
                 <View style={[styles.bubble, styles.lumaBubble, bubbleShadowStyle]}>
                   <Text style={[styles.bubbleLabel, styles.lumaLabel]}>Luma</Text>
                   <Text style={styles.bubbleText}>{item.response}</Text>
                 </View>
-              ) : null}
+              ) : (
+                <View style={styles.loadingIndicator}>
+                  <ActivityIndicator size="small" color="#1d4ed8" />
+                  <Text style={styles.loadingText}>Luma está pensando...</Text>
+                </View>
+              )}
             </View>
           )}
         />
@@ -166,11 +173,16 @@ export default function LumaChatScreen() {
         ) : null}
         <TextInput
           value={message}
-          onChangeText={setMessage}
+          onChangeText={(text) => {
+            setMessage(text);
+            setErrorMessage(null);
+          }}
           placeholder="Escreva algo para a Luma..."
           style={styles.input}
           multiline
           numberOfLines={1}
+          editable={!isPending}
+          placeholderTextColor="#94a3b8"
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={isPending}>
           {isPending ? (
@@ -219,8 +231,8 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingHorizontal: 24,
+    paddingTop: 16,
     paddingBottom: 120,
-    gap: 16,
   },
   errorMessage: {
     marginHorizontal: 24,
@@ -230,26 +242,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   messageWrapper: {
-    gap: 8,
+    gap: 12,
+    marginBottom: 4,
   },
   bubble: {
     borderRadius: 18,
     padding: 14,
-    maxWidth: '90%',
+    maxWidth: '85%',
     gap: 6,
   },
   userBubble: {
     alignSelf: 'flex-end',
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   lumaBubble: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   bubbleLabel: {
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  userLabel: {
+    color: '#1d4ed8',
   },
   lumaLabel: {
     color: '#0284c7',
@@ -257,6 +278,23 @@ const styles = StyleSheet.create({
   bubbleText: {
     fontSize: 15,
     color: '#0f172a',
+    lineHeight: 20,
+  },
+  userBubbleText: {
+    color: '#0f172a',
+  },
+  loadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -271,11 +309,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#cbd5f5',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
+    color: '#0f172a',
     backgroundColor: '#f8fafc',
     maxHeight: 120,
   },
@@ -286,6 +325,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 80,
+    opacity: 1,
   },
   sendButtonText: {
     color: '#fff',

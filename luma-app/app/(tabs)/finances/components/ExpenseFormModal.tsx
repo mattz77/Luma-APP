@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,9 +12,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
+import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
 import type { Expense, ExpenseCategory, ExpenseSplit, HouseMemberWithUser } from '@/types/models';
+import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
 
 interface MemberShare {
   userId: string;
@@ -72,6 +76,8 @@ export function ExpenseFormModal({
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
   const [receiptUrl, setReceiptUrl] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [shares, setShares] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -99,6 +105,7 @@ export function ExpenseFormModal({
       setIsPaid(initialExpense.isPaid);
       setNotes(initialExpense.notes ?? '');
       setReceiptUrl(initialExpense.receiptUrl ?? '');
+      setSelectedImageUri(initialExpense.receiptUrl ?? null);
 
       const splits = initialExpense.splits ?? [];
       const memberIds = splits.length
@@ -125,6 +132,7 @@ export function ExpenseFormModal({
       setIsPaid(false);
       setNotes('');
       setReceiptUrl('');
+      setSelectedImageUri(null);
       const defaultMembers = currentUserId ? [currentUserId] : [];
       setSelectedMembers(defaultMembers);
       setShares(createEqualShareMap(defaultMembers, 0));
@@ -179,6 +187,43 @@ export function ExpenseFormModal({
     }
   };
 
+  const handlePickImage = async () => {
+    try {
+      const result = await pickImageFromGallery();
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setSelectedImageUri(result.assets[0].uri);
+        setReceiptUrl(''); // Limpar URL antiga se houver
+      }
+    } catch (error) {
+      Alert.alert('Erro', (error as Error).message);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const result = await takePhoto();
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setSelectedImageUri(result.assets[0].uri);
+        setReceiptUrl(''); // Limpar URL antiga se houver
+      }
+    } catch (error) {
+      Alert.alert('Erro', (error as Error).message);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    // Se há uma URL antiga (não é uma nova imagem), deletar do storage
+    if (receiptUrl && receiptUrl.startsWith('http')) {
+      try {
+        await deleteImageFromStorage(receiptUrl);
+      } catch (error) {
+        console.error('Erro ao deletar imagem:', error);
+      }
+    }
+    setSelectedImageUri(null);
+    setReceiptUrl('');
+  };
+
   const handleSubmit = async () => {
     setErrorMessage(null);
     const parsedAmount = parseFloat(formatNumber(amount));
@@ -224,6 +269,24 @@ export function ExpenseFormModal({
     });
 
     try {
+      let finalReceiptUrl = receiptUrl.trim() || null;
+
+      // Se há uma nova imagem selecionada, fazer upload
+      if (selectedImageUri && !selectedImageUri.startsWith('http')) {
+        setIsUploadingImage(true);
+        const uploadResult = await uploadImageToStorage(selectedImageUri);
+        setIsUploadingImage(false);
+
+        if (uploadResult.error) {
+          setErrorMessage(`Erro ao fazer upload da imagem: ${uploadResult.error}`);
+          return;
+        }
+
+        if (uploadResult.url) {
+          finalReceiptUrl = uploadResult.url;
+        }
+      }
+
       await onSubmit({
         description: description.trim(),
         amount: Number(parsedAmount.toFixed(2)),
@@ -231,10 +294,11 @@ export function ExpenseFormModal({
         categoryId,
         isPaid,
         notes: notes.trim() ? notes.trim() : null,
-        receiptUrl: receiptUrl.trim() ? receiptUrl.trim() : null,
+        receiptUrl: finalReceiptUrl,
         splits: normalizedSplits,
       });
     } catch (error) {
+      setIsUploadingImage(false);
       setErrorMessage((error as Error).message);
     }
   };
@@ -407,12 +471,52 @@ export function ExpenseFormModal({
               placeholder="Observações adicionais"
             />
 
-            <Text style={styles.label}>Comprovante (URL opcional)</Text>
+            <Text style={styles.label}>Comprovante</Text>
+            
+            {selectedImageUri ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: selectedImageUri }} style={styles.imagePreview} />
+                <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveImage}>
+                  <X size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.imageUploadButtons}>
+                <TouchableOpacity
+                  style={[styles.imageUploadButton, styles.imageUploadButtonPrimary]}
+                  onPress={handlePickImage}
+                  disabled={isUploadingImage}
+                >
+                  <ImageIcon size={20} color="#1d4ed8" />
+                  <Text style={styles.imageUploadButtonText}>Escolher da galeria</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.imageUploadButton, styles.imageUploadButtonSecondary]}
+                  onPress={handleTakePhoto}
+                  disabled={isUploadingImage}
+                >
+                  <Camera size={20} color="#64748b" />
+                  <Text style={[styles.imageUploadButtonText, styles.imageUploadButtonTextSecondary]}>
+                    Tirar foto
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isUploadingImage && (
+              <View style={styles.uploadingIndicator}>
+                <ActivityIndicator size="small" color="#1d4ed8" />
+                <Text style={styles.uploadingText}>Fazendo upload da imagem...</Text>
+              </View>
+            )}
+
+            <Text style={[styles.label, styles.helperLabel]}>Ou insira uma URL manualmente</Text>
             <TextInput
               value={receiptUrl}
               onChangeText={setReceiptUrl}
               style={styles.input}
               placeholder="https://..."
+              editable={!selectedImageUri && !isUploadingImage}
             />
 
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -664,6 +768,80 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     fontSize: 15,
     fontWeight: '600',
+  },
+  imageUploadButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  imageUploadButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  imageUploadButtonPrimary: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#1d4ed8',
+  },
+  imageUploadButtonSecondary: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+  },
+  imageUploadButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1d4ed8',
+  },
+  imageUploadButtonTextSecondary: {
+    color: '#64748b',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  uploadingText: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  helperLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 8,
+    marginBottom: 4,
   },
 });
 

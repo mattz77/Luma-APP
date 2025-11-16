@@ -125,6 +125,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Settings color={color} size={24} />,
         }}
       />
+      {/* Rotas ocultas do dock - acessíveis apenas por navegação programática */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null, // Oculta do dock
+        }}
+      />
+      <Tabs.Screen
+        name="finances/budget"
+        options={{
+          href: null, // Oculta do dock
+        }}
+      />
     </Tabs>
   );
 }

@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Wallet } from 'lucide-react-native';
 
 import {
   useCreateExpense,
@@ -47,6 +49,7 @@ const formatCurrency = (value: string | number) => {
 };
 
 export default function FinancesScreen() {
+  const router = useRouter();
   const houseId = useAuthStore((state) => state.houseId);
   const user = useAuthStore((state) => state.user);
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
@@ -232,10 +235,21 @@ export default function FinancesScreen() {
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
       }
     >
-      <Text style={styles.title}>Finanças da Casa</Text>
-      <Text style={styles.subtitle}>
-        Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
-      </Text>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Finanças da Casa</Text>
+          <Text style={styles.subtitle}>
+            Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.budgetButton}
+          onPress={() => router.push('/(tabs)/finances/budget')}
+        >
+          <Wallet size={20} color="#1d4ed8" />
+          <Text style={styles.budgetButtonText}>Orçamento</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={[styles.summaryCard, cardShadowStyle]}>
         <View style={styles.summaryHeader}>
@@ -327,6 +341,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     textAlign: 'center',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    gap: 12,
+  },
+  headerText: {
+    flex: 1,
+  },
   title: {
     fontSize: 26,
     fontWeight: '700',
@@ -335,6 +359,23 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: '#475569',
+    marginTop: 4,
+  },
+  budgetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#1d4ed8',
+  },
+  budgetButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1d4ed8',
   },
   summaryCard: {
     backgroundColor: '#fff',
