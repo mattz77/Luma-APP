@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
@@ -21,6 +22,7 @@ export default function LumaChatScreen() {
   const houseId = useAuthStore((state) => state.houseId);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const flatListRef = useRef<FlatList>(null);
+  const { top } = useSafeAreaInsets();
 
   const {
     data: conversations,
@@ -74,7 +76,7 @@ export default function LumaChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 16 }]}>
         <Text style={styles.title}>Assistente Luma</Text>
         <Text style={styles.subtitle}>Peça ajuda com despesas, tarefas e automações.</Text>
       </View>

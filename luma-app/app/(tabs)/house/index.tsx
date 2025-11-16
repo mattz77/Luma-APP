@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useCreateHouse,
   useHouseMembers,
@@ -37,6 +37,7 @@ export default function HouseScreen() {
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
   const setHouseId = useAuthStore((state) => state.setHouseId);
+  const { top } = useSafeAreaInsets();
 
   const { data: houses = [], isLoading: housesLoading } = useUserHouses(user?.id);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
@@ -152,7 +153,10 @@ export default function HouseScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
+    >
       <Text style={styles.title}>Casa & Membros</Text>
       <Text style={styles.subtitle}>
         Gerencie convites, papéis, dispositivos e configurações gerais da residência.
@@ -422,7 +426,12 @@ export default function HouseScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,

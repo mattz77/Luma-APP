@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
 import {
@@ -10,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { useUserHouses } from '@/hooks/useHouses';
 import { useCanAccessFinances } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -17,11 +19,36 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
+  const setHouseId = useAuthStore((state) => state.setHouseId);
   const loading = useAuthStore((state) => state.loading);
+  const { data: userHouses = [] } = useUserHouses(user?.id);
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
   const isDark = colorScheme === 'dark';
   const { bottom } = useSafeAreaInsets();
   const tabBarPaddingBottom = Math.max(bottom, 12);
+
+  // Garante que uma casa válida esteja selecionada assim que o usuário entra no app
+  useEffect(() => {
+    if (!user) {
+      setHouseId(null);
+      return;
+    }
+
+    if (!userHouses.length) {
+      setHouseId(null);
+      return;
+    }
+
+    if (!houseId) {
+      setHouseId(userHouses[0].house.id);
+      return;
+    }
+
+    const exists = userHouses.some((item) => item.house.id === houseId);
+    if (!exists) {
+      setHouseId(userHouses[0].house.id);
+    }
+  }, [user, userHouses, houseId, setHouseId]);
 
   if (loading) {
     return (
@@ -104,3 +131,4 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+

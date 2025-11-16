@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useExpenses } from '@/hooks/useExpenses';
 import { useTasks } from '@/hooks/useTasks';
@@ -17,6 +18,7 @@ export default function DashboardScreen() {
   const houseId = useAuthStore((state) => state.houseId);
 
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
+  const { top } = useSafeAreaInsets();
   const { data: expenses } = useExpenses(houseId);
   const { data: tasks } = useTasks(houseId);
 
@@ -25,7 +27,10 @@ export default function DashboardScreen() {
     tasks?.filter((task) => task.status === 'PENDING' || task.status === 'IN_PROGRESS').length ?? 0;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
+    >
       <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
       <Text style={styles.subtitle}>
         {houseId

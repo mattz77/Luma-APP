@@ -1,4 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTasks } from '@/hooks/useTasks';
 import { useAuthStore } from '@/stores/auth.store';
@@ -14,11 +15,15 @@ const STATUS_LABELS: Record<TaskStatus, string> = {
 
 export default function TasksScreen() {
   const houseId = useAuthStore((state) => state.houseId);
+  const { top } = useSafeAreaInsets();
   const { data: tasks, isLoading, isRefetching, refetch } = useTasks(houseId);
 
   if (!houseId) {
     return (
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, styles.centered]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
+      >
         <Text style={styles.emptyTitle}>Selecione uma casa</Text>
         <Text style={styles.emptySubtitle}>
           Associe-se a uma casa para acompanhar o Kanban de tarefas colaborativas.
@@ -46,7 +51,7 @@ export default function TasksScreen() {
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
       }

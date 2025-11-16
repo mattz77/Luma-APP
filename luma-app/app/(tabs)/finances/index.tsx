@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   useCreateExpense,
@@ -49,6 +50,7 @@ export default function FinancesScreen() {
   const houseId = useAuthStore((state) => state.houseId);
   const user = useAuthStore((state) => state.user);
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
+  const { top } = useSafeAreaInsets();
 
   if (!canAccessFinances) {
     return (
@@ -86,7 +88,10 @@ export default function FinancesScreen() {
 
   if (!houseId) {
     return (
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.container, styles.centered]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
+      >
         <Text style={styles.emptyTitle}>Nenhuma casa selecionada</Text>
         <Text style={styles.emptySubtitle}>
           Vincule-se a uma casa ou crie uma nova para começar a registrar despesas.
@@ -220,7 +225,7 @@ export default function FinancesScreen() {
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
       }
