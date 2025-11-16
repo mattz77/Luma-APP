@@ -222,6 +222,16 @@ export default function HouseScreen() {
       {currentHouse ? (
         <>
           <View style={[styles.card, cardShadowStyle]}>
+            <Text style={styles.cardTitle}>Resumo da casa</Text>
+            <Text style={styles.helperText}>
+              Casa atual: <Text style={styles.highlight}>{currentHouse.house.name}</Text>
+            </Text>
+            <Text style={styles.helperText}>
+              Membros: <Text style={styles.highlight}>{members.length}</Text>
+            </Text>
+          </View>
+
+          <View style={[styles.card, cardShadowStyle]}>
             <Text style={styles.cardTitle}>Contexto atual</Text>
             <Text style={styles.helperText}>Usuário autenticado: {user?.email ?? 'não identificado'}</Text>
             <Text style={styles.helperText}>Casa selecionada: {currentHouse.house.name}</Text>
@@ -570,6 +580,10 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 14,
     color: '#475569',
+  },
+  highlight: {
+    fontWeight: '600',
+    color: '#0f172a',
   },
   inviteCode: {
     fontSize: 13,

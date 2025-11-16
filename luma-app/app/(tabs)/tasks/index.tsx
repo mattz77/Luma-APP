@@ -1,5 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
@@ -43,20 +43,24 @@ export default function TasksScreen() {
     );
   }
 
-  const grouped = (tasks ?? []).reduce<Record<TaskStatus, typeof tasks>>(
-    (accumulator, task) => {
-      const list = accumulator[task.status] ?? [];
-      return {
-        ...accumulator,
-        [task.status]: [...list, task],
-      };
-    },
-    {
-      PENDING: [],
-      IN_PROGRESS: [],
-      COMPLETED: [],
-      CANCELLED: [],
-    },
+  const grouped = useMemo(
+    () =>
+      (tasks ?? []).reduce<Record<TaskStatus, typeof tasks>>(
+        (accumulator, task) => {
+          const list = accumulator[task.status] ?? [];
+          return {
+            ...accumulator,
+            [task.status]: [...list, task],
+          };
+        },
+        {
+          PENDING: [],
+          IN_PROGRESS: [],
+          COMPLETED: [],
+          CANCELLED: [],
+        },
+      ),
+    [tasks],
   );
 
   return (
@@ -69,7 +73,7 @@ export default function TasksScreen() {
     >
       <Text style={styles.title}>Tarefas da Casa</Text>
       <Text style={styles.subtitle}>
-        Visualize o quadro Kanban, programe recorrências e estimule a gamificação.
+        Acompanhe o quadro de tarefas da casa por status e mantenha tudo sob controle.
       </Text>
 
       <View style={styles.actionsRow}>
@@ -117,6 +121,9 @@ export default function TasksScreen() {
                           <Text style={styles.taskMetaText}>Sem prazo</Text>
                         )}
                       </View>
+                      {task.status === 'COMPLETED' && task.points > 0 ? (
+                        <Text style={styles.pointsText}>+{task.points} pontos para a casa</Text>
+                      ) : null}
                       <View style={styles.taskActionsRow}>
                         {(task.status === 'PENDING' || task.status === 'IN_PROGRESS') && (
                           <>
@@ -288,6 +295,7 @@ const styles = StyleSheet.create({
   kanbanContainer: {
     flexDirection: 'row',
     gap: 16,
+    paddingBottom: 8,
   },
   column: {
     flex: 1,
@@ -346,6 +354,12 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 14,
     color: '#64748b',
+  },
+  pointsText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#16a34a',
+    fontWeight: '500',
   },
   emptyColumnText: {
     fontSize: 13,

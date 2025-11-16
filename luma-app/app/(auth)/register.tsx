@@ -141,7 +141,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b1220',
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 32,
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#e5e7eb',
+    color: '#0f172a',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
@@ -161,17 +161,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 24,
     fontWeight: '700',
-    color: '#f9fafb',
+    color: '#0f172a',
     textAlign: 'center',
   },
   headerSubtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#020617',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
     gap: 16,
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#f9fafb',
+    color: '#0f172a',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     textAlign: 'center',
   },
   fieldGroup: {
@@ -192,18 +192,18 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#e5e7eb',
+    color: '#0f172a',
     fontWeight: '500',
   },
   input: {
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 16,
-    backgroundColor: '#020617',
+    backgroundColor: '#f9fafb',
     fontSize: 16,
-    color: '#f9fafb',
+    color: '#0f172a',
   },
   primaryButton: {
     height: 52,

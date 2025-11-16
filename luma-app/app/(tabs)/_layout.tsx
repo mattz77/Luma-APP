@@ -10,20 +10,17 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { useUserHouses } from '@/hooks/useHouses';
 import { useCanAccessFinances } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
   const setHouseId = useAuthStore((state) => state.setHouseId);
   const loading = useAuthStore((state) => state.loading);
   const { data: userHouses = [] } = useUserHouses(user?.id);
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
-  const isDark = colorScheme === 'dark';
   const { bottom } = useSafeAreaInsets();
   const tabBarPaddingBottom = Math.max(bottom, 12);
 
@@ -57,10 +54,10 @@ export default function TabLayout() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+          backgroundColor: '#f8fafc',
         }}
       >
-        <ActivityIndicator size="large" color={isDark ? '#93c5fd' : '#1d4ed8'} />
+        <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
   }
@@ -73,10 +70,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: isDark ? '#38bdf8' : '#1d4ed8',
-        tabBarInactiveTintColor: isDark ? '#94a3b8' : '#94a3b8',
+        tabBarActiveTintColor: '#1d4ed8',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
-          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+          backgroundColor: '#ffffff',
           borderTopWidth: 0,
           paddingBottom: tabBarPaddingBottom,
           paddingTop: 6,

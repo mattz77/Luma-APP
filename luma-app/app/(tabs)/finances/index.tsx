@@ -85,6 +85,8 @@ export default function FinancesScreen() {
     () => expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0,
     [expenses],
   );
+  const totalCount = expenses?.length ?? 0;
+  const paidCount = expenses?.filter((expense) => expense.isPaid).length ?? 0;
 
   if (!houseId) {
     return (
@@ -232,7 +234,7 @@ export default function FinancesScreen() {
     >
       <Text style={styles.title}>Finanças da Casa</Text>
       <Text style={styles.subtitle}>
-        Controle despesas, recibos e relatórios da sua residência compartilhada.
+        Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
       </Text>
 
       <View style={[styles.summaryCard, cardShadowStyle]}>
@@ -247,7 +249,9 @@ export default function FinancesScreen() {
         </View>
         <Text style={styles.cardValue}>{formatCurrency(String(total))}</Text>
         <Text style={styles.cardHint}>
-          Valores atualizados automaticamente ao registrar novas despesas.
+          {totalCount > 0
+            ? `Você tem ${totalCount} despesa(s) registrada(s) neste mês; ${paidCount} já marcada(s) como paga(s).`
+            : 'Nenhuma despesa registrada ainda para este mês.'}
         </Text>
       </View>
 
@@ -262,7 +266,7 @@ export default function FinancesScreen() {
         {isLoading || categoriesLoading || membersLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color="#2563eb" />
-            <Text style={styles.helperText}>Carregando dados...</Text>
+            <Text style={styles.helperText}>Carregando despesas da casa...</Text>
           </View>
         ) : expenses && expenses.length > 0 ? (
           expenses.map((expense) => renderExpenseRow(expense))
@@ -270,7 +274,8 @@ export default function FinancesScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Nenhuma despesa registrada</Text>
             <Text style={styles.emptySubtitle}>
-              Utilize o botão “Adicionar despesa” para começar o registro financeiro.
+              Comece registrando contas como aluguel, luz, água ou supermercado usando o botão
+              “Adicionar”.
             </Text>
           </View>
         )}

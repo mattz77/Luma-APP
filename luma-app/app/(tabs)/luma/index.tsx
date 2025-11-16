@@ -11,10 +11,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUserHouses } from '@/hooks/useHouses';
 import { bubbleShadowStyle, cardShadowStyle } from '@/lib/styles';
 
 export default function LumaChatScreen() {
@@ -23,6 +25,8 @@ export default function LumaChatScreen() {
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const flatListRef = useRef<FlatList>(null);
   const { top } = useSafeAreaInsets();
+  const { preset } = useLocalSearchParams<{ preset?: string }>();
+  const { data: userHouses = [] } = useUserHouses(userId ?? undefined);
 
   const {
     data: conversations,
@@ -32,6 +36,22 @@ export default function LumaChatScreen() {
   } = useConversations(houseId);
   const { mutateAsync: sendMessage, isPending } = useLumaChat(houseId, userId);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const currentHouseName =
+    userHouses.find((item) => item.house.id === houseId)?.house.name ?? 'sua casa';
+
+  // Pré-preenche a mensagem com base no preset vindo do dashboard
+  useEffect(() => {
+    if (!preset || message.trim().length > 0) return;
+
+    if (preset === 'financas') {
+      setMessage('Como está a situação financeira este mês?');
+    } else if (preset === 'tarefas') {
+      setMessage('Quais tarefas tenho para esta semana?');
+    } else if (preset === 'despesa') {
+      setMessage('Quero registrar uma nova despesa da casa.');
+    }
+  }, [preset, message]);
 
   // Scroll automático para o final quando novas mensagens chegarem
   useEffect(() => {
@@ -78,7 +98,12 @@ export default function LumaChatScreen() {
     >
       <View style={[styles.header, { paddingTop: top + 16 }]}>
         <Text style={styles.title}>Assistente Luma</Text>
-        <Text style={styles.subtitle}>Peça ajuda com despesas, tarefas e automações.</Text>
+        <Text style={styles.subtitle}>
+          Você está falando sobre: <Text style={styles.houseName}>{currentHouseName}</Text>.
+        </Text>
+        <Text style={styles.subtitleSecondary}>
+          Peça ajuda com despesas, tarefas, organização da rotina ou próximos passos da casa.
+        </Text>
       </View>
 
       {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
@@ -114,6 +139,31 @@ export default function LumaChatScreen() {
       )}
 
       <View style={[styles.inputContainer, cardShadowStyle]}>
+        {conversations && conversations.length === 0 && !message.trim() ? (
+          <View style={styles.quickSuggestions}>
+            <Text style={styles.quickSuggestionsTitle}>Sugestões rápidas</Text>
+            <View style={styles.quickSuggestionsRow}>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Como está a situação financeira este mês?')}
+              >
+                <Text style={styles.quickChipText}>Situação financeira</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Quais tarefas tenho para esta semana?')}
+              >
+                <Text style={styles.quickChipText}>Tarefas da semana</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Quero registrar uma nova despesa da casa.')}
+              >
+                <Text style={styles.quickChipText}>Registrar despesa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
         <TextInput
           value={message}
           onChangeText={setMessage}
@@ -153,6 +203,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
     marginTop: 4,
+  },
+  subtitleSecondary: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  houseName: {
+    fontWeight: '600',
+    color: '#0f172a',
   },
   messagesContainer: {
     flex: 1,
@@ -255,6 +314,32 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#64748b',
+  },
+  quickSuggestions: {
+    flexDirection: 'column',
+    gap: 6,
+    marginRight: 12,
+    flex: 1,
+  },
+  quickSuggestionsTitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  quickSuggestionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickChip: {
+    borderRadius: 999,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  quickChipText: {
+    fontSize: 12,
+    color: '#1f2937',
   },
 });
 
