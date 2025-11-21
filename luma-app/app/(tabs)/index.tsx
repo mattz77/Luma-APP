@@ -435,7 +435,7 @@ export default function Dashboard() {
               horizontal 
               showsHorizontalScrollIndicator={false} 
               contentContainerStyle={styles.cardsScrollContent}
-              snapToInterval={width - 48}
+              snapToInterval={width - 40}
               decelerationRate="fast"
               pagingEnabled
             >
@@ -443,7 +443,7 @@ export default function Dashboard() {
               <GlassCard style={styles.mainCard}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardIconBg}>
-                    <Wallet size={24} color="#C28400" />
+                    <Wallet size={20} color="#C28400" />
                   </View>
                   <Text style={styles.cardTitle}>Finanças</Text>
                   <View style={styles.badge}><Text style={styles.badgeText}>NOV</Text></View>
@@ -460,7 +460,7 @@ export default function Dashboard() {
                   </View>
                   
                   <TouchableOpacity onPress={handleFinancialInsight} style={styles.cardButton}>
-                    <Sparkles size={18} color="#FFF44F" />
+                    <Sparkles size={16} color="#FFF44F" />
                     <Text style={styles.cardButtonText}>Analisar Gastos</Text>
                   </TouchableOpacity>
                 </View>
@@ -470,7 +470,7 @@ export default function Dashboard() {
               <GlassCard style={styles.mainCard}>
                 <View style={styles.cardHeader}>
                   <View style={[styles.cardIconBg, { backgroundColor: 'white' }]}>
-                    <BrainCircuit size={24} color="#C28400" />
+                    <BrainCircuit size={20} color="#C28400" />
                   </View>
                   <Text style={styles.cardTitle}>Luma Insight</Text>
                 </View>
@@ -487,7 +487,7 @@ export default function Dashboard() {
                     style={styles.linkButton}
                   >
                     <Text style={styles.linkText}>Perguntar à Luma</Text>
-                    <ArrowUpRight size={18} color="#FFF44F" />
+                    <ArrowUpRight size={16} color="#FFF44F" />
                   </TouchableOpacity>
                 </View>
               </GlassCard>
@@ -499,14 +499,14 @@ export default function Dashboard() {
             <ActionButton 
               icon={ListTodo} 
               onPress={() => { 
-                router.push('/tasks/index' as any);
+                router.push('/(tabs)/tasks' as any);
               }} 
             />
             
             <TouchableOpacity 
               style={styles.micButtonMain}
               onPress={() => { 
-                router.push('/luma/index' as any);
+                router.push('/(tabs)/luma' as any);
               }}
             >
               <Mic size={32} color="#C28400" />
@@ -515,7 +515,7 @@ export default function Dashboard() {
             <ActionButton 
               icon={Plus} 
               onPress={() => { 
-                router.push('/finances/index' as any);
+                router.push('/(tabs)/finances' as any);
               }} 
             />
           </View>
@@ -553,34 +553,34 @@ const styles = StyleSheet.create({
   notificationDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF4F4F', borderWidth: 1, borderColor: '#C28400' },
   
   cardsSection: { marginBottom: 24 },
-  cardsScrollContent: { paddingHorizontal: 24, gap: 12 },
-  glassCard: { borderRadius: 32, padding: 24, overflow: 'hidden', borderColor: 'rgba(218,165,32,0.3)', borderWidth: 1 },
-  mainCard: { width: width - 48, height: 240, borderRadius: 32, padding: 24, overflow: 'hidden', borderColor: 'rgba(218,165,32,0.3)', borderWidth: 1, backgroundColor: 'rgba(194, 132, 0, 0.15)' },
+  cardsScrollContent: { paddingHorizontal: 20, gap: 12 },
+  glassCard: { borderRadius: 24, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
+  mainCard: { width: width - 40, height: 200, borderRadius: 28, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,244,79,0.15)', borderWidth: 1, backgroundColor: 'rgba(255,244,79,0.08)' },
   
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  cardIconBg: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { color: '#FFFBE6', fontSize: 22, fontWeight: '600', flex: 1 },
-  badge: { backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  badgeText: { color: '#FFF44F', fontWeight: 'bold', fontSize: 12, letterSpacing: 1 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  cardIconBg: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { color: '#FFFBE6', fontSize: 18, fontWeight: '600', flex: 1 },
+  badge: { backgroundColor: 'rgba(255,244,79,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { color: '#FFF44F', fontWeight: '700', fontSize: 10, letterSpacing: 0.5 },
   
   financeContent: { flex: 1, justifyContent: 'space-between' },
-  moneyText: { fontSize: 42, fontWeight: 'bold', color: 'white', letterSpacing: -1 },
-  subText: { color: 'rgba(255,255,255,0.6)', fontSize: 16, marginTop: -4 },
+  moneyText: { fontSize: 32, fontWeight: '700', color: '#FFF', letterSpacing: -0.5 },
+  subText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: -2 },
   
-  progressBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 3, width: '60%', marginTop: 8 },
-  progressBarFill: { height: '100%', backgroundColor: '#FFF44F', borderRadius: 3 },
+  progressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, width: '100%', marginTop: 8, marginBottom: 8 },
+  progressBarFill: { height: '100%', backgroundColor: '#FFF44F', borderRadius: 2 },
   
-  cardButton: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, backgroundColor: 'rgba(255,244,79,0.15)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,244,79,0.3)' },
-  cardButtonText: { color: '#FFF44F', fontWeight: '600', fontSize: 16 },
+  cardButton: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, backgroundColor: 'rgba(255,244,79,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.2)' },
+  cardButtonText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
   
-  insightContent: { flex: 1, justifyContent: 'space-between' },
-  insightText: { color: '#FFFBE6', fontSize: 20, fontStyle: 'italic', lineHeight: 28, fontWeight: '400' },
-  linkButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  linkText: { color: '#FFF44F', fontWeight: '600', fontSize: 16 },
+  insightContent: { flex: 1, justifyContent: 'space-between', paddingBottom: 4 },
+  insightText: { color: '#FFFBE6', fontSize: 16, fontStyle: 'italic', lineHeight: 24, fontWeight: '400', opacity: 0.9 },
+  linkButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 8 },
+  linkText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
 
-  dockContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 32, marginBottom: 32, paddingHorizontal: 24 },
-  dockSideButton: { width: 56, height: 56, borderRadius: 20, backgroundColor: 'rgba(60,40,0,0.4)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,244,79,0.2)' },
-  micButtonMain: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'rgba(255,255,255,0.9)', shadowColor: '#FFF44F', shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  dockContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40, marginBottom: 32, paddingHorizontal: 24 },
+  dockSideButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  micButtonMain: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center', shadowColor: '#FFF44F', shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 10, borderWidth: 4, borderColor: 'rgba(255,255,255,0.1)' },
 
   listSection: { paddingHorizontal: 24 },
   sectionHeader: { color: 'white', fontSize: 20, fontWeight: '600', marginBottom: 16 },
