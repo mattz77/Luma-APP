@@ -20,11 +20,12 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { 
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles, 
-  X, Send, User, ListTodo, BrainCircuit 
+  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle 
 } from 'lucide-react-native';
 import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRouter } from 'expo-router';
+import { SpeedDial } from '../../components/SpeedDial';
 
 const { width } = Dimensions.get('window');
 
@@ -68,11 +69,13 @@ const ListItem = ({ icon: Icon, title, subtitle, amount, delay = 0 }: any) => (
 
 export default function Dashboard() {
   const router = useRouter();
-  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | null>(null);
+  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [taskInput, setTaskInput] = useState("");
   const [chatInput, setChatInput] = useState("");
+  const [magicInput, setMagicInput] = useState("");
+  const [magicPreview, setMagicPreview] = useState<any>(null);
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: "Olá! Sou a Luma. Como posso ajudar na gestão da casa hoje?" }
   ]);
@@ -88,6 +91,63 @@ export default function Dashboard() {
   const nextTask = "Pagar conta de luz";
 
   // --- Handlers ---
+  const handleMagicInput = async () => {
+    if (!magicInput.trim()) return;
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+
+    setLoading(true);
+    setMagicPreview(null);
+
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: magicInput,
+        context: {
+          mode: 'magic_create'
+        }
+      });
+
+      // Mock parsing logic since we don't have the n8n backend responding with 'parsed' field yet in this demo
+      // In production, n8n would return structured data.
+      // We will simulate it based on input for UI demonstration.
+      let parsedData = null;
+      if (magicInput.toLowerCase().includes('comprar') || magicInput.includes('R$')) {
+         parsedData = { type: 'expense', data: { title: magicInput, amount: '0.00', date: 'Hoje' } };
+      } else {
+         parsedData = { type: 'task', data: { title: magicInput, due_date: 'Amanhã' } };
+      }
+      
+      // If n8n actually returned parsed data (in a real scenario):
+      // if (response.metadata?.parsed) parsedData = response.metadata.parsed;
+
+      setMagicPreview(parsedData);
+      setAiResponse(response.response || "Entendido! Confirme os detalhes abaixo.");
+
+    } catch (error) {
+      console.error('Erro ao processar mágico:', error);
+      setAiResponse("Não consegui entender. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmMagic = async () => {
+    // Here we would save to Supabase based on magicPreview
+    // For now, just show success and close
+    setLoading(true);
+    setTimeout(() => {
+        setLoading(false);
+        setModalMode(null);
+        setMagicInput("");
+        setMagicPreview(null);
+        // Trigger success toast/feedback here
+    }, 1000);
+  };
+
   const handleFinancialInsight = async () => {
     if (!houseId || !userId) {
       setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
@@ -224,6 +284,7 @@ export default function Dashboard() {
     const isTask = modalMode === 'task';
     const isBriefing = modalMode === 'briefing';
     const isFinance = modalMode === 'finance';
+    const isMagic = modalMode === 'magic';
     
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -231,18 +292,79 @@ export default function Dashboard() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Sparkles size={20} color="#FFF44F" />
             <Text style={styles.modalTitle}>
-              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : 'Análise Financeira'}
+              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : 'Análise Financeira'}
             </Text>
           </View>
           <TouchableOpacity onPress={() => {
             setModalMode(null);
             setAiResponse('');
+            setMagicPreview(null);
           }}>
             <X size={24} color="rgba(255,255,255,0.5)" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.modalBody}>
+          {/* Magic Input Modal */}
+          {isMagic && (
+            <View style={{ flex: 1, gap: 16 }}>
+              <Text style={styles.taskDescriptionText}>Descreva o que você precisa (tarefa ou despesa) e eu cuido do resto.</Text>
+              
+              <View style={styles.taskInputWrapper}>
+                <TextInput 
+                  style={styles.taskInput} 
+                  placeholder="Ex: Comprar leite R$ 5 amanhã..." 
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={magicInput}
+                  onChangeText={setMagicInput}
+                  onSubmitEditing={handleMagicInput}
+                />
+                <TouchableOpacity 
+                  onPress={handleMagicInput} 
+                  disabled={loading || !magicInput.trim()}
+                  style={[styles.taskSubmitButton, (!magicInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
+                >
+                  {loading ? (
+                    <ActivityIndicator size={20} color="#2C1A00" />
+                  ) : (
+                    <Wand2 size={20} color="#2C1A00" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {magicPreview && (
+                <View style={styles.financeResponseContainer}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        {magicPreview.type === 'expense' ? <Wallet size={20} color="#FFF44F"/> : <CheckCircle size={20} color="#FFF44F"/>}
+                        <Text style={styles.taskResponseLabel}>
+                            {magicPreview.type === 'expense' ? 'Nova Despesa Detectada' : 'Nova Tarefa Detectada'}
+                        </Text>
+                    </View>
+                    <Text style={styles.financeResponseText}>{magicPreview.data.title}</Text>
+                    {magicPreview.type === 'expense' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Valor: {magicPreview.data.amount}</Text>}
+                    {magicPreview.type === 'task' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Data: {magicPreview.data.due_date}</Text>}
+                </View>
+              )}
+
+              {magicPreview && (
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 'auto' }}>
+                    <TouchableOpacity 
+                        onPress={() => setMagicPreview(null)} 
+                        style={[styles.modalSecondaryButton, { flex: 1, borderColor: 'rgba(255,255,255,0.3)' }]}
+                    >
+                        <Text style={[styles.modalSecondaryButtonText, { color: 'white' }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={handleConfirmMagic} 
+                        style={[styles.modalPrimaryButton, { flex: 1 }]}
+                    >
+                        <Text style={styles.modalPrimaryButtonText}>Confirmar</Text>
+                    </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Finance Modal */}
           {isFinance && (
             <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
@@ -497,9 +619,11 @@ export default function Dashboard() {
           {/* Dock Actions - Navegação Principal */}
           <View style={styles.dockContainer}>
             <ActionButton 
-              icon={ListTodo} 
+              icon={Wand2} 
               onPress={() => { 
-                router.push('/(tabs)/tasks' as any);
+                setModalMode('magic');
+                setMagicInput('');
+                setMagicPreview(null);
               }} 
             />
             
@@ -509,14 +633,25 @@ export default function Dashboard() {
                 router.push('/(tabs)/luma' as any);
               }}
             >
-              <Mic size={32} color="#C28400" />
+              <MessageCircle size={32} color="#C28400" />
             </TouchableOpacity>
 
-            <ActionButton 
-              icon={Plus} 
-              onPress={() => { 
-                router.push('/(tabs)/finances' as any);
-              }} 
+            <SpeedDial
+              mainIcon={Plus}
+              actions={[
+                { 
+                  icon: Wallet, 
+                  label: 'Nova Despesa', 
+                  onPress: () => router.push('/(tabs)/finances?action=create' as any),
+                  backgroundColor: 'rgba(60,40,0,0.9)'
+                },
+                { 
+                  icon: CheckCircle, 
+                  label: 'Nova Tarefa', 
+                  onPress: () => router.push('/(tabs)/tasks?action=create' as any),
+                  backgroundColor: 'rgba(60,40,0,0.9)'
+                }
+              ]}
             />
           </View>
 
