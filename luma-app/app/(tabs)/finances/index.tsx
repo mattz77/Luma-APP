@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Wallet, BarChart3, Plus, Settings } from 'lucide-react-native';
+import { Wallet, BarChart3, Plus, Settings, ArrowLeft } from 'lucide-react-native';
 import { GlassCard } from '@/components/shared';
 
 import {
@@ -241,6 +241,7 @@ export default function FinancesScreen() {
       <LinearGradient
         colors={['#C28400', '#8F6100']}
         style={StyleSheet.absoluteFill}
+        pointerEvents="none"
       />
       
       <ScrollView
@@ -251,13 +252,21 @@ export default function FinancesScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <View style={styles.headerIconRow}>
-            <View style={styles.walletIconBg}>
-              <Wallet size={24} color="#C28400" />
-            </View>
-            <View>
-              <Text style={styles.title}>Finanças da Casa</Text>
-              <Text style={styles.subtitle}>NOV</Text>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft size={24} color="#FFF44F" />
+            </TouchableOpacity>
+            <View style={styles.headerIconRow}>
+              <View style={styles.walletIconBg}>
+                <Wallet size={24} color="#C28400" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title}>Finanças da Casa</Text>
+                <Text style={styles.subtitle}>NOV</Text>
+              </View>
             </View>
           </View>
           <Text style={styles.subtitleSecondary}>
@@ -384,11 +393,24 @@ const styles = StyleSheet.create({
   headerRow: {
     marginBottom: 16,
   },
+  headerTopRow: {
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.3)',
+  },
   headerIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
   },
   walletIconBg: {
     width: 48,

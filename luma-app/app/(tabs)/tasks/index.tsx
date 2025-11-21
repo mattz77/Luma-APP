@@ -1,8 +1,9 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useMemo, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle2, PlayCircle, XCircle, GripVertical, Plus, ListTodo } from 'lucide-react-native';
+import { CheckCircle2, PlayCircle, XCircle, GripVertical, Plus, ListTodo, ArrowLeft } from 'lucide-react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,7 +20,6 @@ import { useAuthStore } from '@/stores/auth.store';
 import type { Task, TaskStatus, TaskPriority } from '@/types/models';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TagInput } from '@/components/TagInput';
-import { useRouter } from 'expo-router';
 import { GlassCard } from '@/components/shared';
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -135,6 +135,7 @@ export default function TasksScreen() {
         <LinearGradient
           colors={['#C28400', '#8F6100']}
           style={StyleSheet.absoluteFill}
+          pointerEvents="none"
         />
         
         <ScrollView
@@ -145,11 +146,17 @@ export default function TasksScreen() {
           }
         >
         <View style={styles.headerSection}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color="#FFF44F" />
+          </TouchableOpacity>
           <View style={styles.headerIconRow}>
             <View style={styles.todoIconBg}>
               <ListTodo size={24} color="#C28400" />
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.title}>Tarefas da Casa</Text>
               <Text style={styles.subtitle}>
                 {pendingTasks} pendentes
@@ -794,11 +801,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     marginBottom: 16,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.3)',
+    alignSelf: 'flex-start',
+  },
   headerIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
   },
   todoIconBg: {
     width: 48,

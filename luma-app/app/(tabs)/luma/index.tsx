@@ -11,9 +11,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Send, User as UserIcon } from 'lucide-react-native';
+import { Sparkles, Send, User as UserIcon, ArrowLeft } from 'lucide-react-native';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
@@ -23,6 +23,7 @@ import { useUserHouses } from '@/hooks/useHouses';
 import { GlassCard } from '@/components/shared';
 
 export default function LumaChatScreen() {
+  const router = useRouter();
   const [message, setMessage] = useState('');
   const houseId = useAuthStore((state) => state.houseId);
   const userId = useAuthStore((state) => state.user?.id ?? null);
@@ -109,6 +110,7 @@ export default function LumaChatScreen() {
       <LinearGradient
         colors={['#C28400', '#8F6100']}
         style={StyleSheet.absoluteFill}
+        pointerEvents="none"
       />
       
       <KeyboardAvoidingView
@@ -117,15 +119,23 @@ export default function LumaChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <View style={[styles.header, { paddingTop: top + 16 }]}>
-          <View style={styles.headerIconRow}>
-            <View style={styles.sparkleIconBg}>
-              <Sparkles size={24} color="#C28400" />
-            </View>
-            <View>
-              <Text style={styles.title}>Assistente Luma</Text>
-              <Text style={styles.subtitle}>
-                {currentHouseName}
-              </Text>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft size={24} color="#FFF44F" />
+            </TouchableOpacity>
+            <View style={styles.headerIconRow}>
+              <View style={styles.sparkleIconBg}>
+                <Sparkles size={24} color="#C28400" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title}>Assistente Luma</Text>
+                <Text style={styles.subtitle}>
+                  {currentHouseName}
+                </Text>
+              </View>
             </View>
           </View>
           <Text style={styles.subtitleSecondary}>
@@ -146,10 +156,16 @@ export default function LumaChatScreen() {
         <FlatList
           ref={flatListRef}
           data={conversations ?? []}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.id || `conv-${index}-${item.message?.substring(0, 20)}`}
           refreshing={isRefetching}
           onRefresh={refetch}
           contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={5}
+          updateCellsBatchingPeriod={50}
           renderItem={({ item }) => (
             <View style={styles.messageWrapper}>
               <View style={styles.userBubble}>
@@ -249,11 +265,24 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 16,
   },
+  headerTopRow: {
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.3)',
+  },
   headerIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
   },
   sparkleIconBg: {
     width: 48,
