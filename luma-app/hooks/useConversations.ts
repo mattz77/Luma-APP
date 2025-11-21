@@ -12,6 +12,8 @@ export const useConversations = (houseId: string | null | undefined) => {
       return conversationService.getByHouse(houseId);
     },
     enabled: Boolean(houseId),
+    refetchInterval: false, // Não usar polling automático, apenas quando necessário
+    staleTime: 0, // Sempre considerar os dados como stale para garantir atualização
   });
 };
 

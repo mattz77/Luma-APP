@@ -40,14 +40,16 @@ export default function LoginScreen() {
   }
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setErrorMessage('Informe e-mail e senha.');
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail || !password) {
+      setErrorMessage('Preencha e-mail e senha para entrar.');
       return;
     }
 
     try {
       setErrorMessage(null);
-      await signIn(email.trim().toLowerCase(), password);
+      await signIn(trimmedEmail, password);
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
@@ -60,26 +62,38 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
+      <View style={styles.header}>
+        <Text style={styles.brand}>Luma</Text>
+        <Text style={styles.headerTitle}>Sua casa, finalmente organizada.</Text>
+        <Text style={styles.headerSubtitle}>Entre para acompanhar finanças, tarefas e a rotina da família.</Text>
+      </View>
+
       <View style={[styles.form, cardShadowStyle]}>
-        <Text style={styles.title}>Bem-vindo(a) ao Luma</Text>
+        <Text style={styles.title}>Bem-vindo(a) de volta</Text>
         <Text style={styles.subtitle}>Faça login para continuar</Text>
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="E-mail"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="voce@email.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+          />
+        </View>
 
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Senha"
-          secureTextEntry
-          style={styles.input}
-        />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Senha</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Digite sua senha"
+            secureTextEntry
+            style={styles.input}
+          />
+        </View>
 
         {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
@@ -105,35 +119,69 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+  header: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  brand: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    marginTop: 8,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
   },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     gap: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0f172a',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '500',
   },
   input: {
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 16,
     backgroundColor: '#f9fafb',
     fontSize: 16,
+    color: '#0f172a',
   },
   primaryButton: {
     height: 52,
@@ -151,7 +199,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     color: '#1d4ed8',
-    fontSize: 14,
+    fontSize: 13,
   },
   errorMessage: {
     fontSize: 13,
@@ -159,13 +207,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   footer: {
-    marginTop: 24,
+    marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
   },
   footerText: {
-    color: '#6b7280',
+    color: '#9ca3af',
     fontSize: 14,
   },
   footerLink: {

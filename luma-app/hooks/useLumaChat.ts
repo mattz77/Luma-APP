@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { n8nClient } from '@/lib/n8n';
-import { conversationService } from '@/services/conversation.service';
 
 interface SendMessageVariables {
   message: string;
@@ -27,18 +26,15 @@ export const useLumaChat = (houseId: string | null | undefined, userId: string |
         },
       });
 
-      await conversationService.create({
-        house_id: houseId,
-        user_id: userId,
-        message,
-        response: response.response,
-        metadata: response.metadata ?? null,
-      });
-
+      // Persistência da conversa é feita pelo próprio workflow no n8n.
+      // Aqui apenas disparamos a mensagem e, em seguida, atualizamos o cache.
       return response;
     },
     onSuccess: () => {
+      // Invalida as queries para forçar refetch
       queryClient.invalidateQueries({ queryKey: ['conversations', houseId ?? ''] });
+      // Também força um refetch imediato
+      queryClient.refetchQueries({ queryKey: ['conversations', houseId ?? ''] });
     },
   });
 };

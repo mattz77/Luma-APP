@@ -10,10 +10,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
+import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUserHouses } from '@/hooks/useHouses';
 import { bubbleShadowStyle, cardShadowStyle } from '@/lib/styles';
 
 export default function LumaChatScreen() {
@@ -21,6 +25,9 @@ export default function LumaChatScreen() {
   const houseId = useAuthStore((state) => state.houseId);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const flatListRef = useRef<FlatList>(null);
+  const { top } = useSafeAreaInsets();
+  const { preset } = useLocalSearchParams<{ preset?: string }>();
+  const { data: userHouses = [] } = useUserHouses(userId ?? undefined);
 
   const {
     data: conversations,
@@ -29,7 +36,24 @@ export default function LumaChatScreen() {
     isRefetching,
   } = useConversations(houseId);
   const { mutateAsync: sendMessage, isPending } = useLumaChat(houseId, userId);
+  useRealtimeConversations(houseId); // Atualização em tempo real
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const currentHouseName =
+    userHouses.find((item) => item.house.id === houseId)?.house.name ?? 'sua casa';
+
+  // Pré-preenche a mensagem com base no preset vindo do dashboard
+  useEffect(() => {
+    if (!preset || message.trim().length > 0) return;
+
+    if (preset === 'financas') {
+      setMessage('Como está a situação financeira este mês?');
+    } else if (preset === 'tarefas') {
+      setMessage('Quais tarefas tenho para esta semana?');
+    } else if (preset === 'despesa') {
+      setMessage('Quero registrar uma nova despesa da casa.');
+    }
+  }, [preset, message]);
 
   // Scroll automático para o final quando novas mensagens chegarem
   useEffect(() => {
@@ -46,14 +70,24 @@ export default function LumaChatScreen() {
       return;
     }
 
+    const messageToSend = message.trim();
+    setMessage(''); // Limpa o input imediatamente para melhor UX
+    setErrorMessage(null);
+
     try {
-      await sendMessage(message.trim());
-      setMessage('');
-      setErrorMessage(null);
+      await sendMessage(messageToSend);
+      
+      // Aguarda um pouco para o n8n processar e salvar no banco
+      // O realtime subscription também vai atualizar automaticamente
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      
+      // Força um refetch para garantir que está atualizado
+      // O realtime subscription também vai atualizar, mas este é um fallback
       await refetch();
     } catch (error) {
       console.error(error);
       setErrorMessage((error as Error).message || 'Não foi possível enviar a mensagem.');
+      setMessage(messageToSend); // Restaura a mensagem em caso de erro
     }
   };
 
@@ -74,17 +108,24 @@ export default function LumaChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: top + 16 }]}>
         <Text style={styles.title}>Assistente Luma</Text>
-        <Text style={styles.subtitle}>Peça ajuda com despesas, tarefas e automações.</Text>
+        <Text style={styles.subtitle}>
+          Você está falando sobre: <Text style={styles.houseName}>{currentHouseName}</Text>.
+        </Text>
+        <Text style={styles.subtitleSecondary}>
+          Peça ajuda com despesas, tarefas, organização da rotina ou próximos passos da casa.
+        </Text>
       </View>
 
       {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
-      {isLoadingConversations ? (
+      {isLoadingConversations || isPending ? (
         <View style={[styles.messagesContainer, styles.centered]}>
           <ActivityIndicator size="large" color="#1d4ed8" />
-          <Text style={styles.helperText}>Carregando histórico...</Text>
+          <Text style={styles.helperText}>
+            {isPending ? 'Luma está pensando...' : 'Carregando histórico...'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -97,28 +138,63 @@ export default function LumaChatScreen() {
           renderItem={({ item }) => (
             <View style={styles.messageWrapper}>
               <View style={[styles.bubble, styles.userBubble, bubbleShadowStyle]}>
-                <Text style={styles.bubbleLabel}>Você</Text>
-                <Text style={styles.bubbleText}>{item.message}</Text>
+                <Text style={[styles.bubbleLabel, styles.userLabel]}>Você</Text>
+                <Text style={[styles.bubbleText, styles.userBubbleText]}>{item.message}</Text>
               </View>
               {item.response ? (
                 <View style={[styles.bubble, styles.lumaBubble, bubbleShadowStyle]}>
                   <Text style={[styles.bubbleLabel, styles.lumaLabel]}>Luma</Text>
                   <Text style={styles.bubbleText}>{item.response}</Text>
                 </View>
-              ) : null}
+              ) : (
+                <View style={styles.loadingIndicator}>
+                  <ActivityIndicator size="small" color="#1d4ed8" />
+                  <Text style={styles.loadingText}>Luma está pensando...</Text>
+                </View>
+              )}
             </View>
           )}
         />
       )}
 
       <View style={[styles.inputContainer, cardShadowStyle]}>
+        {conversations && conversations.length === 0 && !message.trim() ? (
+          <View style={styles.quickSuggestions}>
+            <Text style={styles.quickSuggestionsTitle}>Sugestões rápidas</Text>
+            <View style={styles.quickSuggestionsRow}>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Como está a situação financeira este mês?')}
+              >
+                <Text style={styles.quickChipText}>Situação financeira</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Quais tarefas tenho para esta semana?')}
+              >
+                <Text style={styles.quickChipText}>Tarefas da semana</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => setMessage('Quero registrar uma nova despesa da casa.')}
+              >
+                <Text style={styles.quickChipText}>Registrar despesa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
         <TextInput
           value={message}
-          onChangeText={setMessage}
+          onChangeText={(text) => {
+            setMessage(text);
+            setErrorMessage(null);
+          }}
           placeholder="Escreva algo para a Luma..."
           style={styles.input}
           multiline
           numberOfLines={1}
+          editable={!isPending}
+          placeholderTextColor="#94a3b8"
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={isPending}>
           {isPending ? (
@@ -152,14 +228,23 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
   },
+  subtitleSecondary: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  houseName: {
+    fontWeight: '600',
+    color: '#0f172a',
+  },
   messagesContainer: {
     flex: 1,
     paddingHorizontal: 24,
   },
   messagesList: {
     paddingHorizontal: 24,
+    paddingTop: 16,
     paddingBottom: 120,
-    gap: 16,
   },
   errorMessage: {
     marginHorizontal: 24,
@@ -169,26 +254,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   messageWrapper: {
-    gap: 8,
+    gap: 12,
+    marginBottom: 4,
   },
   bubble: {
     borderRadius: 18,
     padding: 14,
-    maxWidth: '90%',
+    maxWidth: '85%',
     gap: 6,
   },
   userBubble: {
     alignSelf: 'flex-end',
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   lumaBubble: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   bubbleLabel: {
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  userLabel: {
+    color: '#1d4ed8',
   },
   lumaLabel: {
     color: '#0284c7',
@@ -196,6 +290,23 @@ const styles = StyleSheet.create({
   bubbleText: {
     fontSize: 15,
     color: '#0f172a',
+    lineHeight: 20,
+  },
+  userBubbleText: {
+    color: '#0f172a',
+  },
+  loadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -210,11 +321,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#cbd5f5',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
+    color: '#0f172a',
     backgroundColor: '#f8fafc',
     maxHeight: 120,
   },
@@ -225,6 +337,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 80,
+    opacity: 1,
   },
   sendButtonText: {
     color: '#fff',
@@ -253,6 +367,32 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#64748b',
+  },
+  quickSuggestions: {
+    flexDirection: 'column',
+    gap: 6,
+    marginRight: 12,
+    flex: 1,
+  },
+  quickSuggestionsTitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  quickSuggestionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickChip: {
+    borderRadius: 999,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  quickChipText: {
+    fontSize: 12,
+    color: '#1f2937',
   },
 });
 

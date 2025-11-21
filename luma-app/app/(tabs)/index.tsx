@@ -1,121 +1,822 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { useExpenses } from '@/hooks/useExpenses';
-import { useTasks } from '@/hooks/useTasks';
-import { useCanAccessFinances } from '@/hooks/useUserRole';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Dimensions, 
+  ScrollView, 
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Modal
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+// MotiView removido temporariamente para compatibilidade web
+// TODO: Reativar moti quando configurado corretamente para React Native Web
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import { 
+  Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles, 
+  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home 
+} from 'lucide-react-native';
+import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
+import { useRouter } from 'expo-router';
+import { SpeedDial } from '../../components/SpeedDial';
 
-const formatCurrency = (value: number) =>
-  value.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
+const { width } = Dimensions.get('window');
 
-export default function DashboardScreen() {
-  const user = useAuthStore((state) => state.user);
-  const houseId = useAuthStore((state) => state.houseId);
+// --- Componentes ---
 
-  const canAccessFinances = useCanAccessFinances(houseId, user?.id);
-  const { data: expenses } = useExpenses(houseId);
-  const { data: tasks } = useTasks(houseId);
+const GlassCard = ({ children, style, delay = 0 }: any) => (
+  <View style={[styles.glassCard, style]}>
+    <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+    <LinearGradient
+      colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+      style={StyleSheet.absoluteFill}
+    />
+    <View style={{ zIndex: 10, flex: 1 }}>{children}</View>
+  </View>
+);
 
-  const totalExpenses = expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0;
-  const pendingTasks =
-    tasks?.filter((task) => task.status === 'PENDING' || task.status === 'IN_PROGRESS').length ?? 0;
+const ActionButton = ({ icon: Icon, onPress }: any) => (
+  <TouchableOpacity 
+    onPress={() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }}
+    style={styles.dockSideButton}
+  >
+    <Icon size={24} color="#FFF44F" strokeWidth={2.5} />
+  </TouchableOpacity>
+);
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.greeting}>Olá, {user?.name ?? 'família'} 👋</Text>
-      <Text style={styles.subtitle}>
-        {houseId
-          ? 'Acompanhe como anda a rotina da casa hoje.'
-          : 'Conecte-se a uma casa para ver seus indicadores.'}
-      </Text>
+const ListItem = ({ icon: Icon, title, subtitle, amount, delay = 0 }: any) => (
+  <View style={styles.listItem}>
+    <View style={styles.listIcon}>
+      <Icon size={20} color="#FFF44F" />
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text style={styles.listTitle}>{title}</Text>
+      <Text style={styles.listSubtitle}>{subtitle}</Text>
+    </View>
+    {amount && <Text style={styles.listAmount}>{amount}</Text>}
+  </View>
+);
 
-      <View style={styles.cardRow}>
-        {canAccessFinances && (
-          <View style={[styles.card, cardShadowStyle]}>
-            <Text style={styles.cardTitle}>Despesas do mês</Text>
-            <Text style={styles.cardValue}>{formatCurrency(totalExpenses)}</Text>
-            <Text style={styles.cardHint}>
-              {houseId
-                ? 'Somatório das despesas registradas este mês.'
-                : 'Selecione uma casa para carregar os dados.'}
+export default function Dashboard() {
+  const router = useRouter();
+  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+  const [taskInput, setTaskInput] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [magicInput, setMagicInput] = useState("");
+  const [magicPreview, setMagicPreview] = useState<any>(null);
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([
+    { role: 'model', text: "Olá! Sou a Luma. Como posso ajudar na gestão da casa hoje?" }
+  ]);
+  const signOut = useAuthStore(state => state.signOut);
+
+  // Auth Store
+  const { user, houseId } = useAuthStore();
+  const userId = user?.id || "";
+  const userName = user?.name || "Usuário";
+
+  // Dados Mockados (temporários até conectar com Supabase)
+  const financialSummary = { spent: "3.450", limit: "4.000", percent: 86 };
+  const pendingTasks = 3;
+  const nextTask = "Pagar conta de luz";
+
+  // --- Handlers ---
+  const handleMagicInput = async () => {
+    if (!magicInput.trim()) return;
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+
+    setLoading(true);
+    setMagicPreview(null);
+
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: magicInput,
+        context: {
+          mode: 'magic_create'
+        }
+      });
+
+      // Mock parsing logic since we don't have the n8n backend responding with 'parsed' field yet in this demo
+      // In production, n8n would return structured data.
+      // We will simulate it based on input for UI demonstration.
+      let parsedData = null;
+      if (magicInput.toLowerCase().includes('comprar') || magicInput.includes('R$')) {
+         parsedData = { type: 'expense', data: { title: magicInput, amount: '0.00', date: 'Hoje' } };
+      } else {
+         parsedData = { type: 'task', data: { title: magicInput, due_date: 'Amanhã' } };
+      }
+      
+      // If n8n actually returned parsed data (in a real scenario):
+      // if (response.metadata?.parsed) parsedData = response.metadata.parsed;
+
+      setMagicPreview(parsedData);
+      setAiResponse(response.response || "Entendido! Confirme os detalhes abaixo.");
+
+    } catch (error) {
+      console.error('Erro ao processar mágico:', error);
+      setAiResponse("Não consegui entender. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmMagic = async () => {
+    // Here we would save to Supabase based on magicPreview
+    // For now, just show success and close
+    setLoading(true);
+    setTimeout(() => {
+        setLoading(false);
+        setModalMode(null);
+        setMagicInput("");
+        setMagicPreview(null);
+        // Trigger success toast/feedback here
+    }, 1000);
+  };
+
+  const handleFinancialInsight = async () => {
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+
+    setModalMode('finance');
+    setLoading(true);
+    setAiResponse("");
+    
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: `Analise a situação financeira deste mês. Gasto: R$${financialSummary.spent}, Limite: R$${financialSummary.limit}. 86% usado. Dê uma dica curta e amigável de como economizar nos últimos dias do mês ou um aviso cauteloso. Use emojis. Máximo 2 frases.`,
+        context: {
+          mode: 'finance_insight',
+          current_month: new Date().toISOString().slice(0, 7),
+          spent: financialSummary.spent,
+          limit: financialSummary.limit,
+          percent: financialSummary.percent
+        }
+      });
+
+      setAiResponse(response.response || "Não consegui processar sua solicitação agora.");
+    } catch (error) {
+      console.error('Erro ao chamar Luma:', error);
+      setAiResponse("A Luma está fora do ar momentaneamente. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSmartTask = async () => {
+    if (!taskInput.trim()) return;
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+
+    setLoading(true);
+    setAiResponse("");
+
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: `Quebre a tarefa "${taskInput}" em 3 a 4 subtarefas acionáveis e curtas para um checklist. Retorne apenas a lista com emojis. Exemplo: - 🛒 Comprar x - 🧹 Limpar y`,
+        context: {
+          mode: 'task_planner',
+          task_description: taskInput
+        }
+      });
+
+      setAiResponse(response.response || "Não consegui criar o plano agora.");
+    } catch (error) {
+      console.error('Erro ao chamar Luma:', error);
+      setAiResponse("A Luma está fora do ar momentaneamente. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDailyBriefing = async () => {
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+
+    setModalMode('briefing');
+    setLoading(true);
+    setAiResponse("");
+
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: `Gere um "Morning Briefing" executivo e motivacional para ${userName}. Finanças: 86% do budget usado (Alerta). Tarefas: ${pendingTasks} pendentes, principal é "${nextTask}". Clima da casa: Ocupado. O tom deve ser calmo, sofisticado e direto (Estilo Steve Jobs/Apple). Máximo 3 frases curtas.`,
+        context: {
+          mode: 'daily_briefing',
+          user_name: userName,
+          pending_tasks: pendingTasks,
+          next_task: nextTask,
+          budget_percent: financialSummary.percent
+        }
+      });
+
+      setAiResponse(response.response || "Não consegui preparar seu briefing agora.");
+    } catch (error) {
+      console.error('Erro ao chamar Luma:', error);
+      setAiResponse("A Luma está fora do ar momentaneamente. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    if (!houseId || !userId) {
+      setAiResponse("Erro: Você precisa estar logado e ter uma casa selecionada.");
+      return;
+    }
+    
+    const userMsg = chatInput;
+    setChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
+    setChatInput("");
+    setLoading(true);
+
+    try {
+      const response = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message: userMsg,
+        context: {
+          mode: 'chat',
+          current_month: new Date().toISOString().slice(0, 7),
+          user_name: userName,
+          recent_history: chatHistory.slice(-5).map(m => `${m.role}: ${m.text}`).join('\n')
+        }
+      });
+
+      setChatHistory(prev => [...prev, { role: 'model', text: response.response || "Desculpe, não consegui processar sua mensagem." }]);
+    } catch (error) {
+      console.error('Erro ao chamar Luma:', error);
+      setChatHistory(prev => [...prev, { role: 'model', text: "A Luma está fora do ar momentaneamente. Tente novamente." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Componente Modal Interno para Reutilização
+  const renderModalContent = () => {
+    const isChat = modalMode === 'chat';
+    const isTask = modalMode === 'task';
+    const isBriefing = modalMode === 'briefing';
+    const isFinance = modalMode === 'finance';
+    const isMagic = modalMode === 'magic';
+    const isUserMenu = modalMode === 'user_menu';
+    
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <View style={styles.modalHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {isUserMenu ? <User size={20} color="#FFF44F" /> : <Sparkles size={20} color="#FFF44F" />}
+            <Text style={styles.modalTitle}>
+              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : isUserMenu ? 'Perfil' : 'Análise Financeira'}
             </Text>
           </View>
-        )}
-        <View style={[styles.card, cardShadowStyle, !canAccessFinances && styles.cardFullWidth]}>
-          <Text style={styles.cardTitle}>Tarefas pendentes</Text>
-          <Text style={styles.cardValue}>{pendingTasks}</Text>
-          <Text style={styles.cardHint}>
-            {houseId
-              ? 'Inclui tarefas pendentes e em andamento.'
-              : 'Crie ou entre em uma casa para visualizar.'}
-          </Text>
+          <TouchableOpacity onPress={() => {
+            setModalMode(null);
+            setAiResponse('');
+            setMagicPreview(null);
+          }}>
+            <X size={24} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={[styles.cardLarge, cardShadowStyle]}>
-        <Text style={styles.cardTitle}>Assistente Luma</Text>
-        <Text style={styles.cardHint}>
-          Faça uma pergunta ou peça ajuda em finanças, tarefas e dispositivos. Vá até a aba Luma para
-          começar uma conversa.
-        </Text>
-      </View>
-    </ScrollView>
+        <View style={styles.modalBody}>
+          {/* User Menu Modal */}
+          {isUserMenu && (
+            <View style={{ gap: 16 }}>
+               <TouchableOpacity style={styles.menuItem} onPress={() => setModalMode(null)}>
+                  <View style={styles.menuIconBg}>
+                    <User size={20} color="#FFF44F" />
+                  </View>
+                  <Text style={styles.menuItemText}>Meu Perfil</Text>
+               </TouchableOpacity>
+               
+               <TouchableOpacity style={styles.menuItem} onPress={() => {
+                   setModalMode(null);
+                   router.push('/(tabs)/house' as any);
+               }}>
+                  <View style={styles.menuIconBg}>
+                    <Home size={20} color="#FFF44F" />
+                  </View>
+                  <Text style={styles.menuItemText}>Minha Casa</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 8 }]} onPress={async () => {
+                   setModalMode(null);
+                   await signOut();
+                   router.replace('/(auth)/login' as any);
+               }}>
+                  <View style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.2)' }]}>
+                    <LogOut size={20} color="#FF4F4F" />
+                  </View>
+                  <Text style={[styles.menuItemText, { color: '#FF4F4F' }]}>Sair da Conta</Text>
+               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Magic Input Modal */}
+          {isMagic && (
+            <View style={{ flex: 1, gap: 16 }}>
+              <Text style={styles.taskDescriptionText}>Descreva o que você precisa (tarefa ou despesa) e eu cuido do resto.</Text>
+              
+              <View style={styles.taskInputWrapper}>
+                <TextInput 
+                  style={styles.taskInput} 
+                  placeholder="Ex: Comprar leite R$ 5 amanhã..." 
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={magicInput}
+                  onChangeText={setMagicInput}
+                  onSubmitEditing={handleMagicInput}
+                />
+                <TouchableOpacity 
+                  onPress={handleMagicInput} 
+                  disabled={loading || !magicInput.trim()}
+                  style={[styles.taskSubmitButton, (!magicInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
+                >
+                  {loading ? (
+                    <ActivityIndicator size={20} color="#2C1A00" />
+                  ) : (
+                    <Wand2 size={20} color="#2C1A00" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {magicPreview && (
+                <View style={styles.financeResponseContainer}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        {magicPreview.type === 'expense' ? <Wallet size={20} color="#FFF44F"/> : <CheckCircle size={20} color="#FFF44F"/>}
+                        <Text style={styles.taskResponseLabel}>
+                            {magicPreview.type === 'expense' ? 'Nova Despesa Detectada' : 'Nova Tarefa Detectada'}
+                        </Text>
+                    </View>
+                    <Text style={styles.financeResponseText}>{magicPreview.data.title}</Text>
+                    {magicPreview.type === 'expense' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Valor: {magicPreview.data.amount}</Text>}
+                    {magicPreview.type === 'task' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Data: {magicPreview.data.due_date}</Text>}
+                </View>
+              )}
+
+              {magicPreview && (
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 'auto' }}>
+                    <TouchableOpacity 
+                        onPress={() => setMagicPreview(null)} 
+                        style={[styles.modalSecondaryButton, { flex: 1, borderColor: 'rgba(255,255,255,0.3)' }]}
+                    >
+                        <Text style={[styles.modalSecondaryButtonText, { color: 'white' }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={handleConfirmMagic} 
+                        style={[styles.modalPrimaryButton, { flex: 1 }]}
+                    >
+                        <Text style={styles.modalPrimaryButtonText}>Confirmar</Text>
+                    </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Finance Modal */}
+          {isFinance && (
+            <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
+              {loading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <ActivityIndicator size="large" color="#FFF44F" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Calculando...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.financeResponseContainer}>
+                    <Text style={styles.financeResponseText}>{aiResponse}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setModalMode(null)} style={styles.modalPrimaryButton}>
+                    <Text style={styles.modalPrimaryButtonText}>Entendido</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Task Planner Modal */}
+          {isTask && (
+            <View style={{ flex: 1, gap: 16 }}>
+              <Text style={styles.taskDescriptionText}>Diga uma meta e eu crio o plano.</Text>
+              
+              <View style={styles.taskInputWrapper}>
+                <TextInput 
+                  style={styles.taskInput} 
+                  placeholder="Ex: Organizar festa surpresa..." 
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={taskInput}
+                  onChangeText={setTaskInput}
+                  onSubmitEditing={handleSmartTask}
+                />
+                <TouchableOpacity 
+                  onPress={handleSmartTask} 
+                  disabled={loading || !taskInput.trim()}
+                  style={[styles.taskSubmitButton, (!taskInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
+                >
+                  {loading ? (
+                    <ActivityIndicator size={20} color="#2C1A00" />
+                  ) : (
+                    <Sparkles size={20} color="#2C1A00" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {aiResponse && (
+                <View style={styles.taskResponseContainer}>
+                  <Text style={styles.taskResponseLabel}>Checklist Sugerido</Text>
+                  <Text style={styles.taskResponseText}>{aiResponse}</Text>
+                </View>
+              )}
+              
+              {aiResponse && (
+                <TouchableOpacity 
+                  onPress={() => setModalMode(null)} 
+                  style={styles.modalSecondaryButton}
+                >
+                  <Text style={styles.modalSecondaryButtonText}>Adicionar Tarefas</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Daily Briefing Modal */}
+          {isBriefing && (
+            <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
+              {loading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                  <ActivityIndicator size="large" color="#FFF44F" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Preparando seu briefing...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.briefingContainer}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.1)', 'transparent']}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Text style={styles.briefingLabel}>EXECUTIVE SUMMARY</Text>
+                    <Text style={styles.briefingText}>"{aiResponse}"</Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => setModalMode(null)} 
+                    style={styles.briefingCloseButton}
+                  >
+                    <Text style={styles.briefingCloseButtonText}>Fechar</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
+          {/* Chat Modal */}
+          {isChat && (
+            <>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
+                {chatHistory.map((msg, idx) => (
+                  <View key={idx} style={[
+                    styles.chatBubbleContainer,
+                    msg.role === 'user' ? { flexDirection: 'row-reverse' } : { flexDirection: 'row' }
+                  ]}>
+                    {msg.role === 'model' && (
+                      <View style={styles.chatAvatar}>
+                        <Sparkles size={16} color="#C28400" />
+                      </View>
+                    )}
+                    <View style={[
+                      styles.chatBubble, 
+                      msg.role === 'user' ? styles.chatUser : styles.chatModel
+                    ]}>
+                      <Text style={msg.role === 'user' ? styles.chatTextUser : styles.chatTextModel}>
+                        {msg.text}
+                      </Text>
+                    </View>
+                    {msg.role === 'user' && (
+                      <View style={[styles.chatAvatar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                        <User size={16} color="white" />
+                      </View>
+                    )}
+                  </View>
+                ))}
+                {loading && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={styles.chatAvatar}>
+                      <ActivityIndicator size={16} color="#C28400" />
+                    </View>
+                    <View style={styles.chatLoadingBubble}>
+                      <View style={{ flexDirection: 'row', gap: 4 }}>
+                        <View style={[styles.chatDot, { animationDelay: '0ms' }]} />
+                        <View style={[styles.chatDot, { animationDelay: '150ms' }]} />
+                        <View style={[styles.chatDot, { animationDelay: '300ms' }]} />
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+
+              <View style={[styles.inputContainer, { marginBottom: 20 }]}>
+                <TextInput 
+                  style={styles.chatInput} 
+                  placeholder="Pergunte algo à Luma..." 
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  onSubmitEditing={handleSendMessage}
+                />
+                <TouchableOpacity 
+                  onPress={handleSendMessage} 
+                  disabled={!chatInput.trim() || loading}
+                  style={[styles.chatSendButton, (!chatInput.trim() || loading) && styles.chatSendButtonDisabled]}
+                >
+                  <Send size={18} color="#2C1A00" />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#C28400', '#8F6100']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greeting}>Bom dia,</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.username}>{userName}</Text>
+                <TouchableOpacity 
+                  onPress={handleDailyBriefing}
+                  style={styles.briefingPill}
+                >
+                  <Sparkles size={12} color="#2C1A00" />
+                  <Text style={styles.briefingPillText}>Resumo do dia</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.userAvatarButton} onPress={() => setModalMode('user_menu')}>
+               <User size={24} color="#FFF44F" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Cards Section - Melhorado para Mobile */}
+          <View style={styles.cardsSection}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              contentContainerStyle={styles.cardsScrollContent}
+              snapToInterval={width - 40}
+              decelerationRate="fast"
+              pagingEnabled
+            >
+              {/* Card 1: Finance */}
+              <GlassCard style={styles.mainCard}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardIconBg}>
+                    <Wallet size={20} color="#C28400" />
+                  </View>
+                  <Text style={styles.cardTitle}>Finanças</Text>
+                  <View style={styles.badge}><Text style={styles.badgeText}>NOV</Text></View>
+                </View>
+                
+                <View style={styles.financeContent}>
+                  <View>
+                    <Text style={styles.moneyText}>R$ {financialSummary.spent}</Text>
+                    <Text style={styles.subText}>gastos</Text>
+                  </View>
+                  
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: `${financialSummary.percent}%` }]} />
+                  </View>
+                  
+                  <TouchableOpacity onPress={handleFinancialInsight} style={styles.cardButton}>
+                    <Sparkles size={16} color="#FFF44F" />
+                    <Text style={styles.cardButtonText}>Analisar Gastos</Text>
+                  </TouchableOpacity>
+                </View>
+              </GlassCard>
+
+              {/* Card 2: Insight */}
+              <GlassCard style={styles.mainCard}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIconBg, { backgroundColor: 'white' }]}>
+                    <BrainCircuit size={20} color="#C28400" />
+                  </View>
+                  <Text style={styles.cardTitle}>Luma Insight</Text>
+                </View>
+                
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightText}>"A conta de luz está 30% acima da média. Quer dicas para economizar?"</Text>
+                  
+                  <TouchableOpacity 
+                    onPress={() => { 
+                      setModalMode('chat'); 
+                      setChatInput(''); 
+                      setChatHistory(prev => [...prev, { role: 'model', text: "Percebi um aumento na conta de luz. Gostaria de dicas para economizar?" }]);
+                    }}
+                    style={styles.linkButton}
+                  >
+                    <Text style={styles.linkText}>Perguntar à Luma</Text>
+                    <ArrowUpRight size={16} color="#FFF44F" />
+                  </TouchableOpacity>
+                </View>
+              </GlassCard>
+            </ScrollView>
+          </View>
+
+          {/* Dock Actions - Navegação Principal */}
+          <View style={styles.dockContainer}>
+            <ActionButton 
+              icon={Wand2} 
+              onPress={() => { 
+                setModalMode('magic');
+                setMagicInput('');
+                setMagicPreview(null);
+              }} 
+            />
+            
+            <TouchableOpacity 
+              style={styles.micButtonMain}
+              onPress={() => { 
+                router.push('/(tabs)/luma' as any);
+              }}
+            >
+              <MessageCircle size={32} color="#C28400" />
+            </TouchableOpacity>
+
+            <SpeedDial
+              mainIcon={Plus}
+              actions={[
+                { 
+                  icon: Wallet, 
+                  label: 'Nova Despesa', 
+                  onPress: () => router.push('/(tabs)/finances?action=create' as any),
+                  backgroundColor: 'rgba(60,40,0,0.9)'
+                },
+                { 
+                  icon: CheckCircle, 
+                  label: 'Nova Tarefa', 
+                  onPress: () => router.push('/(tabs)/tasks?action=create' as any),
+                  backgroundColor: 'rgba(60,40,0,0.9)'
+                }
+              ]}
+            />
+          </View>
+
+          {/* List Section */}
+          <View style={styles.listSection}>
+            <Text style={styles.sectionHeader}>Resumo do Dia</Text>
+            <ListItem icon={Wallet} title="Internet" subtitle="Agendado hoje" amount="-R$ 120" delay={0.7} />
+            <ListItem icon={CheckCircle} title="Limpar Sala" subtitle="Maria • Pendente" delay={0.8} />
+          </View>
+
+        </ScrollView>
+      </SafeAreaView>
+
+      {/* Full Screen Modal */}
+      <Modal visible={!!modalMode} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+          <View style={styles.modalContainer}>
+            <LinearGradient colors={['#2C1A00', '#1a1000']} style={StyleSheet.absoluteFill} />
+            {renderModalContent()}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
-    gap: 20,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#475569',
-  },
-  cardRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 12,
-  },
-  cardFullWidth: {
-    flex: 1,
-  },
-  cardLarge: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  cardValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  cardHint: {
-    fontSize: 14,
-    color: '#64748b',
-  },
+  container: { flex: 1, backgroundColor: '#1a1a1a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginTop: 20, marginBottom: 20 },
+  greeting: { color: '#FFFBE6', opacity: 0.8, fontSize: 18 },
+  username: { color: '#FFF44F', fontSize: 32, fontWeight: 'bold' },
+  userAvatarButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,244,79,0.3)' },
+  briefingPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF44F', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 12 },
+  briefingPillText: { color: '#2C1A00', fontSize: 12, fontWeight: 'bold' },
+  
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
+  menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center' },
+  menuItemText: { color: '#FFFBE6', fontSize: 18, fontWeight: '500' },
+
+  cardsSection: { marginBottom: 24 },
+  cardsScrollContent: { paddingHorizontal: 20, gap: 12 },
+  glassCard: { borderRadius: 24, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
+  mainCard: { width: width - 40, height: 200, borderRadius: 28, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,244,79,0.15)', borderWidth: 1, backgroundColor: 'rgba(255,244,79,0.08)' },
+  
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  cardIconBg: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { color: '#FFFBE6', fontSize: 18, fontWeight: '600', flex: 1 },
+  badge: { backgroundColor: 'rgba(255,244,79,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { color: '#FFF44F', fontWeight: '700', fontSize: 10, letterSpacing: 0.5 },
+  
+  financeContent: { flex: 1, justifyContent: 'space-between' },
+  moneyText: { fontSize: 32, fontWeight: '700', color: '#FFF', letterSpacing: -0.5 },
+  subText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: -2 },
+  
+  progressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, width: '100%', marginTop: 8, marginBottom: 8 },
+  progressBarFill: { height: '100%', backgroundColor: '#FFF44F', borderRadius: 2 },
+  
+  cardButton: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, backgroundColor: 'rgba(255,244,79,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.2)' },
+  cardButtonText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
+  
+  insightContent: { flex: 1, justifyContent: 'space-between', paddingBottom: 4 },
+  insightText: { color: '#FFFBE6', fontSize: 16, fontStyle: 'italic', lineHeight: 24, fontWeight: '400', opacity: 0.9 },
+  linkButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 8 },
+  linkText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
+
+  dockContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40, marginBottom: 32, paddingHorizontal: 24 },
+  dockSideButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  micButtonMain: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center', shadowColor: '#FFF44F', shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 10, borderWidth: 4, borderColor: 'rgba(255,255,255,0.1)' },
+
+  listSection: { paddingHorizontal: 24 },
+  sectionHeader: { color: 'white', fontSize: 20, fontWeight: '600', marginBottom: 16 },
+  listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 24, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.1)' },
+  listIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+  listTitle: { color: '#FFFBE6', fontSize: 16, fontWeight: '600' },
+  listSubtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
+  listAmount: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContainer: { height: '85%', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', padding: 24, borderWidth: 1, borderColor: '#DAA520' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { color: '#FFF44F', fontSize: 20, fontWeight: 'bold' },
+  modalBody: { flex: 1 },
+  
+  // Finance Modal
+  financeResponseContainer: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  financeResponseText: { color: '#FFFBE6', fontSize: 18, lineHeight: 28 },
+  modalPrimaryButton: { width: '100%', paddingVertical: 12, backgroundColor: '#FFF44F', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  modalPrimaryButtonText: { color: '#2C1A00', fontWeight: 'bold', fontSize: 16 },
+  
+  // Task Planner Modal
+  taskDescriptionText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
+  taskInputWrapper: { position: 'relative' },
+  taskInput: { width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16, paddingRight: 60, color: 'white', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', fontSize: 16 },
+  taskSubmitButton: { position: 'absolute', right: 8, top: 8, width: 40, height: 40, borderRadius: 8, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
+  taskSubmitButtonDisabled: { opacity: 0.5 },
+  taskResponseContainer: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', flex: 1 },
+  taskResponseLabel: { color: '#FFF44F', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  taskResponseText: { color: '#FFFBE6', fontSize: 16, lineHeight: 28 },
+  modalSecondaryButton: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.5)', alignItems: 'center', justifyContent: 'center' },
+  modalSecondaryButtonText: { color: '#FFF44F', fontWeight: 'bold', fontSize: 14 },
+  
+  // Daily Briefing Modal
+  briefingContainer: { padding: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' },
+  briefingLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
+  briefingText: { color: '#FFFBE6', fontSize: 20, fontStyle: 'italic', lineHeight: 28, fontWeight: '300' },
+  briefingCloseButton: { width: '100%', paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  briefingCloseButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  
+  // Chat Modal
+  inputContainer: { flexDirection: 'row', gap: 12, marginTop: 'auto' },
+  chatInput: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, color: 'white', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', fontSize: 16 },
+  chatSendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
+  chatSendButtonDisabled: { opacity: 0.5, backgroundColor: 'rgba(128,128,128,0.5)' },
+  chatBubbleContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  chatAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  chatBubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
+  chatUser: { backgroundColor: '#FFF44F', borderTopRightRadius: 4 },
+  chatModel: { backgroundColor: 'rgba(255,255,255,0.1)', borderTopLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  chatTextUser: { color: '#2C1A00', fontSize: 14, lineHeight: 20 },
+  chatTextModel: { color: '#FFFBE6', fontSize: 14, lineHeight: 20 },
+  chatLoadingBubble: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, borderTopLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  chatDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' }
 });

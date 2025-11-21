@@ -53,6 +53,27 @@ const mapTask = (task: TaskRowWithRelations): Task => ({
 export type { TaskInsert, TaskUpdate };
 
 export const taskService = {
+  async getById(id: string): Promise<Task | null> {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*, assignee:users!tasks_assigned_to_id_fkey(*), creator:users!tasks_created_by_id_fkey(*)')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return mapTask(data as TaskRowWithRelations);
+  },
+
   async getAll(houseId: string): Promise<Task[]> {
     const { data, error } = await supabase
       .from('tasks')
