@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -26,8 +26,91 @@ import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRouter } from 'expo-router';
 import { SpeedDial } from '../../components/SpeedDial';
+import { taskService, type TaskInsert } from '@/services/task.service';
+import { expenseService, type SaveExpenseInput } from '@/services/expense.service';
+import { useTasks } from '@/hooks/useTasks';
+import type { TaskPriority } from '@/types/models';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
+import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
+import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useQueryClient } from '@tanstack/react-query';
+import { useHouseMembers } from '@/hooks/useHouses';
+import type { HouseMemberWithUser } from '@/types/models';
 
 const { width } = Dimensions.get('window');
+
+// --- Helper Functions ---
+
+// Formata data para exibição legível
+const formatTaskDate = (dateValue: string | null): string => {
+  if (!dateValue) return 'Sem data definida';
+  
+  // Se já for um texto simples (Hoje, Amanhã)
+  if (dateValue === 'Hoje' || dateValue === 'Amanhã') {
+    return dateValue;
+  }
+  
+  // Se for formato ISO (2025-11-22T15:00:00 ou 2025-11-22T15:00:00Z)
+  try {
+    // Extrai informações diretamente da string para evitar conversões de timezone
+    const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (!isoMatch) {
+      return dateValue; // Não é formato ISO válido
+    }
+    
+    const [, year, month, day, hour, minute] = isoMatch;
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10) - 1; // Month is 0-indexed
+    const dayNum = parseInt(day, 10);
+    const hourNum = parseInt(hour, 10);
+    const minuteNum = parseInt(minute, 10);
+    
+    // Se tem "Z" no final, a data está em UTC e precisa ser convertida para local
+    // Mas como já normalizamos removendo o Z antes, isso não deveria acontecer
+    // Por segurança, se ainda tiver Z, convertemos para local
+    let displayHour = hourNum;
+    if (dateValue.endsWith('Z')) {
+      // Está em UTC, converte para local
+      const utcDate = new Date(dateValue); // Cria data interpretando como UTC
+      displayHour = utcDate.getHours(); // getHours() já retorna no timezone local
+    }
+    // Se não tem Z, usa a hora diretamente da string (assumindo que já está em formato local)
+    
+    // Cria data local para comparação de dias (sem conversão de timezone)
+    const taskDate = new Date(yearNum, monthNum, dayNum);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.round((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Usa a hora extraída diretamente (ou convertida se era UTC)
+    const hours = displayHour.toString().padStart(2, '0');
+    const minutes = minuteNum.toString().padStart(2, '0');
+    const timeStr = minutes !== '00' ? `${hours}:${minutes}` : `${hours}h`;
+    
+    // Formata a data baseado na diferença de dias
+    if (diffDays === 0) {
+      return `Hoje às ${timeStr}`;
+    } else if (diffDays === 1) {
+      return `Amanhã às ${timeStr}`;
+    } else if (diffDays === -1) {
+      return `Ontem às ${timeStr}`;
+    } else if (diffDays > 0 && diffDays <= 7) {
+      // Dias da semana em português
+      const weekDays = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+      const dayName = weekDays[taskDate.getDay()];
+      return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} às ${timeStr}`;
+    } else {
+      // Data formatada: DD/MM/YYYY às HHh
+      const day = dayNum.toString().padStart(2, '0');
+      const month = (monthNum + 1).toString().padStart(2, '0');
+      return `${day}/${month}/${yearNum} às ${timeStr}`;
+    }
+  } catch (error) {
+    // Em caso de erro, tenta retornar formatado se possível
+    return dateValue;
+  }
+};
 
 // --- Componentes ---
 
@@ -75,7 +158,9 @@ export default function Dashboard() {
   const [taskInput, setTaskInput] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [magicInput, setMagicInput] = useState("");
-  const [magicPreview, setMagicPreview] = useState<any>(null);
+  const [magicPreview, setMagicPreview] = useState<any | any[]>(null);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(null); // Para seleção de responsável na criação mágica
+  const [showAssigneeSelector, setShowAssigneeSelector] = useState(false); // Para mostrar seletor de responsável
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: "Olá! Sou a Luma. Como posso ajudar na gestão da casa hoje?" }
   ]);
@@ -86,10 +171,159 @@ export default function Dashboard() {
   const userId = user?.id || "";
   const userName = user?.name || "Usuário";
 
-  // Dados Mockados (temporários até conectar com Supabase)
-  const financialSummary = { spent: "3.450", limit: "4.000", percent: 86 };
-  const pendingTasks = 3;
-  const nextTask = "Pagar conta de luz";
+  // Query Client para invalidar queries após criar itens
+  const queryClient = useQueryClient();
+
+  // Buscar dados reais do Supabase
+  const { data: tasks = [], isLoading: tasksLoading } = useTasks(houseId);
+  const { data: expenses = [], isLoading: expensesLoading } = useExpenses(houseId);
+  const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
+  
+  // Atualização em tempo real
+  useRealtimeTasks(houseId);
+  useRealtimeExpenses(houseId);
+
+  // Calcular mês atual para orçamento
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  // Buscar orçamento mensal
+  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+
+  // Calcular resumo financeiro a partir dos dados reais
+  const financialSummary = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Filtrar despesas do mês atual
+    const monthlyExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.expenseDate);
+      return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
+    });
+
+    // Calcular total gasto
+    const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    
+    // Buscar limite do orçamento mensal
+    const limit = monthlyBudget ? Number(monthlyBudget.amount) : 0;
+    
+    // Calcular percentual usado
+    const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+
+    return {
+      spent: spent.toFixed(2).replace('.', ','),
+      limit: limit.toFixed(2).replace('.', ','),
+      percent: Math.min(percent, 100) // Limitar a 100%
+    };
+  }, [expenses, monthlyBudget, currentMonth]);
+
+  // Calcular tarefas pendentes e próxima tarefa
+  const pendingTasks = useMemo(() => {
+    return tasks.filter(task => task.status === 'PENDING').length;
+  }, [tasks]);
+
+  const nextTask = useMemo(() => {
+    const pending = tasks.filter(task => task.status === 'PENDING');
+    if (pending.length === 0) return null;
+    
+    // Ordenar por prioridade e data de vencimento
+    const sorted = pending.sort((a, b) => {
+      // Primeiro por prioridade (URGENT > HIGH > MEDIUM > LOW)
+      const priorityOrder: Record<TaskPriority, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      
+      // Depois por data de vencimento (mais próxima primeiro)
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return 0;
+    });
+    
+    return sorted[0]?.title || null;
+  }, [tasks]);
+
+  // Tarefas e despesas do dia para "Resumo do Dia"
+  // Mostra tarefas de hoje e amanhã (próximas 48h)
+  const todayTasks = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2); // Próximos 2 dias (hoje + amanhã)
+
+    const filtered = tasks.filter(task => {
+      // Exclui tarefas completadas
+      if (task.status === 'COMPLETED') return false;
+      
+      // Se não tem data de vencimento, verifica se foi criada hoje (tarefas pendentes recentes)
+      if (!task.dueDate) {
+        try {
+          const createdAt = new Date(task.createdAt);
+          const createdAtOnly = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate(), 0, 0, 0, 0);
+          // Inclui tarefas sem data criadas hoje
+          return createdAtOnly.getTime() === today.getTime();
+        } catch {
+          return false;
+        }
+      }
+      
+      // Parse da data de vencimento - pode ser ISO string ou outro formato
+      let dueDate: Date;
+      try {
+        dueDate = new Date(task.dueDate);
+        // Se a data é inválida, não inclui
+        if (isNaN(dueDate.getTime())) return false;
+      } catch {
+        return false;
+      }
+      
+      // Normaliza para comparar apenas a data (sem hora)
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), 0, 0, 0, 0);
+      
+      // Inclui tarefas de hoje e amanhã (próximos 2 dias)
+      const isInRange = dueDateOnly >= today && dueDateOnly < dayAfterTomorrow;
+      
+      return isInRange;
+    });
+    
+    // Ordena por data: hoje primeiro, depois amanhã, depois por hora
+    const sorted = filtered.sort((a, b) => {
+      if (!a.dueDate || !b.dueDate) return 0;
+      
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      
+      // Primeiro compara por dia (hoje vs amanhã)
+      const dayA = new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
+      const dayB = new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
+      const dayDiff = dayA.getTime() - dayB.getTime();
+      
+      if (dayDiff !== 0) return dayDiff;
+      
+      // Se for o mesmo dia, ordena por hora
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    return sorted.slice(0, 5); // Máximo 5 tarefas
+  }, [tasks]);
+
+  const todayExpenses = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return expenses.filter(expense => {
+      const expenseDate = new Date(expense.expenseDate);
+      expenseDate.setHours(0, 0, 0, 0);
+      return expenseDate >= today && expenseDate < tomorrow;
+    }).slice(0, 5); // Máximo 5 despesas
+  }, [expenses]);
 
   // --- Handlers ---
   const handleMagicInput = async () => {
@@ -102,6 +336,374 @@ export default function Dashboard() {
     setLoading(true);
     setMagicPreview(null);
 
+    // Função helper para extrair valores de diferentes formatos de moeda
+    const extractAmount = (text: string): { value: string | null; currency: string | null; index: number | null } => {
+      // Padrões aceitos:
+      // R$ 100, R$100, 100 R$, 100R$
+      // USD 100, $100, 100 USD, 100$
+      // EUR 100, €100, 100 EUR, 100€
+      // 100 reais, 100 dólares, etc
+      
+      // Padrão 1: Moeda antes do número (R$ 100, R$100, USD 100, $100, €100)
+      let match = text.match(/(R\$|USD|EUR|US\$|€|\$)\s*([0-9]+(?:[.,][0-9]+)?)/i);
+      if (match && match[2]) {
+        const currency = match[1];
+        const numValue = parseFloat(match[2].replace(',', '.'));
+        if (!isNaN(numValue)) {
+          return {
+            value: numValue.toFixed(2),
+            currency: /R\$|reais?/i.test(currency) ? 'R$' : currency.toUpperCase(),
+            index: match.index || null
+          };
+        }
+      }
+      
+      // Padrão 2: Número antes da moeda (100 R$, 100R$, 100 reais, 100 USD, 100$)
+      match = text.match(/([0-9]+(?:[.,][0-9]+)?)\s*(R\$|USD|EUR|reais?|dólares?|euros?|\$)/i);
+      if (match && match[1]) {
+        const currency = match[2] || '';
+        const numValue = parseFloat(match[1].replace(',', '.'));
+        if (!isNaN(numValue)) {
+          return {
+            value: numValue.toFixed(2),
+            currency: /R\$|reais?/i.test(currency) ? 'R$' : currency.toUpperCase(),
+            index: match.index || null
+          };
+        }
+      }
+      
+      return { value: null, currency: null, index: null };
+    };
+
+    // Função helper para calcular fallback local (sempre disponível)
+    const calculateFallback = (): any | any[] => {
+      const lowerInput = magicInput.toLowerCase();
+      
+      // Detecta despesa por: palavras-chave OU presença de valores monetários
+      const amountInfo = extractAmount(magicInput);
+      const hasExpense = lowerInput.includes('comprar') || 
+                        lowerInput.includes('pagar') || 
+                        lowerInput.includes('gast') ||
+                        lowerInput.includes('despesa') ||
+                        amountInfo.value !== null;
+      
+      const hasTask = lowerInput.includes('fazer') || 
+                     lowerInput.includes('limpar') || 
+                     lowerInput.includes('tarefa') || 
+                     lowerInput.includes('preciso') ||
+                     lowerInput.includes('lembrar') ||
+                     lowerInput.includes('lembre');
+      
+      const results: any[] = [];
+      
+      // Se tiver despesa e tarefa, cria ambos
+      if (hasExpense) {
+        // Extrai valor monetário
+        const amount = amountInfo.value || '0.00';
+        
+        // Extrai descrição da despesa (removendo parte da tarefa e valores monetários)
+        // Se a tarefa vem ANTES da despesa, pega apenas a parte da despesa (depois do conector)
+        // Se a despesa vem ANTES da tarefa, pega apenas a parte da despesa (antes do conector)
+        
+        let description = magicInput;
+        
+        // Detecta se tarefa vem antes ou depois da despesa
+        const taskKeywords = ['limpar', 'fazer', 'tarefa', 'lembrar', 'lembre'];
+        const expenseKeywords = ['pagar', 'comprar', 'gastar'];
+        
+        let taskKeywordIndex = -1;
+        let expenseKeywordIndex = -1;
+        
+        for (const keyword of taskKeywords) {
+          const idx = lowerInput.indexOf(keyword);
+          if (idx > -1) {
+            taskKeywordIndex = idx;
+            break;
+          }
+        }
+        
+        for (const keyword of expenseKeywords) {
+          const idx = lowerInput.indexOf(keyword);
+          if (idx > -1) {
+            expenseKeywordIndex = idx;
+            break;
+          }
+        }
+        
+        // Se encontrou valor monetário, usa ele como referência
+        const valueIndex = amountInfo.index !== null ? amountInfo.index : -1;
+        
+          // Se tarefa vem ANTES da despesa, extrai apenas a parte da despesa (depois do conector "e pagar")
+          if (taskKeywordIndex > -1 && expenseKeywordIndex > -1 && taskKeywordIndex < expenseKeywordIndex) {
+            // Tarefa vem primeiro - pega apenas a parte da despesa (depois de "e pagar"/"e comprar")
+            const expenseMatch = magicInput.match(/\s+e\s+(pagar|comprar|gastar)\s+(.+?)(?:\s+R\$|\s+\d+\s*(?:R\$|reais)|$)/i);
+            if (expenseMatch && expenseMatch[2]) {
+              description = expenseMatch[2].trim();
+              // Remove valor monetário se sobrou
+              description = description.replace(/\s*(R\$|USD|EUR)\s*[0-9]+/gi, '').trim();
+            } else {
+              // Fallback: pega texto depois de "e pagar"/"e comprar" até o valor
+              const afterExpenseKeyword = magicInput.substring(expenseKeywordIndex);
+              const match = afterExpenseKeyword.match(/(pagar|comprar|gastar)\s+([^\s]+(?:\s+[^\s]+)?)/i);
+              if (match && match[2]) {
+                description = match[2].trim();
+              } else {
+                description = 'Despesa';
+              }
+            }
+          } else if (valueIndex > -1) {
+            // Despesa vem antes ou não há tarefa clara
+            // Pega tudo antes do valor monetário como descrição da despesa
+            description = magicInput.substring(0, valueIndex).trim();
+            
+            // Remove conectores que separam despesa de tarefa
+            description = description.replace(/\s+e\s+(limpar|fazer|tarefa)/i, '').trim();
+            
+            // Remove palavras de tarefa no início se existirem
+            description = description.replace(/^(limpar|fazer|tarefa)\s+/i, '').trim();
+          }
+        
+        // Remove valores monetários da descrição
+        description = description.replace(/(R\$|USD|EUR|US\$|€|\$)\s*[0-9]+(?:[.,][0-9]+)?/gi, '').trim();
+        description = description.replace(/[0-9]+(?:[.,][0-9]+)?\s*(R\$|USD|EUR|reais?|dólares?|euros?|\$)/gi, '').trim();
+        
+        // Limpa espaços extras e conectores no final
+        description = description.replace(/\s+e\s*$/i, '').trim();
+        
+        // Remove palavras temporais da descrição da despesa
+        description = description.replace(/\b(amanhã|hoje|às|as)\s*\d*[hH]?/gi, '').trim();
+        
+        // Se a descrição ficou vazia ou muito curta, usa uma descrição padrão
+        if (!description || description.length < 3) {
+          // Tenta pegar palavra-chave de despesa
+          if (expenseKeywordIndex > -1) {
+            const afterExpense = magicInput.substring(expenseKeywordIndex);
+            const match = afterExpense.match(/(pagar|comprar|gastar)\s+([^\s]+(?:\s+[^\s]+){0,2})/i);
+            if (match && match[2]) {
+              description = match[2].replace(/\s*(R\$|USD|EUR)\s*[0-9]+/gi, '').trim();
+            }
+          }
+          if (!description || description.length < 3) {
+            description = 'Despesa';
+          }
+        }
+        
+        results.push({
+          type: 'expense' as const,
+          data: {
+            title: description,
+            amount: amount,
+            date: lowerInput.includes('amanhã') || lowerInput.includes('amanha') ? 'Amanhã' : 'Hoje',
+            description: description
+          }
+        });
+      }
+      
+      if (hasTask) {
+        // Extrai descrição da tarefa
+        // Se tarefa vem ANTES da despesa, pega tudo antes do conector "e pagar"/"e comprar"
+        // Se tarefa vem DEPOIS da despesa, pega tudo depois do valor monetário
+        let taskDescription = magicInput;
+        
+        if (hasExpense) {
+          // Detecta ordem: tarefa antes ou depois da despesa
+          const taskKeywords = ['limpar', 'fazer', 'tarefa', 'lembrar', 'lembre'];
+          const expenseKeywords = ['pagar', 'comprar', 'gastar'];
+          
+          let taskKeywordIndex = -1;
+          let expenseKeywordIndex = -1;
+          
+          for (const keyword of taskKeywords) {
+            const idx = lowerInput.indexOf(keyword);
+            if (idx > -1 && (taskKeywordIndex === -1 || idx < taskKeywordIndex)) {
+              taskKeywordIndex = idx;
+            }
+          }
+          
+          for (const keyword of expenseKeywords) {
+            const idx = lowerInput.indexOf(keyword);
+            if (idx > -1 && (expenseKeywordIndex === -1 || idx < expenseKeywordIndex)) {
+              expenseKeywordIndex = idx;
+            }
+          }
+          
+          const valueIndex = amountInfo.index !== null ? amountInfo.index : expenseKeywordIndex;
+          
+          // Se tarefa vem ANTES da despesa, pega tudo ANTES do conector "e pagar"/"e comprar"
+          if (taskKeywordIndex > -1 && expenseKeywordIndex > -1 && taskKeywordIndex < expenseKeywordIndex) {
+            // Tarefa vem primeiro - pega tudo antes de "e pagar", "e comprar", etc
+            const separatorPattern = /\s+e\s+(pagar|comprar|gastar)/i;
+            const separatorMatch = magicInput.match(separatorPattern);
+            if (separatorMatch && separatorMatch.index !== undefined) {
+              taskDescription = magicInput.substring(0, separatorMatch.index).trim();
+            } else if (valueIndex > -1 && taskKeywordIndex < valueIndex) {
+              // Se não encontrou conector explícito, pega tudo antes do valor
+              taskDescription = magicInput.substring(0, valueIndex).trim();
+              // Remove conectores no final
+              taskDescription = taskDescription.replace(/\s+e\s*$/i, '').trim();
+            }
+          } else if (valueIndex > -1) {
+            // Despesa vem antes - pega tudo DEPOIS do valor monetário
+            const afterValue = magicInput.substring(valueIndex);
+            const valueEndMatch = afterValue.match(/[0-9]+(?:[.,][0-9]+)?\s*(R\$|USD|EUR|reais?|dólares?|euros?|\$)?/i);
+            if (valueEndMatch) {
+              const valueEnd = valueIndex + valueEndMatch.index! + valueEndMatch[0].length;
+              taskDescription = magicInput.substring(valueEnd).trim();
+              
+              // Remove conectores no início
+              taskDescription = taskDescription.replace(/^\s*[,e]\s*/i, '').trim();
+              
+              // Remove palavras de despesa se sobraram
+              taskDescription = taskDescription.replace(/^(pagar|comprar|gastar)\s+/i, '').trim();
+            }
+          }
+          
+          // Se ainda não encontrou, procura pela primeira palavra de tarefa
+          if (!taskDescription || taskDescription.length < 3) {
+            for (const keyword of taskKeywords) {
+              const idx = lowerInput.indexOf(keyword);
+              if (idx > -1) {
+                // Pega tudo a partir da palavra de tarefa até o conector ou valor
+                const fromTask = magicInput.substring(idx);
+                const endMatch = fromTask.match(/\s+e\s+(pagar|comprar|gastar)/i);
+                if (endMatch && endMatch.index !== undefined) {
+                  taskDescription = fromTask.substring(0, endMatch.index).trim();
+                } else {
+                  taskDescription = fromTask.split(/\s+e\s+(pagar|comprar|gastar)/i)[0].trim();
+                }
+                break;
+              }
+            }
+          }
+        }
+        
+        // Extrai título (remove palavras temporais, horas e datas)
+        // Primeiro, tenta pegar tudo ANTES do primeiro termo temporal/horário
+        const temporalPattern = /\b(amanhã|hoje|depois|antes|às|as)\s*\d*(?::\d{2})?[hH]?|\b\d{1,2}(?::\d{2})?[hH]\b/i;
+        const temporalMatch = taskDescription.match(temporalPattern);
+        
+        let title: string;
+        if (temporalMatch && temporalMatch.index !== undefined && temporalMatch.index > 0) {
+          // Pega tudo antes do termo temporal
+          title = taskDescription.substring(0, temporalMatch.index).trim();
+        } else {
+          // Se não encontrou padrão temporal, faz limpeza completa
+          title = taskDescription;
+          
+          // Remove padrões completos: "amanhã às 15h", "hoje às 14:30", "amanhã as 15h"
+          title = title.replace(/\b(amanhã|hoje|depois|antes)\s+(às|as)\s*\d{1,2}(?::\d{2})?[hH]?/gi, ' ');
+          // Remove padrões de hora com preposição: "às 15h", "as 15h", "às 15:00"
+          title = title.replace(/\b(às|as)\s*\d{1,2}(?::\d{2})?[hH]?/gi, ' ');
+          // Remove horas isoladas: "15h", "15:00"
+          title = title.replace(/\b\d{1,2}(?::\d{2})?[hH]?\b/g, ' ');
+          
+          // Remove palavras temporais sozinhas: "amanhã", "hoje", "depois", "antes", etc.
+          title = title.replace(/\b(amanhã|hoje|depois|antes|agora|mais tarde|mais cedo|à tarde|à noite|de manhã|de tarde|de noite|em seguida)\b/gi, ' ');
+          
+          // Remove preposições temporais isoladas: "às", "as", "para", "em", "no", "na"
+          title = title.replace(/\b(às|as|para|em|no|na|pelo|pela|do|da|dos|das|e)\b/gi, ' ');
+        }
+        
+        // Remove datas no formato: "22/11", "22-11", "22 de novembro"
+        title = title.replace(/\b\d{1,2}[/-]\d{1,2}\b/g, ' ');
+        title = title.replace(/\b\d{1,2}\s+de\s+(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/gi, ' ');
+        
+        // Limpa espaços múltiplos e espaços nas extremidades
+        title = title.replace(/\s+/g, ' ').trim();
+        
+        // Se título está vazio ou muito curto, usa a descrição original
+        if (!title || title.length < 3) {
+          title = taskDescription;
+        }
+        
+        // Extrai data/hora
+        let dueDate: string | null = null;
+        if (lowerInput.includes('amanhã') || lowerInput.includes('amanha')) {
+          const hourMatch = magicInput.match(/(\d{1,2})[hH]/);
+          if (hourMatch) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const hour = parseInt(hourMatch[1], 10);
+            // Cria data no timezone local (não UTC)
+            tomorrow.setHours(hour, 0, 0, 0);
+            // Converte para ISO mantendo o timezone local (sem Z)
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            const hours = String(tomorrow.getHours()).padStart(2, '0');
+            dueDate = `${year}-${month}-${day}T${hours}:00:00`;
+          } else {
+            dueDate = 'Amanhã';
+          }
+        } else if (lowerInput.includes('hoje')) {
+          const hourMatch = magicInput.match(/(\d{1,2})[hH]/);
+          if (hourMatch) {
+            const today = new Date();
+            const hour = parseInt(hourMatch[1], 10);
+            today.setHours(hour, 0, 0, 0);
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const hours = String(today.getHours()).padStart(2, '0');
+            dueDate = `${year}-${month}-${day}T${hours}:00:00`;
+          } else {
+            dueDate = 'Hoje';
+          }
+        }
+        
+        results.push({
+          type: 'task' as const,
+          data: {
+            title: title || 'Nova tarefa',
+            due_date: dueDate
+          }
+        });
+      }
+      
+      // Se não encontrou nenhum, tenta inferir como única entidade
+      if (results.length === 0) {
+        if (hasExpense) {
+          // Usa a função extractAmount para detectar valores
+          const amountInfo = extractAmount(magicInput);
+          const amount = amountInfo.value || '0.00';
+          
+          // Remove valores monetários da descrição
+          let description = magicInput
+            .replace(/(R\$|USD|EUR|US\$|€|\$)\s*[0-9]+(?:[.,][0-9]+)?/gi, '')
+            .replace(/[0-9]+(?:[.,][0-9]+)?\s*(R\$|USD|EUR|reais?|dólares?|euros?|\$)/gi, '')
+            .trim();
+          
+          if (!description || description.length < 3) {
+            description = magicInput;
+          }
+          
+          return {
+            type: 'expense' as const,
+            data: {
+              title: description,
+              amount: amount,
+              date: lowerInput.includes('amanhã') || lowerInput.includes('amanha') ? 'Amanhã' : 'Hoje',
+              description: description
+            }
+          };
+        } else {
+          return {
+            type: 'task' as const,
+            data: {
+              title: magicInput,
+              due_date: lowerInput.includes('amanhã') || lowerInput.includes('amanha') ? 'Amanhã' : (lowerInput.includes('hoje') ? 'Hoje' : null)
+            }
+          };
+        }
+      } else {
+        // Retorna array se encontrou múltiplas entidades
+        return results.length > 1 ? results : results[0];
+      }
+    };
+
+    // Calcula fallback local primeiro (sempre funciona)
+    let parsedData: any | any[] = calculateFallback();
+    
     try {
       const response = await n8nClient.sendMessage({
         house_id: houseId,
@@ -112,41 +714,181 @@ export default function Dashboard() {
         }
       });
 
-      // Mock parsing logic since we don't have the n8n backend responding with 'parsed' field yet in this demo
-      // In production, n8n would return structured data.
-      // We will simulate it based on input for UI demonstration.
-      let parsedData = null;
-      if (magicInput.toLowerCase().includes('comprar') || magicInput.includes('R$')) {
-         parsedData = { type: 'expense', data: { title: magicInput, amount: '0.00', date: 'Hoje' } };
+      // Se response foi bem-sucedida E tem parsed data, usa do n8n
+      if (response.success && response.metadata?.parsed) {
+        const n8nParsed = Array.isArray(response.metadata.parsed) 
+          ? response.metadata.parsed 
+          : [response.metadata.parsed];
+        
+        // Normaliza datas do n8n: remove "Z" (UTC) e trata como horário local
+        parsedData = n8nParsed.map((item: any) => {
+          if (item?.data?.due_date && typeof item.data.due_date === 'string' && item.data.due_date.endsWith('Z')) {
+            // Se a data vem com Z (UTC), remove o Z e trata como local
+            // O horário na string já é o horário que o usuário digitou, então apenas removemos o Z
+            item.data.due_date = item.data.due_date.replace(/Z$/, '');
+          }
+          return item;
+        });
+        
+        // Se não era array original, retorna primeiro item
+        if (!Array.isArray(response.metadata.parsed)) {
+          parsedData = parsedData[0];
+        }
+        
+        setAiResponse(response.response || "Entendido! Confirme os detalhes abaixo.");
       } else {
-         parsedData = { type: 'task', data: { title: magicInput, due_date: 'Amanhã' } };
+        // Se não tem parsed data do n8n, usa fallback local (já calculado)
+        setAiResponse("Entendido! Confirme os detalhes abaixo.");
       }
-      
-      // If n8n actually returned parsed data (in a real scenario):
-      // if (response.metadata?.parsed) parsedData = response.metadata.parsed;
-
-      setMagicPreview(parsedData);
-      setAiResponse(response.response || "Entendido! Confirme os detalhes abaixo.");
-
     } catch (error) {
       console.error('Erro ao processar mágico:', error);
-      setAiResponse("Não consegui entender. Tente novamente.");
-    } finally {
-      setLoading(false);
+      // Em caso de erro, usa fallback local (já calculado)
+      setAiResponse("Entendido! Confirme os detalhes abaixo.");
     }
+    
+    setMagicPreview(parsedData);
+    
+    // Verifica se há tarefas sem responsável especificado
+    const items = Array.isArray(parsedData) ? parsedData : [parsedData];
+    const hasTasksWithoutAssignee = items.some((item: any) => item.type === 'task' && !item.data?.assigned_to_id);
+    
+    // Se há tarefas sem responsável, mostra seletor de membros
+    if (hasTasksWithoutAssignee && members.length > 0) {
+      setShowAssigneeSelector(true);
+    } else {
+      setShowAssigneeSelector(false);
+    }
+    
+    setLoading(false);
   };
 
   const handleConfirmMagic = async () => {
-    // Here we would save to Supabase based on magicPreview
-    // For now, just show success and close
+    if (!magicPreview || !houseId || !userId) {
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-        setLoading(false);
-        setModalMode(null);
-        setMagicInput("");
-        setMagicPreview(null);
-        // Trigger success toast/feedback here
-    }, 1000);
+    
+    try {
+      const items = Array.isArray(magicPreview) ? magicPreview : [magicPreview];
+      const createdItems: string[] = [];
+      
+      // Processa cada item do preview (tarefa ou despesa)
+      for (const item of items) {
+        if (item.type === 'task') {
+          // Converte due_date para formato ISO se necessário
+          let dueDate: string | null = null;
+          if (item.data.due_date) {
+            if (item.data.due_date === 'Hoje' || item.data.due_date === 'Amanhã') {
+              // Para "Hoje" ou "Amanhã", cria data apropriada
+              const targetDate = new Date();
+              if (item.data.due_date === 'Amanhã') {
+                targetDate.setDate(targetDate.getDate() + 1);
+              }
+              // Se tiver hora, extrai e aplica
+              const hourMatch = magicInput.match(/(\d{1,2})[hH]/);
+              if (hourMatch) {
+                targetDate.setHours(parseInt(hourMatch[1], 10), 0, 0, 0);
+              } else {
+                // Se não tem hora, define para meio-dia para evitar problemas de timezone
+                targetDate.setHours(12, 0, 0, 0);
+              }
+              // Usa toISOString() para garantir formato correto para o Supabase
+              dueDate = targetDate.toISOString();
+            } else if (!item.data.due_date.endsWith('Z') && item.data.due_date.includes('T')) {
+              // Já está no formato ISO sem Z (local) - adiciona 'Z' para UTC
+              // ou melhor, converte para ISO completo
+              const dateObj = new Date(item.data.due_date);
+              if (!isNaN(dateObj.getTime())) {
+                dueDate = dateObj.toISOString();
+              } else {
+                dueDate = item.data.due_date;
+              }
+            } else if (item.data.due_date.endsWith('Z')) {
+              // Já está em formato ISO com Z (UTC)
+              dueDate = item.data.due_date;
+            } else {
+              // Tenta parsear e converter para ISO
+              const dateObj = new Date(item.data.due_date);
+              if (!isNaN(dateObj.getTime())) {
+                dueDate = dateObj.toISOString();
+              } else {
+                dueDate = item.data.due_date;
+              }
+            }
+          }
+          
+          // Usa o responsável selecionado, ou o criador como fallback
+          const assignedToId = selectedAssigneeId || item.data?.assigned_to_id || userId;
+          
+          const taskData: TaskInsert = {
+            house_id: houseId,
+            created_by_id: userId,
+            assigned_to_id: assignedToId,
+            title: item.data.title || 'Nova tarefa',
+            description: item.data.description || null,
+            due_date: dueDate,
+            status: 'PENDING',
+            priority: 'MEDIUM',
+            points: 10
+          };
+          
+          await taskService.create(taskData);
+          createdItems.push(`Tarefa "${item.data.title || 'Nova tarefa'}"`);
+          // Invalidar queries para atualizar dados em tempo real
+          queryClient.invalidateQueries({ queryKey: ['tasks', houseId] });
+        } else if (item.type === 'expense') {
+          // Converte expense_date para formato ISO
+          let expenseDate: string;
+          if (item.data.date === 'Hoje' || item.data.date === 'Amanhã') {
+            const today = new Date();
+            if (item.data.date === 'Amanhã') {
+              today.setDate(today.getDate() + 1);
+            }
+            expenseDate = today.toISOString();
+          } else if (item.data.date) {
+            expenseDate = new Date(item.data.date).toISOString();
+          } else {
+            expenseDate = new Date().toISOString();
+          }
+          
+          const expenseData: SaveExpenseInput = {
+            houseId: houseId,
+            createdById: userId,
+            categoryId: null, // Pode ser melhorado para detectar categoria automaticamente
+            amount: parseFloat(item.data.amount || '0'),
+            description: item.data.title || item.data.description || 'Despesa',
+            expenseDate: expenseDate,
+            isRecurring: false,
+            isPaid: false,
+            splits: []
+          };
+          
+          await expenseService.create(expenseData);
+          createdItems.push(`Despesa "${item.data.title || 'Despesa'}" - R$ ${item.data.amount || '0.00'}`);
+          // Invalidar queries para atualizar dados em tempo real
+          queryClient.invalidateQueries({ queryKey: ['expenses', houseId] });
+          queryClient.invalidateQueries({ queryKey: ['monthlyBudget', houseId, currentMonth] });
+        }
+      }
+      
+      // Fecha modal e limpa estado
+            setModalMode(null);
+            setMagicInput("");
+            setMagicPreview(null);
+            setAiResponse("");
+            setSelectedAssigneeId(null);
+            setShowAssigneeSelector(false);
+      
+      // Aqui você pode adicionar um toast de sucesso
+      console.log(`Criado(s) com sucesso: ${createdItems.join(', ')}`);
+      
+    } catch (error) {
+      console.error('Erro ao criar itens:', error);
+      setAiResponse("Erro ao criar. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFinancialInsight = async () => {
@@ -301,6 +1043,8 @@ export default function Dashboard() {
             setModalMode(null);
             setAiResponse('');
             setMagicPreview(null);
+            setSelectedAssigneeId(null);
+            setShowAssigneeSelector(false);
           }}>
             <X size={24} color="rgba(255,255,255,0.5)" />
           </TouchableOpacity>
@@ -368,30 +1112,88 @@ export default function Dashboard() {
               </View>
 
               {magicPreview && (
-                <View style={styles.financeResponseContainer}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                        {magicPreview.type === 'expense' ? <Wallet size={20} color="#FFF44F"/> : <CheckCircle size={20} color="#FFF44F"/>}
+                <View style={{ gap: 12 }}>
+                  {(Array.isArray(magicPreview) ? magicPreview : [magicPreview]).map((preview: any, index: number) => (
+                    <View key={index} style={styles.financeResponseContainer}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        {preview.type === 'expense' ? <Wallet size={20} color="#FFF44F"/> : <CheckCircle size={20} color="#FFF44F"/>}
                         <Text style={styles.taskResponseLabel}>
-                            {magicPreview.type === 'expense' ? 'Nova Despesa Detectada' : 'Nova Tarefa Detectada'}
+                          {preview.type === 'expense' ? 'Nova Despesa Detectada' : 'Nova Tarefa Detectada'}
                         </Text>
+                      </View>
+                      <Text style={styles.financeResponseText}>{preview.data.title || preview.data.description}</Text>
+                      {preview.type === 'expense' && preview.data.amount && (
+                        <Text style={[styles.subText, { color: '#FFF44F' }]}>Valor: R$ {preview.data.amount}</Text>
+                      )}
+                      {preview.type === 'task' && preview.data.due_date && (
+                        <Text style={[styles.subText, { color: '#FFF44F' }]}>
+                          Data: {formatTaskDate(preview.data.due_date)}
+                        </Text>
+                      )}
                     </View>
-                    <Text style={styles.financeResponseText}>{magicPreview.data.title}</Text>
-                    {magicPreview.type === 'expense' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Valor: {magicPreview.data.amount}</Text>}
-                    {magicPreview.type === 'task' && <Text style={[styles.subText, { color: '#FFF44F' }]}>Data: {magicPreview.data.due_date}</Text>}
+                  ))}
+                </View>
+              )}
+
+              {/* Seletor de Responsável para Tarefas */}
+              {showAssigneeSelector && magicPreview && members.length > 0 && (
+                <View style={{ gap: 12, marginTop: 16 }}>
+                  <Text style={[styles.subText, { fontSize: 14, marginBottom: 8 }]}>
+                    A quem você quer atribuir esta tarefa?
+                  </Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={{ maxHeight: 120 }}
+                    contentContainerStyle={{ gap: 8 }}
+                  >
+                    {members.map((member) => (
+                      <TouchableOpacity
+                        key={member.userId}
+                        onPress={() => {
+                          setSelectedAssigneeId(member.userId);
+                          setShowAssigneeSelector(false);
+                        }}
+                        style={[
+                          {
+                            paddingHorizontal: 16,
+                            paddingVertical: 10,
+                            borderRadius: 20,
+                            borderWidth: 2,
+                            borderColor: selectedAssigneeId === member.userId ? '#FFF44F' : 'rgba(255,255,255,0.2)',
+                            backgroundColor: selectedAssigneeId === member.userId ? 'rgba(255,244,79,0.2)' : 'rgba(255,255,255,0.1)',
+                          }
+                        ]}
+                      >
+                        <Text style={[styles.subText, { color: selectedAssigneeId === member.userId ? '#FFF44F' : 'white', fontSize: 13 }]}>
+                          {member.user.name || member.user.email}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
 
               {magicPreview && (
                 <View style={{ flexDirection: 'row', gap: 12, marginTop: 'auto' }}>
                     <TouchableOpacity 
-                        onPress={() => setMagicPreview(null)} 
+                        onPress={() => {
+                          setMagicPreview(null);
+                          setSelectedAssigneeId(null);
+                          setShowAssigneeSelector(false);
+                        }} 
                         style={[styles.modalSecondaryButton, { flex: 1, borderColor: 'rgba(255,255,255,0.3)' }]}
                     >
                         <Text style={[styles.modalSecondaryButtonText, { color: 'white' }]}>Cancelar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                         onPress={handleConfirmMagic} 
-                        style={[styles.modalPrimaryButton, { flex: 1 }]}
+                        disabled={showAssigneeSelector && !selectedAssigneeId}
+                        style={[
+                          styles.modalPrimaryButton, 
+                          { flex: 1 },
+                          showAssigneeSelector && !selectedAssigneeId && { opacity: 0.5 }
+                        ]}
                     >
                         <Text style={styles.modalPrimaryButtonText}>Confirmar</Text>
                     </TouchableOpacity>
@@ -702,8 +1504,70 @@ export default function Dashboard() {
           {/* List Section */}
           <View style={styles.listSection}>
             <Text style={styles.sectionHeader}>Resumo do Dia</Text>
-            <ListItem icon={Wallet} title="Internet" subtitle="Agendado hoje" amount="-R$ 120" delay={0.7} />
-            <ListItem icon={CheckCircle} title="Limpar Sala" subtitle="Maria • Pendente" delay={0.8} />
+            {expensesLoading || tasksLoading ? (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <ActivityIndicator color="#FFF44F" />
+                <Text style={{ color: '#FFFBE6', opacity: 0.6, marginTop: 12 }}>Carregando...</Text>
+              </View>
+            ) : (
+              <>
+                {/* Despesas de hoje */}
+                {todayExpenses.map((expense, index) => {
+                  const expenseDate = new Date(expense.expenseDate);
+                  const isToday = expenseDate.toDateString() === new Date().toDateString();
+                  return (
+                    <ListItem
+                      key={`expense-${expense.id}`}
+                      icon={Wallet}
+                      title={expense.description}
+                      subtitle={isToday ? 'Hoje' : expenseDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
+                      amount={`-R$ ${Number(expense.amount).toFixed(2).replace('.', ',')}`}
+                      delay={0.7 + index * 0.1}
+                    />
+                  );
+                })}
+                {/* Tarefas de hoje e amanhã */}
+                {todayTasks.map((task, index) => {
+                  let dateLabel = '';
+                  if (task.dueDate) {
+                    const taskDate = new Date(task.dueDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const taskDateOnly = new Date(taskDate);
+                    taskDateOnly.setHours(0, 0, 0, 0);
+                    
+                    if (taskDateOnly.getTime() === today.getTime()) {
+                      dateLabel = 'Hoje';
+                    } else if (taskDateOnly.getTime() === tomorrow.getTime()) {
+                      dateLabel = 'Amanhã';
+                    } else {
+                      dateLabel = formatTaskDate(task.dueDate);
+                    }
+                  }
+                  
+                  const statusLabel = task.status === 'PENDING' ? 'Pendente' : task.status === 'IN_PROGRESS' ? 'Em progresso' : task.status;
+                  const assigneeLabel = task.assignee?.name || 'Sem responsável';
+                  
+                  return (
+                    <ListItem
+                      key={`task-${task.id}`}
+                      icon={CheckCircle}
+                      title={task.title}
+                      subtitle={dateLabel ? `${dateLabel} • ${assigneeLabel} • ${statusLabel}` : `${assigneeLabel} • ${statusLabel}`}
+                      delay={0.7 + (todayExpenses.length + index) * 0.1}
+                    />
+                  );
+                })}
+                {/* Mensagem se não houver itens */}
+                {todayExpenses.length === 0 && todayTasks.length === 0 && (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFFBE6', opacity: 0.6 }}>Nenhum item para hoje</Text>
+                  </View>
+                )}
+              </>
+            )}
           </View>
 
         </ScrollView>
