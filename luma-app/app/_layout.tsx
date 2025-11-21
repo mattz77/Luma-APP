@@ -60,7 +60,11 @@ function RootLayoutNav() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider value={DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
+          <Stack 
+            screenOptions={{ 
+              headerShown: false,
+            }}
+          >
             <Stack.Screen name="landing" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />

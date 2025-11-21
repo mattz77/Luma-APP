@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home as HomeIcon, Users, Plus, LogIn, Copy, Settings, UserPlus, UserMinus, Shield, LogOut } from 'lucide-react-native';
+import { Home as HomeIcon, Users, Plus, LogIn, Copy, Settings, UserPlus, UserMinus, Shield, LogOut, ArrowLeft } from 'lucide-react-native';
 import { GlassCard } from '@/components/shared';
 import {
   useCreateHouse,
@@ -163,6 +163,7 @@ export default function HouseScreen() {
       <LinearGradient
         colors={['#C28400', '#8F6100']}
         style={StyleSheet.absoluteFill}
+        pointerEvents="none"
       />
       
       <ScrollView
@@ -170,11 +171,17 @@ export default function HouseScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
       >
         <View style={styles.headerRow}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color="#FFF44F" />
+          </TouchableOpacity>
           <View style={styles.headerIconRow}>
             <View style={styles.homeIconBg}>
               <HomeIcon size={24} color="#C28400" />
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.title}>Casa & Membros</Text>
               <Text style={styles.subtitle}>{houses.length} casa(s)</Text>
             </View>
@@ -520,11 +527,22 @@ const styles = StyleSheet.create({
   headerRow: {
     marginBottom: 16,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.3)',
+    alignSelf: 'flex-start',
+  },
   headerIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 8,
   },
   homeIconBg: {
     width: 48,
