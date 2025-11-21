@@ -1,0 +1,131 @@
+---
+alwaysApply: true
+---
+
+# Regras para Desenvolvimento Luma (Expo + Supabase + n8n)
+
+Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado no ecossistema Luma. Seu objetivo é desenvolver um aplicativo doméstico resiliente, seguro e focado em IA.
+
+## Stack Tecnológico (Referência Estrita)
+
+- **Frontend Mobile**: Expo SDK 54, Expo Router v6, React Native 0.81, TypeScript, Reanimated v4
+- **Backend/DB**: Supabase (Auth, Postgres + PostGIS, Storage, Realtime), Edge Functions
+- **ORM/Data**: Prisma ORM (Schema Reference)
+- **AI & Orquestração**: n8n (Webhooks, AI Agents), OpenAI/Anthropic via n8n
+- **Arquitetura**: Mobile-First, Multi-tenant (Isolamento por house_id)
+
+## Princípios Fundamentais
+
+### 1. Isolamento Multi-Tenant (Regra de Ouro)
+
+⚠️ **CRÍTICO**: Toda operação de banco de dados, lógica de negócio ou consulta de IA DEVE ser escopada pelo `house_id`.
+
+- Nunca consulte dados do usuário sem filtrar pela casa ativa
+- **RLS (Row Level Security)**: Sempre assuma que o RLS está ativo no Supabase. Suas queries devem respeitar as políticas de `auth.uid()` e associação em `house_members`
+
+### 2. Performance Mobile-First
+
+- Use **Reanimated v4** para todas as interações gestuais e animações. Evite Animated API do React Native legado
+- Use **FlashList** (Shopify) ao invés de FlatList para listas longas (Despesas, Tarefas)
+- Priorize componentes nativos via Expo SDK
+
+### 3. Tipagem Estrita (TypeScript)
+
+- Não use `any`
+- Utilize os tipos gerados pelo Prisma (`User`, `House`, `Expense`, etc.) para interfaces de frontend
+- Defina interfaces explícitas para payloads de Webhook (App ↔ n8n)
+
+## Diretrizes de Desenvolvimento por Camada
+
+### A. Frontend (Expo & React Native)
+
+- **Roteamento**: Use Expo Router v6 (baseado em arquivos). Estruture pastas como `app/(tabs)/finance/index.tsx`
+- **Estilização**: Use uma abordagem consistente (NativeWind ou StyleSheet otimizado). Mantenha o Design System (fontes Inter, Phosphor Icons)
+- **Gerenciamento de Estado**: Prefira estados locais simples ou Stores leves (Zustand/Jotai) para dados globais (Sessão do Usuário, Casa Atual)
+- **Feedback**: Sempre implemente loading states e optimistic updates para ações como "Concluir Tarefa" ou "Adicionar Despesa"
+
+### B. Backend & Dados (Supabase & Prisma)
+
+- **Schema Awareness**: Consulte sempre o arquivo `luma_prisma_schema.txt` antes de gerar queries
+- **Edge Functions**: Use Edge Functions apenas para lógicas que não podem ser resolvidas via SQL ou n8n (ex: manipulação complexa de imagens)
+- **Realtime**: Implemente `supabase.channel` para atualizações instantâneas no Chat da Luma e Status de Tarefas
+
+### C. Integração de IA (n8n)
+
+**Protocolo de Comunicação:**
+
+- O App **nunca** fala diretamente com a LLM
+- O App envia POST para Webhook do n8n
+
+**Payload Padrão:**
+
+```json
+{
+  "user_id": "uuid",
+  "house_id": "uuid",
+  "message": "string",
+  "context": {
+    "current_route": "finance",
+    "role": "admin"
+  }
+}
+```
+
+**UX de Chat**: O frontend deve tratar a resposta do n8n como streaming ou resposta única, exibindo metadados (ex: "Processando gastos...") se fornecidos.
+
+## Regras de Validação de Código
+
+Antes de finalizar qualquer código, verifique:
+
+1. **house_id**: A query SQL ou chamada de API inclui o filtro da casa?
+2. **Tratamento de Erro**: O código lida com falha de rede ou timeout do n8n?
+3. **Tipos**: As props dos componentes batem com o Schema do Prisma?
+4. **Dependências**: Estou usando uma lib compatível com Expo SDK 54? (Evite libs que exigem eject)
+
+## Comandos Específicos para o Cursor
+
+- **"Criar uma nova feature"**: Analise o PRD, verifique quais tabelas do Prisma são afetadas, defina a rota no Expo Router e, se necessário, o payload do webhook para o n8n
+- **"Ajustar o Chat Luma"**: Foque na interface de chat (UI) e na estrutura do JSON enviado para o n8n. Não tente recriar a lógica da LLM no frontend
+- **"Otimizar"**: Procure por re-renders desnecessários e sugira `useMemo`/`useCallback` ou conversão para FlashList
+
+## Formato de Resposta Esperado
+
+Ao gerar código, use a seguinte estrutura:
+
+1. **Análise Rápida**: "Baseado no schema HouseMember e requisitos de Finance..."
+2. **Plano de Alteração**: Arquivos a serem tocados
+3. **Código**: Blocos de código TypeScript completos e tipados
+4. **Check de Segurança**: "Nota: Esta query garante isolamento via house_id."
+
+## Roadmap Awareness
+
+Esteja ciente que estamos na **Fase 1 (MVP)**.
+
+- **Foque em**: CRUD Finanças, Tarefas, Chat Básico
+- **Deixe preparado (stubs)**: IoT Devices, Automações complexas
+
+## Exemplo de Implementação Segura (Pattern)
+
+### ❌ RUIM (Inseguro/Lento):
+
+```typescript
+// Fetching all expenses locally and filtering
+const { data } = await supabase.from('expenses').select('*');
+const myExpenses = data.filter(e => e.house_id === currentHouse.id);
+```
+
+### ✅ BOM (Seguro/Performático):
+
+```typescript
+// Filtering at DB level with strict typing
+const { data: expenses, error } = await supabase
+  .from('expenses')
+  .select(`
+    *,
+    category:expense_categories(name, icon, color),
+    created_by:users(name, avatar_url)
+  `)
+  .eq('house_id', houseId) // CRÍTICO
+  .order('expense_date', { ascending: false })
+  .limit(20);
+```

@@ -213,6 +213,12 @@ export interface Database {
             referencedRelation: 'expenses';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'expense_splits_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
         ];
       };
       expenses: {

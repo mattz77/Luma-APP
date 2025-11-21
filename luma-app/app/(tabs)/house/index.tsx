@@ -11,7 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useCreateHouse,
   useHouseMembers,
@@ -37,6 +38,9 @@ export default function HouseScreen() {
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
   const setHouseId = useAuthStore((state) => state.setHouseId);
+  const signOut = useAuthStore((state) => state.signOut);
+  const { top } = useSafeAreaInsets();
+  const router = useRouter();
 
   const { data: houses = [], isLoading: housesLoading } = useUserHouses(user?.id);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
@@ -152,7 +156,10 @@ export default function HouseScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
+    >
       <Text style={styles.title}>Casa & Membros</Text>
       <Text style={styles.subtitle}>
         Gerencie convites, papéis, dispositivos e configurações gerais da residência.
@@ -214,6 +221,16 @@ export default function HouseScreen() {
 
       {currentHouse ? (
         <>
+          <View style={[styles.card, cardShadowStyle]}>
+            <Text style={styles.cardTitle}>Resumo da casa</Text>
+            <Text style={styles.helperText}>
+              Casa atual: <Text style={styles.highlight}>{currentHouse.house.name}</Text>
+            </Text>
+            <Text style={styles.helperText}>
+              Membros: <Text style={styles.highlight}>{members.length}</Text>
+            </Text>
+          </View>
+
           <View style={[styles.card, cardShadowStyle]}>
             <Text style={styles.cardTitle}>Contexto atual</Text>
             <Text style={styles.helperText}>Usuário autenticado: {user?.email ?? 'não identificado'}</Text>
@@ -286,6 +303,26 @@ export default function HouseScreen() {
           <Text style={styles.listItem}>• Gerar e compartilhar códigos de convite.</Text>
           <Text style={styles.listItem}>• Preparar sessão para dispositivos IoT (fase 2).</Text>
         </View>
+      </View>
+
+      <View style={[styles.card, cardShadowStyle]}>
+        <Text style={styles.cardTitle}>Sessão</Text>
+        <Text style={styles.helperText}>
+          Encerre sua sessão neste dispositivo. Você poderá entrar novamente com seu e-mail e senha.
+        </Text>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={async () => {
+            try {
+              await signOut();
+              router.replace('/login');
+            } catch (error) {
+              Alert.alert('Erro ao sair', (error as Error).message);
+            }
+          }}
+        >
+          <Text style={styles.logoutButtonText}>Sair da conta</Text>
+        </TouchableOpacity>
       </View>
 
       <Modal
@@ -422,7 +459,12 @@ export default function HouseScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
@@ -521,9 +563,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#475569',
   },
+  logoutButton: {
+    marginTop: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    alignSelf: 'flex-start',
+  },
+  logoutButtonText: {
+    color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   helperText: {
     fontSize: 14,
     color: '#475569',
+  },
+  highlight: {
+    fontWeight: '600',
+    color: '#0f172a',
   },
   inviteCode: {
     fontSize: 13,

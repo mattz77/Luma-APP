@@ -10,6 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Wallet, BarChart3 } from 'lucide-react-native';
 
 import {
   useCreateExpense,
@@ -18,6 +21,7 @@ import {
   useToggleExpensePaid,
   useUpdateExpense,
 } from '@/hooks/useExpenses';
+import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
 import {
   useCreateExpenseCategory,
   useDeleteExpenseCategory,
@@ -46,9 +50,11 @@ const formatCurrency = (value: string | number) => {
 };
 
 export default function FinancesScreen() {
+  const router = useRouter();
   const houseId = useAuthStore((state) => state.houseId);
   const user = useAuthStore((state) => state.user);
   const canAccessFinances = useCanAccessFinances(houseId, user?.id);
+  const { top } = useSafeAreaInsets();
 
   if (!canAccessFinances) {
     return (
@@ -62,6 +68,7 @@ export default function FinancesScreen() {
   }
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
+  useRealtimeExpenses(houseId); // Atualização em tempo real
   const { data: categories = [], isLoading: categoriesLoading } = useExpenseCategories(houseId);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId ?? undefined);
 
@@ -83,10 +90,15 @@ export default function FinancesScreen() {
     () => expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0,
     [expenses],
   );
+  const totalCount = expenses?.length ?? 0;
+  const paidCount = expenses?.filter((expense) => expense.isPaid).length ?? 0;
 
   if (!houseId) {
     return (
-      <ScrollView contentContainerStyle={[styles.container, styles.centered]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
+      >
         <Text style={styles.emptyTitle}>Nenhuma casa selecionada</Text>
         <Text style={styles.emptySubtitle}>
           Vincule-se a uma casa ou crie uma nova para começar a registrar despesas.
@@ -219,15 +231,36 @@ export default function FinancesScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      style={styles.scroll}
+      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
       }
     >
-      <Text style={styles.title}>Finanças da Casa</Text>
-      <Text style={styles.subtitle}>
-        Controle despesas, recibos e relatórios da sua residência compartilhada.
-      </Text>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Finanças da Casa</Text>
+          <Text style={styles.subtitle}>
+            Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
+          </Text>
+        </View>
+      </View>
+      <View style={styles.headerActionsRow}>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={() => router.push('/(tabs)/finances/reports')}
+        >
+          <BarChart3 size={18} color="#1d4ed8" />
+          <Text style={styles.headerActionText}>Relatórios</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerActionButton}
+          onPress={() => router.push('/(tabs)/finances/budget')}
+        >
+          <Wallet size={18} color="#1d4ed8" />
+          <Text style={styles.headerActionText}>Orçamento</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={[styles.summaryCard, cardShadowStyle]}>
         <View style={styles.summaryHeader}>
@@ -241,7 +274,9 @@ export default function FinancesScreen() {
         </View>
         <Text style={styles.cardValue}>{formatCurrency(String(total))}</Text>
         <Text style={styles.cardHint}>
-          Valores atualizados automaticamente ao registrar novas despesas.
+          {totalCount > 0
+            ? `Você tem ${totalCount} despesa(s) registrada(s) neste mês; ${paidCount} já marcada(s) como paga(s).`
+            : 'Nenhuma despesa registrada ainda para este mês.'}
         </Text>
       </View>
 
@@ -256,7 +291,7 @@ export default function FinancesScreen() {
         {isLoading || categoriesLoading || membersLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color="#2563eb" />
-            <Text style={styles.helperText}>Carregando dados...</Text>
+            <Text style={styles.helperText}>Carregando despesas da casa...</Text>
           </View>
         ) : expenses && expenses.length > 0 ? (
           expenses.map((expense) => renderExpenseRow(expense))
@@ -264,7 +299,8 @@ export default function FinancesScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Nenhuma despesa registrada</Text>
             <Text style={styles.emptySubtitle}>
-              Utilize o botão “Adicionar despesa” para começar o registro financeiro.
+              Comece registrando contas como aluguel, luz, água ou supermercado usando o botão
+              “Adicionar”.
             </Text>
           </View>
         )}
@@ -298,7 +334,12 @@ export default function FinancesScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
+    flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
@@ -311,6 +352,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     textAlign: 'center',
   },
+  headerRow: {
+    marginBottom: 16,
+  },
+  headerText: {
+    flex: 1,
+  },
   title: {
     fontSize: 26,
     fontWeight: '700',
@@ -319,6 +366,29 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     color: '#475569',
+    marginTop: 4,
+    lineHeight: 22,
+  },
+  headerActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  headerActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#1d4ed8',
+  },
+  headerActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1d4ed8',
   },
   summaryCard: {
     backgroundColor: '#fff',
