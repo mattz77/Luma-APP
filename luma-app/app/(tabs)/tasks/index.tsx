@@ -226,7 +226,7 @@ export default function TasksScreen() {
                                 ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
                               },
                             })
-                            .then(refetch)
+                            .then(() => refetch())
                         }
                         onEdit={() => {
                           setEditingTaskId(task.id);
@@ -237,7 +237,7 @@ export default function TasksScreen() {
                           setCreateOpen(true);
                         }}
                         onDelete={() =>
-                          deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(refetch)
+                          deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(() => refetch())
                         }
                         onViewDetails={() => {
                           if (task.id) {
@@ -289,7 +289,7 @@ export default function TasksScreen() {
                                   ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
                                 },
                               })
-                              .then(refetch)
+                              .then(() => refetch())
                           }
                           onEdit={() => {
                             setEditingTaskId(task.id);
@@ -300,7 +300,7 @@ export default function TasksScreen() {
                             setCreateOpen(true);
                           }}
                           onDelete={() =>
-                            deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(refetch)
+                            deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(() => refetch())
                           }
                           onViewDetails={() => {
                           if (task.id) {
@@ -401,6 +401,7 @@ export default function TasksScreen() {
                     await createTaskMutation.mutateAsync({
                       house_id: houseId,
                       created_by_id: user.id,
+                      assigned_to_id: user.id, // Por padrão, atribui ao criador se não especificado
                       title: titleInput.trim(),
                       description: descriptionInput.trim() || null,
                       priority: priorityInput,
