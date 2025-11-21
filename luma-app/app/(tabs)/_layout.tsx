@@ -70,17 +70,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1d4ed8',
-        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          paddingBottom: tabBarPaddingBottom,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          display: 'none', // Remove completamente a tabbar
         },
       }}
     >

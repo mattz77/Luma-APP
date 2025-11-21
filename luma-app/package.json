@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "mcp:n8n": "npx n8n-mcp@2.22.20"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -22,6 +23,7 @@
     "expo-font": "~14.0.9",
     "expo-haptics": "~15.0.7",
     "expo-image-picker": "~17.0.8",
+    "expo-linear-gradient": "^15.0.7",
     "expo-linking": "~8.0.8",
     "expo-notifications": "~0.32.12",
     "expo-router": "~6.0.14",
@@ -29,6 +31,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.9",
     "lucide-react-native": "^0.553.0",
+    "moti": "^0.30.0",
     "prisma": "^6.19.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -46,6 +49,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "n8n-mcp": "^2.22.20",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
