@@ -10,17 +10,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Modal,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// MotiView removido temporariamente para compatibilidade web
-// TODO: Reativar moti quando configurado corretamente para React Native Web
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { 
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles, 
-  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home 
+  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home,
+  Search, ChevronDown, Users, CheckSquare, MoreHorizontal
 } from 'lucide-react-native';
 import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
@@ -40,55 +40,43 @@ import type { HouseMemberWithUser } from '@/types/models';
 
 const { width } = Dimensions.get('window');
 
-// --- Helper Functions ---
-
+// ... helper functions mantidas ...
 // Formata data para exibição legível
 const formatTaskDate = (dateValue: string | null): string => {
   if (!dateValue) return 'Sem data definida';
   
-  // Se já for um texto simples (Hoje, Amanhã)
   if (dateValue === 'Hoje' || dateValue === 'Amanhã') {
     return dateValue;
   }
   
-  // Se for formato ISO (2025-11-22T15:00:00 ou 2025-11-22T15:00:00Z)
   try {
-    // Extrai informações diretamente da string para evitar conversões de timezone
     const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
     if (!isoMatch) {
-      return dateValue; // Não é formato ISO válido
+      return dateValue; 
     }
     
     const [, year, month, day, hour, minute] = isoMatch;
     const yearNum = parseInt(year, 10);
-    const monthNum = parseInt(month, 10) - 1; // Month is 0-indexed
+    const monthNum = parseInt(month, 10) - 1; 
     const dayNum = parseInt(day, 10);
     const hourNum = parseInt(hour, 10);
     const minuteNum = parseInt(minute, 10);
     
-    // Se tem "Z" no final, a data está em UTC e precisa ser convertida para local
-    // Mas como já normalizamos removendo o Z antes, isso não deveria acontecer
-    // Por segurança, se ainda tiver Z, convertemos para local
     let displayHour = hourNum;
     if (dateValue.endsWith('Z')) {
-      // Está em UTC, converte para local
-      const utcDate = new Date(dateValue); // Cria data interpretando como UTC
-      displayHour = utcDate.getHours(); // getHours() já retorna no timezone local
+      const utcDate = new Date(dateValue); 
+      displayHour = utcDate.getHours(); 
     }
-    // Se não tem Z, usa a hora diretamente da string (assumindo que já está em formato local)
     
-    // Cria data local para comparação de dias (sem conversão de timezone)
     const taskDate = new Date(yearNum, monthNum, dayNum);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diffDays = Math.round((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Usa a hora extraída diretamente (ou convertida se era UTC)
     const hours = displayHour.toString().padStart(2, '0');
     const minutes = minuteNum.toString().padStart(2, '0');
     const timeStr = minutes !== '00' ? `${hours}:${minutes}` : `${hours}h`;
     
-    // Formata a data baseado na diferença de dias
     if (diffDays === 0) {
       return `Hoje às ${timeStr}`;
     } else if (diffDays === 1) {
@@ -96,33 +84,50 @@ const formatTaskDate = (dateValue: string | null): string => {
     } else if (diffDays === -1) {
       return `Ontem às ${timeStr}`;
     } else if (diffDays > 0 && diffDays <= 7) {
-      // Dias da semana em português
       const weekDays = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
       const dayName = weekDays[taskDate.getDay()];
       return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} às ${timeStr}`;
     } else {
-      // Data formatada: DD/MM/YYYY às HHh
       const day = dayNum.toString().padStart(2, '0');
       const month = (monthNum + 1).toString().padStart(2, '0');
       return `${day}/${month}/${yearNum} às ${timeStr}`;
     }
   } catch (error) {
-    // Em caso de erro, tenta retornar formatado se possível
     return dateValue;
   }
 };
 
-// --- Componentes ---
+// --- Componentes Atualizados ---
 
-const GlassCard = ({ children, style, delay = 0 }: any) => (
-  <View style={[styles.glassCard, style]}>
-    <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-    <LinearGradient
-      colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-      style={StyleSheet.absoluteFill}
-    />
-    <View style={{ zIndex: 10, flex: 1 }}>{children}</View>
-  </View>
+const GlassCard = ({ children, style, variant = 'default' }: any) => {
+  // Variants: default, primary (golden tint), danger (red tint)
+  const isPrimary = variant === 'primary';
+  
+  return (
+    <View style={[styles.glassCard, isPrimary && styles.glassCardPrimary, style]}>
+      <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={
+          isPrimary 
+            ? ['rgba(255,244,79,0.15)', 'rgba(255,244,79,0.05)'] 
+            : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
+        }
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={{ zIndex: 10, flex: 1 }}>{children}</View>
+    </View>
+  );
+};
+
+const StatCard = ({ icon: Icon, label, value, subtext, highlight = false }: any) => (
+  <GlassCard style={styles.statCard}>
+    <View style={styles.statHeader}>
+      <Text style={styles.statLabel}>{label}</Text>
+      {Icon && <Icon size={14} color={highlight ? '#FFF44F' : 'rgba(255,255,255,0.5)'} />}
+    </View>
+    <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    {subtext && <Text style={styles.statSubtext}>{subtext}</Text>}
+  </GlassCard>
 );
 
 const ActionButton = ({ icon: Icon, onPress }: any) => (
@@ -137,21 +142,22 @@ const ActionButton = ({ icon: Icon, onPress }: any) => (
   </TouchableOpacity>
 );
 
-const ListItem = ({ icon: Icon, title, subtitle, amount, delay = 0 }: any) => (
-  <View style={styles.listItem}>
-    <View style={styles.listIcon}>
-      <Icon size={20} color="#FFF44F" />
+const ActivityItem = ({ icon: Icon, title, subtitle, time, type }: any) => (
+  <View style={styles.activityItem}>
+    <View style={styles.activityIconBg}>
+      <Icon size={18} color="#B47500" />
     </View>
     <View style={{ flex: 1 }}>
-      <Text style={styles.listTitle}>{title}</Text>
-      <Text style={styles.listSubtitle}>{subtitle}</Text>
+      <Text style={styles.activityTitle} numberOfLines={1}>{title}</Text>
+      <Text style={styles.activitySubtitle} numberOfLines={1}>{subtitle}</Text>
     </View>
-    {amount && <Text style={styles.listAmount}>{amount}</Text>}
+    <Text style={styles.activityTime}>{time}</Text>
   </View>
 );
 
 export default function Dashboard() {
   const router = useRouter();
+  // ... (estados mantidos)
   const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
@@ -159,8 +165,8 @@ export default function Dashboard() {
   const [chatInput, setChatInput] = useState("");
   const [magicInput, setMagicInput] = useState("");
   const [magicPreview, setMagicPreview] = useState<any | any[]>(null);
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(null); // Para seleção de responsável na criação mágica
-  const [showAssigneeSelector, setShowAssigneeSelector] = useState(false); // Para mostrar seletor de responsável
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | null>(null);
+  const [showAssigneeSelector, setShowAssigneeSelector] = useState(false);
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: "Olá! Sou a Luma. Como posso ajudar na gestão da casa hoje?" }
   ]);
@@ -170,11 +176,13 @@ export default function Dashboard() {
   const { user, houseId } = useAuthStore();
   const userId = user?.id || "";
   const userName = user?.name || "Usuário";
+  // Dados fake para nome da casa se não tiver
+  const houseName = "Minha Casa"; // TODO: Pegar do store/query
 
-  // Query Client para invalidar queries após criar itens
+  // Query Client
   const queryClient = useQueryClient();
 
-  // Buscar dados reais do Supabase
+  // Buscar dados reais
   const { data: tasks = [], isLoading: tasksLoading } = useTasks(houseId);
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(houseId);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
@@ -183,44 +191,39 @@ export default function Dashboard() {
   useRealtimeTasks(houseId);
   useRealtimeExpenses(houseId);
 
-  // Calcular mês atual para orçamento
+  // ... (cálculos mantidos: currentMonth, monthlyBudget, financialSummary, pendingTasks, nextTask)
   const currentMonth = useMemo(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
 
-  // Buscar orçamento mensal
   const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
 
-  // Calcular resumo financeiro a partir dos dados reais
   const financialSummary = useMemo(() => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    // Filtrar despesas do mês atual
     const monthlyExpenses = expenses.filter(expense => {
       const expenseDate = new Date(expense.expenseDate);
       return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
     });
 
-    // Calcular total gasto
     const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-    
-    // Buscar limite do orçamento mensal
     const limit = monthlyBudget ? Number(monthlyBudget.amount) : 0;
-    
-    // Calcular percentual usado
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
     return {
       spent: spent.toFixed(2).replace('.', ','),
       limit: limit.toFixed(2).replace('.', ','),
-      percent: Math.min(percent, 100) // Limitar a 100%
+      percent: Math.min(percent, 100)
     };
   }, [expenses, monthlyBudget, currentMonth]);
 
-  // Calcular tarefas pendentes e próxima tarefa
+  const pendingTasksCount = useMemo(() => {
+    return tasks.filter(task => task.status === 'PENDING').length;
+  }, [tasks]);
+
   const pendingTasks = useMemo(() => {
     return tasks.filter(task => task.status === 'PENDING').length;
   }, [tasks]);
@@ -229,14 +232,11 @@ export default function Dashboard() {
     const pending = tasks.filter(task => task.status === 'PENDING');
     if (pending.length === 0) return null;
     
-    // Ordenar por prioridade e data de vencimento
     const sorted = pending.sort((a, b) => {
-      // Primeiro por prioridade (URGENT > HIGH > MEDIUM > LOW)
       const priorityOrder: Record<TaskPriority, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
       const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
       if (priorityDiff !== 0) return priorityDiff;
       
-      // Depois por data de vencimento (mais próxima primeiro)
       if (a.dueDate && b.dueDate) {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
@@ -248,83 +248,54 @@ export default function Dashboard() {
     return sorted[0]?.title || null;
   }, [tasks]);
 
-  // Tarefas e despesas do dia para "Resumo do Dia"
-  // Mostra tarefas de hoje e amanhã (próximas 48h)
-  const todayTasks = useMemo(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2); // Próximos 2 dias (hoje + amanhã)
-
-    const filtered = tasks.filter(task => {
-      // Exclui tarefas completadas
-      if (task.status === 'COMPLETED') return false;
-      
-      // Se não tem data de vencimento, verifica se foi criada hoje (tarefas pendentes recentes)
-      if (!task.dueDate) {
-        try {
-          const createdAt = new Date(task.createdAt);
-          const createdAtOnly = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate(), 0, 0, 0, 0);
-          // Inclui tarefas sem data criadas hoje
-          return createdAtOnly.getTime() === today.getTime();
-        } catch {
-          return false;
-        }
-      }
-      
-      // Parse da data de vencimento - pode ser ISO string ou outro formato
-      let dueDate: Date;
-      try {
-        dueDate = new Date(task.dueDate);
-        // Se a data é inválida, não inclui
-        if (isNaN(dueDate.getTime())) return false;
-      } catch {
-        return false;
-      }
-      
-      // Normaliza para comparar apenas a data (sem hora)
-      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), 0, 0, 0, 0);
-      
-      // Inclui tarefas de hoje e amanhã (próximos 2 dias)
-      const isInRange = dueDateOnly >= today && dueDateOnly < dayAfterTomorrow;
-      
-      return isInRange;
-    });
-    
-    // Ordena por data: hoje primeiro, depois amanhã, depois por hora
-    const sorted = filtered.sort((a, b) => {
-      if (!a.dueDate || !b.dueDate) return 0;
-      
-      const dateA = new Date(a.dueDate);
-      const dateB = new Date(b.dueDate);
-      
-      // Primeiro compara por dia (hoje vs amanhã)
-      const dayA = new Date(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
-      const dayB = new Date(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
-      const dayDiff = dayA.getTime() - dayB.getTime();
-      
-      if (dayDiff !== 0) return dayDiff;
-      
-      // Se for o mesmo dia, ordena por hora
-      return dateA.getTime() - dateB.getTime();
-    });
-    
-    return sorted.slice(0, 5); // Máximo 5 tarefas
+  // Filtrar top 3 tarefas pendentes para o card "Tarefas"
+  const topPendingTasks = useMemo(() => {
+    return tasks
+      .filter(t => t.status === 'PENDING')
+      .sort((a, b) => {
+         const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+         const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+         return dateA - dateB;
+      })
+      .slice(0, 3);
   }, [tasks]);
 
-  const todayExpenses = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+  // Activity Feed misturado (Despesas + Tarefas Concluídas recentes)
+  const recentActivity = useMemo(() => {
+    const recentExpenses = expenses
+      .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
+      .slice(0, 3)
+      .map(e => ({
+        id: e.id,
+        type: 'finance' as const,
+        title: e.description,
+        subtitle: `R$ ${Number(e.amount).toFixed(2)}`,
+        date: new Date(e.expenseDate),
+        time: new Date(e.expenseDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      }));
 
-    return expenses.filter(expense => {
-      const expenseDate = new Date(expense.expenseDate);
-      expenseDate.setHours(0, 0, 0, 0);
-      return expenseDate >= today && expenseDate < tomorrow;
-    }).slice(0, 5); // Máximo 5 despesas
-  }, [expenses]);
+    const recentTasks = tasks
+      .filter(t => t.status === 'COMPLETED')
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 3)
+      .map(t => ({
+        id: t.id,
+        type: 'task' as const,
+        title: t.title,
+        subtitle: 'Concluída',
+        date: new Date(t.updatedAt),
+        time: new Date(t.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      }));
 
+    return [...recentExpenses, ...recentTasks]
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 4);
+  }, [expenses, tasks]);
+
+  // ... (Handlers mantidos: handleMagicInput, handleConfirmMagic, handleFinancialInsight, handleSmartTask, handleDailyBriefing, handleSendMessage, renderModalContent)
+  // ... (Copiar todos os handlers do código anterior para manter funcionalidade)
+  // Mantenho os handlers idênticos aqui, apenas omitindo para brevidade na visualização, mas no código final eles devem estar presentes.
+  
   // --- Handlers ---
   const handleMagicInput = async () => {
     if (!magicInput.trim()) return;
@@ -1021,7 +992,6 @@ export default function Dashboard() {
     }
   };
 
-  // Componente Modal Interno para Reutilização
   const renderModalContent = () => {
     const isChat = modalMode === 'chat';
     const isTask = modalMode === 'task';
@@ -1376,101 +1346,153 @@ export default function Dashboard() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
           
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>Bom dia,</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={styles.username}>{userName}</Text>
-                <TouchableOpacity 
-                  onPress={handleDailyBriefing}
-                  style={styles.briefingPill}
-                >
-                  <Sparkles size={12} color="#2C1A00" />
-                  <Text style={styles.briefingPillText}>Resumo do dia</Text>
-                </TouchableOpacity>
+          {/* New Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.houseSelector}>
+              <View style={styles.houseIconBg}>
+                <Text style={styles.houseInitial}>{houseName.charAt(0)}</Text>
               </View>
+              <Text style={styles.houseName}>{houseName}</Text>
+              <ChevronDown size={16} color="rgba(255,255,255,0.5)" />
             </View>
-            
-            <TouchableOpacity style={styles.userAvatarButton} onPress={() => setModalMode('user_menu')}>
-               <User size={24} color="#FFF44F" />
+            <TouchableOpacity onPress={() => setModalMode('user_menu')}>
+              <View style={styles.userAvatar}>
+                <User size={20} color="#C28400" />
+              </View>
             </TouchableOpacity>
           </View>
 
-          {/* Cards Section - Melhorado para Mobile */}
-          <View style={styles.cardsSection}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.cardsScrollContent}
-              snapToInterval={width - 40}
-              decelerationRate="fast"
-              pagingEnabled
-            >
-              {/* Card 1: Finance */}
-              <GlassCard style={styles.mainCard}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardIconBg}>
-                    <Wallet size={20} color="#C28400" />
-                  </View>
-                  <Text style={styles.cardTitle}>Finanças</Text>
-                  <View style={styles.badge}><Text style={styles.badgeText}>NOV</Text></View>
-                </View>
-                
-                <View style={styles.financeContent}>
-                  <View>
-                    <Text style={styles.moneyText}>R$ {financialSummary.spent}</Text>
-                    <Text style={styles.subText}>gastos</Text>
-                  </View>
-                  
-                  <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: `${financialSummary.percent}%` }]} />
-                  </View>
-                  
-                  <TouchableOpacity onPress={handleFinancialInsight} style={styles.cardButton}>
-                    <Sparkles size={16} color="#FFF44F" />
-                    <Text style={styles.cardButtonText}>Analisar Gastos</Text>
-                  </TouchableOpacity>
-                </View>
-              </GlassCard>
-
-              {/* Card 2: Insight */}
-              <GlassCard style={styles.mainCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconBg, { backgroundColor: 'white' }]}>
-                    <BrainCircuit size={20} color="#C28400" />
-                  </View>
-                  <Text style={styles.cardTitle}>Luma Insight</Text>
-                </View>
-                
-                <View style={styles.insightContent}>
-                  <Text style={styles.insightText}>"A conta de luz está 30% acima da média. Quer dicas para economizar?"</Text>
-                  
-                  <TouchableOpacity 
-                    onPress={() => { 
-                      setModalMode('chat'); 
-                      setChatInput(''); 
-                      setChatHistory(prev => [...prev, { role: 'model', text: "Percebi um aumento na conta de luz. Gostaria de dicas para economizar?" }]);
-                    }}
-                    style={styles.linkButton}
-                  >
-                    <Text style={styles.linkText}>Perguntar à Luma</Text>
-                    <ArrowUpRight size={16} color="#FFF44F" />
-                  </TouchableOpacity>
-                </View>
-              </GlassCard>
-            </ScrollView>
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <StatCard 
+              icon={Wallet} 
+              label="Finanças" 
+              value={`R$ ${financialSummary.spent}`} 
+              subtext={`${financialSummary.percent}% do limite`}
+              highlight={financialSummary.percent > 80}
+            />
+            <StatCard 
+              icon={ListTodo} 
+              label="Tarefas" 
+              value={pendingTasksCount.toString()} 
+              subtext="pendentes"
+            />
+            <StatCard 
+              icon={Users} 
+              label="Membros" 
+              value={members.length.toString()} 
+              subtext="na casa"
+            />
           </View>
 
-          {/* Dock Actions - Navegação Principal */}
-          <View style={styles.dockContainer}>
-            <ActionButton 
-              icon={Wand2} 
-              onPress={() => { 
+          {/* Split Section */}
+          <View style={styles.splitSection}>
+            {/* Left: Tasks */}
+            <GlassCard style={[styles.splitCard, styles.splitCardLeft]} variant="primary">
+              <View style={styles.splitHeader}>
+                <Text style={[styles.splitTitle, { color: '#2C1A00' }]}>Tarefas</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/tasks' as any)}>
+                  <ArrowUpRight size={16} color="#2C1A00" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.miniTaskList}>
+                {topPendingTasks.length > 0 ? (
+                  topPendingTasks.map(task => (
+                    <View key={task.id} style={styles.miniTaskItem}>
+                      <View style={styles.miniTaskCheckbox} />
+                      <Text style={styles.miniTaskText} numberOfLines={1}>{task.title}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.miniTaskText, { opacity: 0.6 }]}>Tudo feito!</Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                style={styles.miniFab}
+                onPress={() => router.push('/(tabs)/tasks?action=create' as any)}
+              >
+                <Plus size={20} color="#FFF44F" />
+              </TouchableOpacity>
+            </GlassCard>
+
+            {/* Right: Notes/Insight */}
+            <GlassCard style={[styles.splitCard, styles.splitCardRight]}>
+              <View style={styles.splitHeader}>
+                <Text style={styles.splitTitle}>Luma Insight</Text>
+                <TouchableOpacity onPress={handleDailyBriefing}>
+                   <Sparkles size={16} color="#FFF44F" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.noteContent}>
+                <View style={styles.noteTagsRow}>
+                  <View style={styles.noteTag}>
+                    <Text style={styles.noteTagText}>Finance</Text>
+                  </View>
+                  <View style={styles.noteTag}>
+                    <Text style={styles.noteTagText}>Tips</Text>
+                  </View>
+                </View>
+                <View style={styles.noteLines}>
+                  <View style={styles.noteLine} />
+                  <View style={styles.noteLine} />
+                  <View style={[styles.noteLine, { width: '60%' }]} />
+                </View>
+                <TouchableOpacity 
+                  style={[styles.miniFab, { backgroundColor: 'rgba(255,255,255,0.1)' }]}
+                  onPress={handleFinancialInsight}
+                >
+                  <Plus size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            </GlassCard>
+          </View>
+
+          {/* Activity Feed */}
+          <View style={styles.activitySection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MessageCircle size={16} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.sectionTitle}>Atividade Recente</Text>
+              </View>
+            </View>
+            <View style={styles.activityList}>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((item, index) => (
+                  <ActivityItem 
+                    key={`${item.type}-${item.id}-${index}`}
+                    icon={item.type === 'finance' ? Wallet : CheckCircle}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    time={item.time}
+                    type={item.type}
+                  />
+                ))
+              ) : (
+                <Text style={styles.emptyStateText}>Nenhuma atividade recente</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Search/Magic Bar */}
+          <View style={styles.searchBarContainer}>
+            <Search size={20} color="rgba(255,255,255,0.4)" />
+            <TouchableOpacity 
+              style={{ flex: 1 }} 
+              onPress={() => {
                 setModalMode('magic');
                 setMagicInput('');
                 setMagicPreview(null);
-              }} 
+              }}
+            >
+              <Text style={styles.searchPlaceholder}>Pergunte à Luma ou crie algo...</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Dock Actions */}
+          <View style={styles.dockContainer}>
+            <ActionButton 
+              icon={Home} 
+              onPress={() => {}} 
             />
             
             <TouchableOpacity 
@@ -1501,75 +1523,6 @@ export default function Dashboard() {
             />
           </View>
 
-          {/* List Section */}
-          <View style={styles.listSection}>
-            <Text style={styles.sectionHeader}>Resumo do Dia</Text>
-            {expensesLoading || tasksLoading ? (
-              <View style={{ padding: 20, alignItems: 'center' }}>
-                <ActivityIndicator color="#FFF44F" />
-                <Text style={{ color: '#FFFBE6', opacity: 0.6, marginTop: 12 }}>Carregando...</Text>
-              </View>
-            ) : (
-              <>
-                {/* Despesas de hoje */}
-                {todayExpenses.map((expense, index) => {
-                  const expenseDate = new Date(expense.expenseDate);
-                  const isToday = expenseDate.toDateString() === new Date().toDateString();
-                  return (
-                    <ListItem
-                      key={`expense-${expense.id}`}
-                      icon={Wallet}
-                      title={expense.description}
-                      subtitle={isToday ? 'Hoje' : expenseDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
-                      amount={`-R$ ${Number(expense.amount).toFixed(2).replace('.', ',')}`}
-                      delay={0.7 + index * 0.1}
-                    />
-                  );
-                })}
-                {/* Tarefas de hoje e amanhã */}
-                {todayTasks.map((task, index) => {
-                  let dateLabel = '';
-                  if (task.dueDate) {
-                    const taskDate = new Date(task.dueDate);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    const taskDateOnly = new Date(taskDate);
-                    taskDateOnly.setHours(0, 0, 0, 0);
-                    
-                    if (taskDateOnly.getTime() === today.getTime()) {
-                      dateLabel = 'Hoje';
-                    } else if (taskDateOnly.getTime() === tomorrow.getTime()) {
-                      dateLabel = 'Amanhã';
-                    } else {
-                      dateLabel = formatTaskDate(task.dueDate);
-                    }
-                  }
-                  
-                  const statusLabel = task.status === 'PENDING' ? 'Pendente' : task.status === 'IN_PROGRESS' ? 'Em progresso' : task.status;
-                  const assigneeLabel = task.assignee?.name || 'Sem responsável';
-                  
-                  return (
-                    <ListItem
-                      key={`task-${task.id}`}
-                      icon={CheckCircle}
-                      title={task.title}
-                      subtitle={dateLabel ? `${dateLabel} • ${assigneeLabel} • ${statusLabel}` : `${assigneeLabel} • ${statusLabel}`}
-                      delay={0.7 + (todayExpenses.length + index) * 0.1}
-                    />
-                  );
-                })}
-                {/* Mensagem se não houver itens */}
-                {todayExpenses.length === 0 && todayTasks.length === 0 && (
-                  <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: '#FFFBE6', opacity: 0.6 }}>Nenhum item para hoje</Text>
-                  </View>
-                )}
-              </>
-            )}
-          </View>
-
         </ScrollView>
       </SafeAreaView>
 
@@ -1589,68 +1542,290 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a1a1a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginTop: 20, marginBottom: 20 },
-  greeting: { color: '#FFFBE6', opacity: 0.8, fontSize: 18 },
-  username: { color: '#FFF44F', fontSize: 32, fontWeight: 'bold' },
-  userAvatarButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,244,79,0.3)' },
-  briefingPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF44F', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 12 },
-  briefingPillText: { color: '#2C1A00', fontSize: 12, fontWeight: 'bold' },
   
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
-  menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center' },
-  menuItemText: { color: '#FFFBE6', fontSize: 18, fontWeight: '500' },
+  // Header
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    marginBottom: 24,
+  },
+  houseSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  houseIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  houseInitial: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  houseName: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  cardsSection: { marginBottom: 24 },
-  cardsScrollContent: { paddingHorizontal: 20, gap: 12 },
-  glassCard: { borderRadius: 24, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
-  mainCard: { width: width - 40, height: 200, borderRadius: 28, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,244,79,0.15)', borderWidth: 1, backgroundColor: 'rgba(255,244,79,0.08)' },
-  
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  cardIconBg: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { color: '#FFFBE6', fontSize: 18, fontWeight: '600', flex: 1 },
-  badge: { backgroundColor: 'rgba(255,244,79,0.15)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { color: '#FFF44F', fontWeight: '700', fontSize: 10, letterSpacing: 0.5 },
-  
-  financeContent: { flex: 1, justifyContent: 'space-between' },
-  moneyText: { fontSize: 32, fontWeight: '700', color: '#FFF', letterSpacing: -0.5 },
-  subText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: -2 },
-  
-  progressBarBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, width: '100%', marginTop: 8, marginBottom: 8 },
-  progressBarFill: { height: '100%', backgroundColor: '#FFF44F', borderRadius: 2 },
-  
-  cardButton: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, backgroundColor: 'rgba(255,244,79,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.2)' },
-  cardButtonText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
-  
-  insightContent: { flex: 1, justifyContent: 'space-between', paddingBottom: 4 },
-  insightText: { color: '#FFFBE6', fontSize: 16, fontStyle: 'italic', lineHeight: 24, fontWeight: '400', opacity: 0.9 },
-  linkButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 8 },
-  linkText: { color: '#FFF44F', fontWeight: '600', fontSize: 14 },
+  // Stats Row
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 24,
+  },
+  glassCard: { 
+    borderRadius: 24, 
+    padding: 16, 
+    overflow: 'hidden', 
+    borderColor: 'rgba(255,255,255,0.1)', 
+    borderWidth: 1, 
+    backgroundColor: 'rgba(255,255,255,0.05)' 
+  },
+  glassCardPrimary: {
+    backgroundColor: 'rgba(255,244,79,0.9)', // Solid gold background appearance
+    borderColor: '#FFF44F',
+  },
+  statCard: {
+    flex: 1,
+    height: 100,
+    justifyContent: 'space-between',
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statValue: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  statSubtext: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+  },
 
+  // Split Section
+  splitSection: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 16,
+    height: 220,
+    marginBottom: 32,
+  },
+  splitCard: {
+    flex: 1,
+    borderRadius: 32,
+    padding: 20,
+  },
+  splitCardLeft: {
+    backgroundColor: '#FFF44F', // Fallback
+  },
+  splitCardRight: {
+    // Glass default
+  },
+  splitHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  splitTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  
+  // Mini Task List
+  miniTaskList: {
+    gap: 12,
+  },
+  miniTaskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  miniTaskCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: 'rgba(44,26,0,0.3)',
+  },
+  miniTaskText: {
+    color: '#2C1A00',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  miniFab: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#2C1A00',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Note/Insight Content
+  noteContent: {
+    flex: 1,
+  },
+  noteTagsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  noteTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: '#FFF44F',
+  },
+  noteTagText: {
+    color: '#FFF44F',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  noteLines: {
+    gap: 12,
+    marginTop: 8,
+  },
+  noteLine: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    width: '100%',
+  },
+
+  // Activity Feed
+  activitySection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activityList: {
+    backgroundColor: '#FFFBE6',
+    borderRadius: 24,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(194, 132, 0, 0.1)',
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  activityIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(194, 132, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(194, 132, 0, 0.2)',
+  },
+  activityTitle: {
+    color: '#1a1a1a',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  activitySubtitle: {
+    color: '#1a1a1a',
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  activityTime: {
+    color: '#1a1a1a',
+    fontSize: 11,
+    fontWeight: '500',
+    opacity: 0.6,
+  },
+  emptyStateText: {
+    padding: 20,
+    textAlign: 'center',
+    color: 'rgba(0,0,0,0.4)',
+  },
+
+  // Search Bar
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 30,
+    gap: 12,
+    marginBottom: 30,
+  },
+  searchPlaceholder: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 15,
+  },
+
+  // Dock
   dockContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40, marginBottom: 32, paddingHorizontal: 24 },
   dockSideButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   micButtonMain: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center', shadowColor: '#FFF44F', shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 10, borderWidth: 4, borderColor: 'rgba(255,255,255,0.1)' },
 
-  listSection: { paddingHorizontal: 24 },
-  sectionHeader: { color: 'white', fontSize: 20, fontWeight: '600', marginBottom: 16 },
-  listItem: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 24, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.1)' },
-  listIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  listTitle: { color: '#FFFBE6', fontSize: 16, fontWeight: '600' },
-  listSubtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
-  listAmount: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-
+  // Modal Styles (Mantidos)
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContainer: { height: '85%', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', padding: 24, borderWidth: 1, borderColor: '#DAA520' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { color: '#FFF44F', fontSize: 20, fontWeight: 'bold' },
   modalBody: { flex: 1 },
   
-  // Finance Modal
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
+  menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center' },
+  menuItemText: { color: '#FFFBE6', fontSize: 18, fontWeight: '500' },
+
   financeResponseContainer: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   financeResponseText: { color: '#FFFBE6', fontSize: 18, lineHeight: 28 },
   modalPrimaryButton: { width: '100%', paddingVertical: 12, backgroundColor: '#FFF44F', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modalPrimaryButtonText: { color: '#2C1A00', fontWeight: 'bold', fontSize: 16 },
   
-  // Task Planner Modal
   taskDescriptionText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
   taskInputWrapper: { position: 'relative' },
   taskInput: { width: '100%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16, paddingRight: 60, color: 'white', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', fontSize: 16 },
@@ -1662,14 +1837,12 @@ const styles = StyleSheet.create({
   modalSecondaryButton: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,244,79,0.5)', alignItems: 'center', justifyContent: 'center' },
   modalSecondaryButtonText: { color: '#FFF44F', fontWeight: 'bold', fontSize: 14 },
   
-  // Daily Briefing Modal
   briefingContainer: { padding: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' },
   briefingLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
   briefingText: { color: '#FFFBE6', fontSize: 20, fontStyle: 'italic', lineHeight: 28, fontWeight: '300' },
   briefingCloseButton: { width: '100%', paddingVertical: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   briefingCloseButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   
-  // Chat Modal
   inputContainer: { flexDirection: 'row', gap: 12, marginTop: 'auto' },
   chatInput: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, color: 'white', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', fontSize: 16 },
   chatSendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF44F', alignItems: 'center', justifyContent: 'center' },
@@ -1682,5 +1855,6 @@ const styles = StyleSheet.create({
   chatTextUser: { color: '#2C1A00', fontSize: 14, lineHeight: 20 },
   chatTextModel: { color: '#FFFBE6', fontSize: 14, lineHeight: 20 },
   chatLoadingBubble: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, borderTopLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  chatDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' }
+  chatDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
+  subText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: -2 },
 });
