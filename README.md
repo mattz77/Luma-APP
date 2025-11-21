@@ -340,10 +340,6 @@ Este projeto é privado e proprietário.
 
 Desenvolvido com ❤️ pela equipe Luma.
 
-![Luma Dashboard](./assets/finalV.jpg)
-
-*Interface do Dashboard Luma mostrando controle financeiro, gestão de tarefas e interações mágicas com IA*
-
 ---
 
 **Status do Projeto**: 🟢 MVP Implementado
