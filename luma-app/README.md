@@ -2,6 +2,10 @@
 
 Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gerenciar finanças, tarefas e dispositivos IoT.
 
+![Luma Dashboard](./assets/finalV.jpg)
+
+*Interface do Dashboard Luma mostrando controle financeiro, gestão de tarefas e interações mágicas com IA*
+
 ## 🚀 Stack Tecnológica
 
 - **Frontend**: Expo SDK 54 + Expo Router v6 + React Native 0.81 + TypeScript
@@ -104,7 +108,10 @@ luma-app/
 ├── components/              # Componentes reutilizáveis
 │   ├── ui/                  # Componentes base de UI
 │   ├── features/            # Componentes específicos de features
-│   └── shared/              # Componentes compartilhados
+│   ├── shared/              # Componentes compartilhados
+│   ├── SpeedDial.tsx        # Menu radial para ações rápidas
+│   ├── TagInput.tsx         # Input de tags para tarefas
+│   └── ErrorBoundary.tsx    # Tratamento de erros
 ├── lib/                     # Configurações e utilitários
 │   ├── supabase.ts          # Cliente Supabase
 │   ├── n8n.ts               # Cliente n8n
@@ -210,26 +217,56 @@ Ao criar uma casa:
 
 ### ✅ Fase 1 (MVP)
 
+#### 🎯 Core Features
 - [x] Setup projeto Expo + TypeScript
 - [x] Configuração Supabase + RLS
 - [x] Autenticação (login, registro, recuperação de senha)
 - [x] Navegação com Expo Router (tabs + modals)
 - [x] Gestão de casas (criar, entrar via código)
-- [x] Gestão financeira (CRUD despesas, categorias)
-- [x] Gestão de tarefas (CRUD, status, prioridades)
+- [x] Gestão financeira (CRUD despesas, categorias, relatórios)
+- [x] Gestão de tarefas (CRUD, status, prioridades, comentários)
 - [x] Chat com Luma AI (integração n8n)
-- [x] Dashboard com resumos
+- [x] Dashboard com resumos inteligentes
 - [x] Stores Zustand + React Query hooks
+
+#### ✨ Interações Mágicas (Magic UI)
+- [x] **Magic Input Popup**: Criação assistida por IA de tarefas e despesas
+  - Descreva em linguagem natural: "Comprar leite R$ 5 amanhã"
+  - Luma detecta automaticamente tipo (tarefa/despesa) e extrai informações
+  - Preview com confirmação antes de criar
+  
+- [x] **Speed Dial Component**: Menu radial elegante para ações rápidas
+  - Botão "+" expande em menu circular
+  - Acesso rápido a "Nova Despesa" e "Nova Tarefa"
+  - Animações suaves com blur backdrop
+
+- [x] **Menu de Usuário**: Gerenciamento completo de perfil
+  - Avatar do usuário no header
+  - Dropdown com opções: Perfil, Minha Casa, Sair
+  - Navegação integrada com Expo Router
+
+- [x] **Briefing Diário**: Resumo executivo inteligente
+  - Acesso via pílula elegante ao lado da saudação
+  - Análise de finanças, tarefas pendentes e insights
+  - Tom sofisticado e motivacional (estilo Steve Jobs/Apple)
+
+- [x] **Dashboard Aesthetic**: Interface moderna e intuitiva
+  - Cards menores e mais elegantes
+  - Glassmorphism effects
+  - Navegação otimizada sem tabbar tradicional
+  - Botões de ação centralizados com feedback háptico
 
 ### 🔄 Próximas Fases
 
+- [ ] Upload de foto de perfil do usuário (Supabase Storage)
 - [ ] Notificações push (Expo Notifications)
-- [ ] Realtime subscriptions (Supabase Realtime)
-- [ ] Upload de comprovantes (Supabase Storage)
-- [ ] Relatórios financeiros avançados
+- [ ] Realtime subscriptions completas (Supabase Realtime)
+- [ ] Upload de comprovantes de despesas (Supabase Storage)
+- [ ] Relatórios financeiros avançados com gráficos
 - [ ] Gamificação de tarefas
 - [ ] Integração IoT (dispositivos inteligentes)
 - [ ] Modo offline com sincronização
+- [ ] Temas personalizáveis (dark/light/auto)
 
 ## 🧪 Testes
 
@@ -307,7 +344,38 @@ Desenvolvido com ❤️ pela equipe Luma.
 
 **Status do Projeto**: 🟢 MVP Implementado
 
-**Última Atualização**: Novembro 2025
+**Última Atualização**: Janeiro 2025
+
+## 🎨 Destaques de Design
+
+O Luma implementa um design system moderno e sofisticado:
+
+- **Paleta de Cores**: Gradientes dourados (#C28400, #8F6100) com acentos amarelos (#FFF44F)
+- **Glassmorphism**: Efeitos de vidro fosco com transparências sutis
+- **Animações Suaves**: React Native Reanimated v4 para interações fluidas
+- **Mobile-First**: Layout otimizado para dispositivos móveis com experiência touch-friendly
+- **Feedback Haptico**: Respostas táteis em ações importantes (Expo Haptics)
+
+## 🚀 Novas Funcionalidades Implementadas
+
+### Magic Input (Criação Assistida por IA)
+Descreva o que precisa e a Luma cria automaticamente:
+```
+"Comprar pizza R$ 80 hoje" → Despesa criada com valor e data
+"Limpar a sala amanhã" → Tarefa criada com data limite
+```
+
+### Speed Dial (Ações Rápidas)
+Menu radial elegante que expande do botão "+":
+- Nova Despesa
+- Nova Tarefa
+- (Expansível para mais ações)
+
+### Menu de Usuário
+Acesso rápido a:
+- Meu Perfil
+- Minha Casa
+- Sair da Conta
 
 ## 👤 Usuário de Teste Playwright
 
