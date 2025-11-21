@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Wallet, BarChart3 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Wallet, BarChart3, Plus, Settings } from 'lucide-react-native';
+import { GlassCard } from '@/components/shared';
 
 import {
   useCreateExpense,
@@ -195,17 +197,20 @@ export default function FinancesScreen() {
         onPress={() => handleOpenEdit(expense)}
         activeOpacity={0.86}
       >
+        <View style={styles.expenseIconBg}>
+          <Wallet size={18} color="#FFF44F" />
+        </View>
         <View style={styles.expenseInfo}>
           <Text style={styles.expenseDescription}>{expense.description}</Text>
           <Text style={styles.expenseMeta}>
             {expense.category?.name ?? 'Sem categoria'} ·{' '}
-            {new Date(expense.expenseDate).toLocaleDateString('pt-BR')}
+            {new Date(expense.expenseDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
           </Text>
-          <Text style={styles.expenseHint}>
-            {expense.splits && expense.splits.length > 0
-              ? `Dividido entre ${expense.splits.length} participante(s)`
-              : 'Não dividido'}
-          </Text>
+          {expense.splits && expense.splits.length > 0 && (
+            <Text style={styles.expenseHint}>
+              Dividido entre {expense.splits.length} pessoa(s)
+            </Text>
+          )}
         </View>
         <View style={styles.expenseAside}>
           <Text
@@ -217,11 +222,13 @@ export default function FinancesScreen() {
             {formatCurrency(expense.amount)}
           </Text>
           <View style={styles.paidSwitchRow}>
-            <Text style={styles.paidSwitchLabel}>Pago</Text>
+            <Text style={styles.paidSwitchLabel}>{expense.isPaid ? 'Pago' : 'Pendente'}</Text>
             <Switch
               value={expense.isPaid}
               onValueChange={(value) => handleTogglePaid(expense, value)}
               disabled={isToggling || toggleExpensePaidMutation.isPending}
+              trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#10b981' }}
+              thumbColor={expense.isPaid ? '#FFF44F' : '#f4f3f4'}
             />
           </View>
         </View>
@@ -230,68 +237,88 @@ export default function FinancesScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
-      refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
-      }
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Finanças da Casa</Text>
-          <Text style={styles.subtitle}>
-            Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#C28400', '#8F6100']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FFF44F" />
+        }
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.headerIconRow}>
+            <View style={styles.walletIconBg}>
+              <Wallet size={24} color="#C28400" />
+            </View>
+            <View>
+              <Text style={styles.title}>Finanças da Casa</Text>
+              <Text style={styles.subtitle}>NOV</Text>
+            </View>
+          </View>
+          <Text style={styles.subtitleSecondary}>
+            Controle total dos gastos e orçamento mensal.
           </Text>
         </View>
-      </View>
-      <View style={styles.headerActionsRow}>
-        <TouchableOpacity
-          style={styles.headerActionButton}
-          onPress={() => router.push('/(tabs)/finances/reports')}
-        >
-          <BarChart3 size={18} color="#1d4ed8" />
-          <Text style={styles.headerActionText}>Relatórios</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerActionButton}
-          onPress={() => router.push('/(tabs)/finances/budget')}
-        >
-          <Wallet size={18} color="#1d4ed8" />
-          <Text style={styles.headerActionText}>Orçamento</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.summaryCard, cardShadowStyle]}>
-        <View style={styles.summaryHeader}>
-          <Text style={styles.cardTitle}>Despesas deste mês</Text>
+        
+        <View style={styles.headerActionsRow}>
           <TouchableOpacity
-            style={styles.manageCategoriesButton}
+            style={styles.headerActionButton}
+            onPress={() => router.push('/(tabs)/finances/reports')}
+          >
+            <BarChart3 size={18} color="#FFF44F" />
+            <Text style={styles.headerActionText}>Relatórios</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerActionButton}
+            onPress={() => router.push('/(tabs)/finances/budget')}
+          >
+            <Wallet size={18} color="#FFF44F" />
+            <Text style={styles.headerActionText}>Orçamento</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerActionButton}
             onPress={() => setCategoryModalVisible(true)}
           >
-            <Text style={styles.manageCategoriesText}>Gerenciar categorias</Text>
+            <Settings size={18} color="#FFF44F" />
+            <Text style={styles.headerActionText}>Categorias</Text>
           </TouchableOpacity>
         </View>
+
+      <GlassCard style={styles.summaryCard}>
+        <View style={styles.summaryHeader}>
+          <Text style={styles.cardTitle}>Total do mês</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{totalCount} DESPESAS</Text>
+          </View>
+        </View>
         <Text style={styles.cardValue}>{formatCurrency(String(total))}</Text>
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${Math.min((paidCount / totalCount) * 100, 100)}%` }]} />
+        </View>
         <Text style={styles.cardHint}>
           {totalCount > 0
-            ? `Você tem ${totalCount} despesa(s) registrada(s) neste mês; ${paidCount} já marcada(s) como paga(s).`
-            : 'Nenhuma despesa registrada ainda para este mês.'}
+            ? `${paidCount} de ${totalCount} despesas pagas`
+            : 'Nenhuma despesa registrada ainda.'}
         </Text>
-      </View>
+      </GlassCard>
 
-      <View style={[styles.listCard, cardShadowStyle]}>
+      <GlassCard style={styles.listCard}>
         <View style={styles.listHeader}>
           <Text style={styles.cardTitle}>Movimentações recentes</Text>
           <TouchableOpacity style={styles.addButton} onPress={handleOpenCreate}>
-            <Text style={styles.addButtonText}>+ Adicionar</Text>
+            <Plus size={20} color="#2C1A00" />
           </TouchableOpacity>
         </View>
 
         {isLoading || categoriesLoading || membersLoading ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator color="#2563eb" />
-            <Text style={styles.helperText}>Carregando despesas da casa...</Text>
+            <ActivityIndicator color="#FFF44F" />
+            <Text style={styles.helperText}>Carregando despesas...</Text>
           </View>
         ) : expenses && expenses.length > 0 ? (
           expenses.map((expense) => renderExpenseRow(expense))
@@ -299,12 +326,11 @@ export default function FinancesScreen() {
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Nenhuma despesa registrada</Text>
             <Text style={styles.emptySubtitle}>
-              Comece registrando contas como aluguel, luz, água ou supermercado usando o botão
-              “Adicionar”.
+              Comece registrando contas como aluguel, luz, água ou supermercado.
             </Text>
           </View>
         )}
-      </View>
+      </GlassCard>
 
       <ExpenseFormModal
         visible={isExpenseModalVisible}
@@ -329,21 +355,24 @@ export default function FinancesScreen() {
         onUpdate={handleUpdateCategory}
         onDelete={handleDeleteCategory}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
-  container: {
+  scrollContent: {
     flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
     gap: 20,
   },
   centered: {
@@ -355,19 +384,40 @@ const styles = StyleSheet.create({
   headerRow: {
     marginBottom: 16,
   },
-  headerText: {
-    flex: 1,
+  headerIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  walletIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFF44F',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#475569',
-    marginTop: 4,
-    lineHeight: 22,
+    fontSize: 14,
+    color: '#FFFBE6',
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  subtitleSecondary: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 20,
   },
   headerActionsRow: {
     flexDirection: 'row',
@@ -375,68 +425,81 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerActionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(255,244,79,0.1)',
     borderWidth: 1,
-    borderColor: '#1d4ed8',
+    borderColor: 'rgba(255,244,79,0.3)',
   },
   headerActionText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1d4ed8',
+    color: '#FFF44F',
+  },
+  badge: {
+    backgroundColor: 'rgba(255,244,79,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
+    color: '#FFF44F',
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
   summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 12,
+    padding: 24,
   },
   listCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 20,
     gap: 16,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#FFFBE6',
   },
   cardValue: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFF',
+    letterSpacing: -0.5,
+    marginTop: 8,
   },
   summaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  manageCategoriesButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
+  progressBarBg: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    width: '100%',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  manageCategoriesText: {
-    color: '#1d4ed8',
-    fontSize: 12,
-    fontWeight: '600',
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#10b981',
+    borderRadius: 2,
   },
   cardHint: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
   },
   helperText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#FFFBE6',
+    opacity: 0.8,
   },
   listHeader: {
     flexDirection: 'row',
@@ -444,27 +507,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   expenseRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 12,
+  },
+  expenseIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.2)',
   },
   expenseInfo: {
     flex: 1,
@@ -473,82 +548,83 @@ const styles = StyleSheet.create({
   expenseDescription: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   expenseMeta: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
   },
   expenseHint: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: 'rgba(255,255,255,0.5)',
   },
   expenseAside: {
     alignItems: 'flex-end',
     gap: 8,
   },
   expenseAmount: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
   expenseAmountPaid: {
     color: '#10b981',
   },
   expenseAmountPending: {
-    color: '#ef4444',
+    color: '#FFF44F',
   },
   emptyState: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#cbd5f5',
+    borderColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
-    padding: 16,
+    padding: 24,
     alignItems: 'center',
     gap: 8,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#FFFBE6',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
   },
   loadingState: {
     alignItems: 'center',
     gap: 8,
+    paddingVertical: 20,
   },
   paidSwitchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
+  paidSwitchLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+  },
   noAccessContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#f8fafc',
   },
   noAccessTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFFBE6',
     marginBottom: 12,
     textAlign: 'center',
   },
   noAccessText: {
     fontSize: 16,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 24,
-  },
-  paidSwitchLabel: {
-    fontSize: 12,
-    color: '#475569',
   },
 });
 

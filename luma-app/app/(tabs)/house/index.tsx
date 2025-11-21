@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Home as HomeIcon, Users, Plus, LogIn, Copy, Settings, UserPlus, UserMinus, Shield, LogOut } from 'lucide-react-native';
+import { GlassCard } from '@/components/shared';
 import {
   useCreateHouse,
   useHouseMembers,
@@ -156,23 +159,48 @@ export default function HouseScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
-    >
-      <Text style={styles.title}>Casa & Membros</Text>
-      <Text style={styles.subtitle}>
-        Gerencie convites, papéis, dispositivos e configurações gerais da residência.
-      </Text>
-
-      <View style={[styles.sectionCard, cardShadowStyle]}>
-        <Text style={styles.sectionTitle}>Minhas casas</Text>
-        {housesLoading ? (
-          <ActivityIndicator />
-        ) : houses.length === 0 ? (
-          <Text style={styles.helperText}>
-            Você ainda não faz parte de nenhuma casa. Crie uma nova ou entre com um código de convite.
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#C28400', '#8F6100']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.headerIconRow}>
+            <View style={styles.homeIconBg}>
+              <HomeIcon size={24} color="#C28400" />
+            </View>
+            <View>
+              <Text style={styles.title}>Casa & Membros</Text>
+              <Text style={styles.subtitle}>{houses.length} casa(s)</Text>
+            </View>
+          </View>
+          <Text style={styles.subtitleSecondary}>
+            Gerencie membros, convites e permissões da residência.
           </Text>
+        </View>
+
+      <GlassCard style={styles.sectionCard}>
+        <View style={styles.sectionHeaderRow}>
+          <Users size={20} color="#FFF44F" />
+          <Text style={styles.sectionTitle}>Minhas casas</Text>
+        </View>
+        {housesLoading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator color="#FFF44F" />
+            <Text style={styles.helperText}>Carregando...</Text>
+          </View>
+        ) : houses.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Nenhuma casa ainda</Text>
+            <Text style={styles.helperText}>
+              Crie uma nova ou entre com um código de convite.
+            </Text>
+          </View>
         ) : (
           <View style={styles.houseList}>
             {houses.map(({ house, membership }) => (
@@ -184,11 +212,14 @@ export default function HouseScreen() {
                 ]}
                 onPress={() => setHouseId(house.id)}
               >
-                <View>
-                  <Text style={styles.houseName}>{house.name}</Text>
+                <View style={styles.houseIconBg}>
+                  <HomeIcon size={18} color={house.id === houseId ? '#C28400' : '#FFF44F'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.houseName, house.id === houseId && styles.houseNameActive]}>{house.name}</Text>
                   <Text style={styles.houseMeta}>
-                    {membership.role === 'ADMIN' ? 'Admin' : 'Membro'} ·{' '}
-                    {new Date(membership.joinedAt).toLocaleDateString('pt-BR')}
+                    {membership.role === 'ADMIN' ? '👑 Admin' : '👤 Membro'} ·{' '}
+                    {new Date(membership.joinedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -205,7 +236,8 @@ export default function HouseScreen() {
               setCreateModalVisible(true);
             }}
           >
-            <Text style={styles.primaryActionText}>Criar nova casa</Text>
+            <Plus size={18} color="#2C1A00" />
+            <Text style={styles.primaryActionText}>Criar casa</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.secondaryAction}
@@ -214,58 +246,70 @@ export default function HouseScreen() {
               setJoinModalVisible(true);
             }}
           >
-            <Text style={styles.secondaryActionText}>Entrar com código</Text>
+            <LogIn size={18} color="#FFF44F" />
+            <Text style={styles.secondaryActionText}>Entrar</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </GlassCard>
 
       {currentHouse ? (
         <>
-          <View style={[styles.card, cardShadowStyle]}>
-            <Text style={styles.cardTitle}>Resumo da casa</Text>
-            <Text style={styles.helperText}>
-              Casa atual: <Text style={styles.highlight}>{currentHouse.house.name}</Text>
-            </Text>
-            <Text style={styles.helperText}>
-              Membros: <Text style={styles.highlight}>{members.length}</Text>
-            </Text>
-          </View>
-
-          <View style={[styles.card, cardShadowStyle]}>
-            <Text style={styles.cardTitle}>Contexto atual</Text>
-            <Text style={styles.helperText}>Usuário autenticado: {user?.email ?? 'não identificado'}</Text>
-            <Text style={styles.helperText}>Casa selecionada: {currentHouse.house.name}</Text>
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Settings size={20} color="#FFF44F" />
+              <Text style={styles.cardTitle}>Resumo da casa</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Casa atual:</Text>
+              <Text style={styles.infoValue}>{currentHouse.house.name}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Membros:</Text>
+              <Text style={styles.infoValue}>{members.length}</Text>
+            </View>
             <TouchableOpacity
+              style={styles.inviteButton}
               onPress={async () => {
                 const invite = currentHouse.house.inviteCode;
                 try {
                   if (Platform.OS === 'web' && navigator?.clipboard) {
                     await navigator.clipboard.writeText(invite);
-                    Alert.alert('Convite', 'Código copiado para a área de transferência.');
+                    Alert.alert('Convite', 'Código copiado! 📋');
                   } else {
-                    Alert.alert('Convite', `Compartilhe este código: ${invite}`);
+                    Alert.alert('Convite', `Compartilhe: ${invite}`);
                   }
                 } catch {
                   Alert.alert('Convite', `Código: ${invite}`);
                 }
               }}
             >
-              <Text style={styles.inviteCode}>
-                Código de convite: <Text style={styles.inviteCodeValue}>{currentHouse.house.inviteCode}</Text>
-              </Text>
+              <Copy size={16} color="#2C1A00" />
+              <Text style={styles.inviteButtonText}>Copiar código: {currentHouse.house.inviteCode}</Text>
             </TouchableOpacity>
-          </View>
+          </GlassCard>
 
-          <View style={[styles.card, cardShadowStyle]}>
-            <Text style={styles.cardTitle}>Membros</Text>
+          <GlassCard style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Users size={20} color="#FFF44F" />
+              <Text style={styles.cardTitle}>Membros</Text>
+            </View>
             {membersLoading ? (
-              <ActivityIndicator />
+              <View style={styles.loadingState}>
+                <ActivityIndicator color="#FFF44F" />
+              </View>
             ) : members.length === 0 ? (
               <Text style={styles.helperText}>Nenhum membro encontrado.</Text>
             ) : (
               members.map((member) => (
                 <View key={member.id} style={styles.memberRow}>
-                  <View>
+                  <View style={styles.memberIconBg}>
+                    {member.role === 'ADMIN' ? (
+                      <Shield size={16} color="#FFF44F" />
+                    ) : (
+                      <Users size={16} color="#FFF44F" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.memberName}>{member.user.name ?? member.user.email}</Text>
                     <Text style={styles.memberMeta}>
                       {member.user.email} · {formatRole(member.role)}
@@ -273,18 +317,16 @@ export default function HouseScreen() {
                   </View>
                   <View style={styles.memberActions}>
                     {member.userId === user?.id ? (
-                      <TouchableOpacity onPress={handleLeaveHouse}>
-                        <Text style={styles.leaveLink}>Sair</Text>
+                      <TouchableOpacity onPress={handleLeaveHouse} style={styles.actionButton}>
+                        <LogOut size={14} color="#FF6B6B" />
                       </TouchableOpacity>
                     ) : isAdmin ? (
                       <>
-                        <TouchableOpacity onPress={() => handleUpdateRole(member)}>
-                          <Text style={styles.roleLink}>
-                            {member.role === 'ADMIN' ? 'Tornar Membro' : 'Tornar Admin'}
-                          </Text>
+                        <TouchableOpacity onPress={() => handleUpdateRole(member)} style={styles.actionButton}>
+                          <Shield size={14} color="#FFF44F" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleRemoveMember(member)}>
-                          <Text style={styles.removeLink}>Remover</Text>
+                        <TouchableOpacity onPress={() => handleRemoveMember(member)} style={styles.actionButton}>
+                          <UserMinus size={14} color="#FF6B6B" />
                         </TouchableOpacity>
                       </>
                     ) : null}
@@ -292,23 +334,17 @@ export default function HouseScreen() {
                 </View>
               ))
             )}
-          </View>
+          </GlassCard>
         </>
       ) : null}
 
-      <View style={[styles.card, cardShadowStyle]}>
-        <Text style={styles.cardTitle}>Checklist inicial</Text>
-        <View style={styles.list}>
-          <Text style={styles.listItem}>• Implementar listagem de membros com papéis.</Text>
-          <Text style={styles.listItem}>• Gerar e compartilhar códigos de convite.</Text>
-          <Text style={styles.listItem}>• Preparar sessão para dispositivos IoT (fase 2).</Text>
+      <GlassCard style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <LogOut size={20} color="#FF6B6B" />
+          <Text style={[styles.cardTitle, { color: '#FF6B6B' }]}>Sair da conta</Text>
         </View>
-      </View>
-
-      <View style={[styles.card, cardShadowStyle]}>
-        <Text style={styles.cardTitle}>Sessão</Text>
         <Text style={styles.helperText}>
-          Encerre sua sessão neste dispositivo. Você poderá entrar novamente com seu e-mail e senha.
+          Encerre sua sessão. Você poderá entrar novamente com seu e-mail e senha.
         </Text>
         <TouchableOpacity
           style={styles.logoutButton}
@@ -321,9 +357,10 @@ export default function HouseScreen() {
             }
           }}
         >
-          <Text style={styles.logoutButtonText}>Sair da conta</Text>
+          <LogOut size={18} color="#2C1A00" />
+          <Text style={styles.logoutButtonText}>Sair agora</Text>
         </TouchableOpacity>
-      </View>
+      </GlassCard>
 
       <Modal
         animationType="slide"
@@ -332,8 +369,11 @@ export default function HouseScreen() {
         onRequestClose={() => setCreateModalVisible(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Criar nova casa</Text>
+          <GlassCard style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Plus size={24} color="#FFF44F" />
+              <Text style={styles.modalTitle}>Criar nova casa</Text>
+            </View>
             <TextInput
               value={houseNameInput}
               onChangeText={setHouseNameInput}
@@ -397,7 +437,7 @@ export default function HouseScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassCard>
         </View>
       </Modal>
 
@@ -408,8 +448,11 @@ export default function HouseScreen() {
         onRequestClose={() => setJoinModalVisible(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Entrar com código</Text>
+          <GlassCard style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <LogIn size={24} color="#FFF44F" />
+              <Text style={styles.modalTitle}>Entrar com código</Text>
+            </View>
             <TextInput
               value={inviteCodeInput}
               onChangeText={setInviteCodeInput}
@@ -451,67 +494,120 @@ export default function HouseScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassCard>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
-  container: {
+  scrollContent: {
     flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
     gap: 20,
+  },
+  headerRow: {
+    marginBottom: 16,
+  },
+  headerIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  homeIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFF44F',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#475569',
+    fontSize: 14,
+    color: '#FFFBE6',
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  subtitleSecondary: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 20,
   },
   sectionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 20,
     gap: 16,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: '700',
+    color: '#FFFBE6',
   },
   houseList: {
     gap: 12,
   },
   houseListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
     padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   houseListItemActive: {
-    borderColor: '#1d4ed8',
-    backgroundColor: '#eef2ff',
+    borderColor: '#FFF44F',
+    borderWidth: 2,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+  },
+  houseIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.2)',
   },
   houseName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
+  },
+  houseNameActive: {
+    color: '#FFF44F',
   },
   houseMeta: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
   actionsRow: {
@@ -520,172 +616,235 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     flex: 1,
-    backgroundColor: '#1d4ed8',
-    borderRadius: 12,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFF44F',
+    borderRadius: 12,
+    paddingVertical: 14,
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   primaryActionText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#2C1A00',
+    fontWeight: '700',
     fontSize: 15,
   },
   secondaryAction: {
     flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#FFF44F',
+    paddingVertical: 14,
   },
   secondaryActionText: {
-    color: '#1d4ed8',
+    color: '#FFF44F',
     fontWeight: '600',
     fontSize: 15,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 20,
-    gap: 12,
+    gap: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: '700',
+    color: '#FFFBE6',
   },
-  list: {
-    gap: 8,
-  },
-  listItem: {
-    fontSize: 14,
-    color: '#475569',
-  },
-  logoutButton: {
-    marginTop: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#dc2626',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    alignSelf: 'flex-start',
-  },
-  logoutButtonText: {
-    color: '#dc2626',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  helperText: {
-    fontSize: 14,
-    color: '#475569',
-  },
-  highlight: {
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  inviteCode: {
-    fontSize: 13,
-    color: '#475569',
-  },
-  inviteCodeValue: {
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  memberRow: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF44F',
+  },
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFF44F',
+    borderRadius: 12,
     paddingVertical: 12,
+    marginTop: 8,
+  },
+  inviteButtonText: {
+    color: '#2C1A00',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: '#FFF44F',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  logoutButtonText: {
+    color: '#2C1A00',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  helperText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 20,
+  },
+  loadingState: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 20,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFBE6',
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  memberIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,244,79,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,79,0.2)',
   },
   memberName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   memberMeta: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
   },
   memberActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     alignItems: 'center',
   },
-  roleLink: {
-    color: '#1d4ed8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  removeLink: {
-    color: '#dc2626',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  leaveLink: {
-    color: '#1d4ed8',
-    fontSize: 14,
-    fontWeight: '600',
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   modalContent: {
     width: '100%',
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    padding: 20,
+    padding: 24,
     gap: 16,
   },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   modalInput: {
-    height: 48,
+    height: 52,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    fontSize: 15,
+    color: '#FFFBE6',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
+    marginTop: 8,
   },
   modalPrimary: {
     flex: 1,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#FFF44F',
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   modalPrimaryText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#2C1A00',
+    fontWeight: '700',
     fontSize: 15,
   },
   modalSecondary: {
     flex: 1,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSecondaryText: {
-    color: '#1d4ed8',
+    color: '#FFFBE6',
     fontWeight: '600',
     fontSize: 15,
   },

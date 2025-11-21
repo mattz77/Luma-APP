@@ -12,13 +12,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Sparkles, Send, User as UserIcon } from 'lucide-react-native';
 
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
 import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUserHouses } from '@/hooks/useHouses';
-import { bubbleShadowStyle, cardShadowStyle } from '@/lib/styles';
+import { GlassCard } from '@/components/shared';
 
 export default function LumaChatScreen() {
   const [message, setMessage] = useState('');
@@ -103,26 +105,39 @@ export default function LumaChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <View style={[styles.header, { paddingTop: top + 16 }]}>
-        <Text style={styles.title}>Assistente Luma</Text>
-        <Text style={styles.subtitle}>
-          Você está falando sobre: <Text style={styles.houseName}>{currentHouseName}</Text>.
-        </Text>
-        <Text style={styles.subtitleSecondary}>
-          Peça ajuda com despesas, tarefas, organização da rotina ou próximos passos da casa.
-        </Text>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#C28400', '#8F6100']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <View style={[styles.header, { paddingTop: top + 16 }]}>
+          <View style={styles.headerIconRow}>
+            <View style={styles.sparkleIconBg}>
+              <Sparkles size={24} color="#C28400" />
+            </View>
+            <View>
+              <Text style={styles.title}>Assistente Luma</Text>
+              <Text style={styles.subtitle}>
+                {currentHouseName}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.subtitleSecondary}>
+            Peça ajuda com despesas, tarefas, organização ou próximos passos.
+          </Text>
+        </View>
 
       {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
       {isLoadingConversations || isPending ? (
         <View style={[styles.messagesContainer, styles.centered]}>
-          <ActivityIndicator size="large" color="#1d4ed8" />
+          <ActivityIndicator size="large" color="#FFF44F" />
           <Text style={styles.helperText}>
             {isPending ? 'Luma está pensando...' : 'Carregando histórico...'}
           </Text>
@@ -137,18 +152,28 @@ export default function LumaChatScreen() {
           contentContainerStyle={styles.messagesList}
           renderItem={({ item }) => (
             <View style={styles.messageWrapper}>
-              <View style={[styles.bubble, styles.userBubble, bubbleShadowStyle]}>
-                <Text style={[styles.bubbleLabel, styles.userLabel]}>Você</Text>
-                <Text style={[styles.bubbleText, styles.userBubbleText]}>{item.message}</Text>
+              <View style={styles.userBubble}>
+                <View style={styles.bubbleHeader}>
+                  <View style={styles.userAvatarSmall}>
+                    <UserIcon size={12} color="#FFF44F" />
+                  </View>
+                  <Text style={styles.userLabel}>Você</Text>
+                </View>
+                <Text style={styles.userBubbleText}>{item.message}</Text>
               </View>
               {item.response ? (
-                <View style={[styles.bubble, styles.lumaBubble, bubbleShadowStyle]}>
-                  <Text style={[styles.bubbleLabel, styles.lumaLabel]}>Luma</Text>
-                  <Text style={styles.bubbleText}>{item.response}</Text>
-                </View>
+                <GlassCard style={styles.lumaBubble}>
+                  <View style={styles.bubbleHeader}>
+                    <View style={styles.lumaAvatarSmall}>
+                      <Sparkles size={12} color="#C28400" />
+                    </View>
+                    <Text style={styles.lumaLabel}>Luma</Text>
+                  </View>
+                  <Text style={styles.lumaBubbleText}>{item.response}</Text>
+                </GlassCard>
               ) : (
                 <View style={styles.loadingIndicator}>
-                  <ActivityIndicator size="small" color="#1d4ed8" />
+                  <ActivityIndicator size="small" color="#FFF44F" />
                   <Text style={styles.loadingText}>Luma está pensando...</Text>
                 </View>
               )}
@@ -157,7 +182,7 @@ export default function LumaChatScreen() {
         />
       )}
 
-      <View style={[styles.inputContainer, cardShadowStyle]}>
+      <GlassCard style={styles.inputContainer}>
         {conversations && conversations.length === 0 && !message.trim() ? (
           <View style={styles.quickSuggestions}>
             <Text style={styles.quickSuggestionsTitle}>Sugestões rápidas</Text>
@@ -166,76 +191,98 @@ export default function LumaChatScreen() {
                 style={styles.quickChip}
                 onPress={() => setMessage('Como está a situação financeira este mês?')}
               >
-                <Text style={styles.quickChipText}>Situação financeira</Text>
+                <Text style={styles.quickChipText}>💰 Situação financeira</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickChip}
                 onPress={() => setMessage('Quais tarefas tenho para esta semana?')}
               >
-                <Text style={styles.quickChipText}>Tarefas da semana</Text>
+                <Text style={styles.quickChipText}>✅ Tarefas da semana</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickChip}
                 onPress={() => setMessage('Quero registrar uma nova despesa da casa.')}
               >
-                <Text style={styles.quickChipText}>Registrar despesa</Text>
+                <Text style={styles.quickChipText}>📝 Registrar despesa</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : null}
-        <TextInput
-          value={message}
-          onChangeText={(text) => {
-            setMessage(text);
-            setErrorMessage(null);
-          }}
-          placeholder="Escreva algo para a Luma..."
-          style={styles.input}
-          multiline
-          numberOfLines={1}
-          editable={!isPending}
-          placeholderTextColor="#94a3b8"
-        />
-        <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={isPending}>
-          {isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.sendButtonText}>Enviar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={styles.inputRow}>
+          <TextInput
+            value={message}
+            onChangeText={(text) => {
+              setMessage(text);
+              setErrorMessage(null);
+            }}
+            placeholder="Escreva algo para a Luma..."
+            style={styles.input}
+            multiline
+            numberOfLines={1}
+            editable={!isPending}
+            placeholderTextColor="rgba(255,255,255,0.4)"
+          />
+          <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={isPending}>
+            {isPending ? (
+              <ActivityIndicator size={20} color="#2C1A00" />
+            ) : (
+              <Send size={20} color="#2C1A00" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </GlassCard>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#1a1a1a',
+  },
+  keyboardView: {
+    flex: 1,
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 12,
+    paddingBottom: 16,
+  },
+  headerIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  sparkleIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFF44F',
   },
   subtitle: {
     fontSize: 14,
-    color: '#475569',
-    marginTop: 4,
+    color: '#FFFBE6',
+    opacity: 0.8,
+    marginTop: 2,
   },
   subtitleSecondary: {
     fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  houseName: {
-    fontWeight: '600',
-    color: '#0f172a',
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 20,
   },
   messagesContainer: {
     flex: 1,
@@ -244,56 +291,89 @@ const styles = StyleSheet.create({
   messagesList: {
     paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   errorMessage: {
     marginHorizontal: 24,
     marginBottom: 8,
     fontSize: 13,
-    color: '#dc2626',
+    color: '#FF6B6B',
     textAlign: 'center',
+    backgroundColor: 'rgba(255,107,107,0.1)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   },
   messageWrapper: {
-    gap: 12,
-    marginBottom: 4,
+    gap: 16,
+    marginBottom: 8,
   },
-  bubble: {
-    borderRadius: 18,
-    padding: 14,
-    maxWidth: '85%',
-    gap: 6,
+  bubbleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  userAvatarSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,244,79,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFF44F',
+  },
+  lumaAvatarSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userBubble: {
     alignSelf: 'flex-end',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    backgroundColor: '#FFF44F',
+    borderRadius: 20,
+    borderTopRightRadius: 4,
+    padding: 16,
+    maxWidth: '85%',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   lumaBubble: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  bubbleLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    maxWidth: '85%',
+    borderTopLeftRadius: 4,
   },
   userLabel: {
-    color: '#1d4ed8',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#2C1A00',
   },
   lumaLabel: {
-    color: '#0284c7',
-  },
-  bubbleText: {
-    fontSize: 15,
-    color: '#0f172a',
-    lineHeight: 20,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    color: '#FFFBE6',
   },
   userBubbleText: {
-    color: '#0f172a',
+    fontSize: 15,
+    color: '#2C1A00',
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  lumaBubbleText: {
+    fontSize: 15,
+    color: '#FFFBE6',
+    lineHeight: 22,
   },
   loadingIndicator: {
     flexDirection: 'row',
@@ -302,48 +382,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
   },
   loadingText: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#FFFBE6',
     fontStyle: 'italic',
+    opacity: 0.8,
   },
   inputContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    backgroundColor: '#fff',
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#0f172a',
-    backgroundColor: '#f8fafc',
+    color: '#FFFBE6',
     maxHeight: 120,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   sendButton: {
-    borderRadius: 16,
-    backgroundColor: '#1d4ed8',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF44F',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
-    opacity: 1,
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   centered: {
     flex: 1,
@@ -354,45 +439,51 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#FFFBE6',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
     marginTop: 8,
   },
   helperText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#64748b',
+    color: '#FFFBE6',
+    opacity: 0.8,
   },
   quickSuggestions: {
     flexDirection: 'column',
-    gap: 6,
-    marginRight: 12,
-    flex: 1,
+    gap: 12,
+    marginBottom: 16,
   },
   quickSuggestionsTitle: {
     fontSize: 12,
-    color: '#94a3b8',
-    marginBottom: 2,
+    color: '#FFFBE6',
+    opacity: 0.7,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   quickSuggestionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   quickChip: {
-    borderRadius: 999,
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   quickChipText: {
-    fontSize: 12,
-    color: '#1f2937',
+    fontSize: 13,
+    color: '#FFFBE6',
+    fontWeight: '500',
   },
 });
 
