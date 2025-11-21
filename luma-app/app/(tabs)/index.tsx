@@ -20,7 +20,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { 
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles, 
-  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle 
+  X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home 
 } from 'lucide-react-native';
 import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
@@ -69,7 +69,7 @@ const ListItem = ({ icon: Icon, title, subtitle, amount, delay = 0 }: any) => (
 
 export default function Dashboard() {
   const router = useRouter();
-  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | null>(null);
+  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [taskInput, setTaskInput] = useState("");
@@ -79,6 +79,7 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: "Olá! Sou a Luma. Como posso ajudar na gestão da casa hoje?" }
   ]);
+  const signOut = useAuthStore(state => state.signOut);
 
   // Auth Store
   const { user, houseId } = useAuthStore();
@@ -285,14 +286,15 @@ export default function Dashboard() {
     const isBriefing = modalMode === 'briefing';
     const isFinance = modalMode === 'finance';
     const isMagic = modalMode === 'magic';
+    const isUserMenu = modalMode === 'user_menu';
     
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <View style={styles.modalHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={20} color="#FFF44F" />
+            {isUserMenu ? <User size={20} color="#FFF44F" /> : <Sparkles size={20} color="#FFF44F" />}
             <Text style={styles.modalTitle}>
-              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : 'Análise Financeira'}
+              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : isUserMenu ? 'Perfil' : 'Análise Financeira'}
             </Text>
           </View>
           <TouchableOpacity onPress={() => {
@@ -305,6 +307,39 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.modalBody}>
+          {/* User Menu Modal */}
+          {isUserMenu && (
+            <View style={{ gap: 16 }}>
+               <TouchableOpacity style={styles.menuItem} onPress={() => setModalMode(null)}>
+                  <View style={styles.menuIconBg}>
+                    <User size={20} color="#FFF44F" />
+                  </View>
+                  <Text style={styles.menuItemText}>Meu Perfil</Text>
+               </TouchableOpacity>
+               
+               <TouchableOpacity style={styles.menuItem} onPress={() => {
+                   setModalMode(null);
+                   router.push('/(tabs)/house' as any);
+               }}>
+                  <View style={styles.menuIconBg}>
+                    <Home size={20} color="#FFF44F" />
+                  </View>
+                  <Text style={styles.menuItemText}>Minha Casa</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 16, marginTop: 8 }]} onPress={async () => {
+                   setModalMode(null);
+                   await signOut();
+                   router.replace('/(auth)/login' as any);
+               }}>
+                  <View style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.2)' }]}>
+                    <LogOut size={20} color="#FF4F4F" />
+                  </View>
+                  <Text style={[styles.menuItemText, { color: '#FF4F4F' }]}>Sair da Conta</Text>
+               </TouchableOpacity>
+            </View>
+          )}
+
           {/* Magic Input Modal */}
           {isMagic && (
             <View style={{ flex: 1, gap: 16 }}>
@@ -543,11 +578,20 @@ export default function Dashboard() {
           <View style={styles.header}>
             <View>
               <Text style={styles.greeting}>Bom dia,</Text>
-              <Text style={styles.username}>{userName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={styles.username}>{userName}</Text>
+                <TouchableOpacity 
+                  onPress={handleDailyBriefing}
+                  style={styles.briefingPill}
+                >
+                  <Sparkles size={12} color="#2C1A00" />
+                  <Text style={styles.briefingPillText}>Resumo do dia</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity style={styles.bellButton} onPress={handleDailyBriefing}>
-              <Bell size={24} color="#FFF44F" />
-              <View style={styles.notificationDot} />
+            
+            <TouchableOpacity style={styles.userAvatarButton} onPress={() => setModalMode('user_menu')}>
+               <User size={24} color="#FFF44F" />
             </TouchableOpacity>
           </View>
 
@@ -684,9 +728,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginTop: 20, marginBottom: 20 },
   greeting: { color: '#FFFBE6', opacity: 0.8, fontSize: 18 },
   username: { color: '#FFF44F', fontSize: 32, fontWeight: 'bold' },
-  bellButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,244,79,0.2)' },
-  notificationDot: { position: 'absolute', top: 12, right: 12, width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF4F4F', borderWidth: 1, borderColor: '#C28400' },
+  userAvatarButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,244,79,0.3)' },
+  briefingPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF44F', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 12 },
+  briefingPillText: { color: '#2C1A00', fontSize: 12, fontWeight: 'bold' },
   
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
+  menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,244,79,0.1)', alignItems: 'center', justifyContent: 'center' },
+  menuItemText: { color: '#FFFBE6', fontSize: 18, fontWeight: '500' },
+
   cardsSection: { marginBottom: 24 },
   cardsScrollContent: { paddingHorizontal: 20, gap: 12 },
   glassCard: { borderRadius: 24, padding: 20, overflow: 'hidden', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
