@@ -1,7 +1,8 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions, Platform } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useMemo, useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle2, PlayCircle, XCircle, GripVertical } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { CheckCircle2, PlayCircle, XCircle, GripVertical, Plus, ListTodo } from 'lucide-react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,10 +17,10 @@ import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/u
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Task, TaskStatus, TaskPriority } from '@/types/models';
-import { cardShadowStyle } from '@/lib/styles';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TagInput } from '@/components/TagInput';
 import { useRouter } from 'expo-router';
+import { GlassCard } from '@/components/shared';
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   PENDING: 'Pendentes',
@@ -81,6 +82,11 @@ export default function TasksScreen() {
     );
   }
 
+  // Calcular tarefas pendentes
+  const pendingTasks = useMemo(() => {
+    return tasks?.filter(task => task.status === 'PENDING').length ?? 0;
+  }, [tasks]);
+
   // Filtrar tarefas por tag se selecionada
   const filteredTasks = useMemo(() => {
     if (!selectedTagFilter || !tasks) return tasks;
@@ -125,20 +131,36 @@ export default function TasksScreen() {
 
   return (
     <ErrorBoundary>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
-        }
-      >
-      <View style={styles.headerSection}>
-        <Text style={styles.title}>Tarefas da Casa</Text>
-        <Text style={styles.subtitle}>
-          {isMobile
-            ? 'Deslize horizontalmente para ver todas as colunas. Segure e arraste tarefas para mudar o status.'
-            : 'Segure e arraste tarefas entre colunas para mudar o status. Ou use os botões de ação rápida.'}
-        </Text>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#C28400', '#8F6100']}
+          style={StyleSheet.absoluteFill}
+        />
+        
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FFF44F" />
+          }
+        >
+        <View style={styles.headerSection}>
+          <View style={styles.headerIconRow}>
+            <View style={styles.todoIconBg}>
+              <ListTodo size={24} color="#C28400" />
+            </View>
+            <View>
+              <Text style={styles.title}>Tarefas da Casa</Text>
+              <Text style={styles.subtitle}>
+                {pendingTasks} pendentes
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.subtitleSecondary}>
+            {isMobile
+              ? 'Deslize para ver todas as colunas. Toque para editar.'
+              : 'Arraste tarefas entre colunas ou use os botões de ação.'}
+          </Text>
 
         {allTags.length > 0 && (
           <View style={styles.tagsFilterContainer}>
@@ -167,20 +189,19 @@ export default function TasksScreen() {
           </View>
         )}
 
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.primaryAction}
-                onPress={() => {
-                  setTitleInput('');
-                  setDescriptionInput('');
-                  setPriorityInput('MEDIUM');
-                  setTagsInput([]);
-                  setCreateOpen(true);
-                }}
-          >
-            <Text style={styles.primaryActionText}>+ Nova tarefa</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.primaryAction}
+              onPress={() => {
+                setTitleInput('');
+                setDescriptionInput('');
+                setPriorityInput('MEDIUM');
+                setTagsInput([]);
+                setCreateOpen(true);
+              }}
+        >
+          <Plus size={20} color="#2C1A00" />
+          <Text style={styles.primaryActionText}>Nova tarefa</Text>
+        </TouchableOpacity>
       </View>
 
       {isMobile ? (
@@ -195,16 +216,18 @@ export default function TasksScreen() {
           {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => {
             const columnTasks = grouped[status] ?? [];
             return (
-              <View
+              <GlassCard
                 key={status}
-                style={[styles.columnMobile, cardShadowStyle]}
-                onLayout={(e) => {
-                  const { x, width } = e.nativeEvent.layout;
-                  handleColumnLayout(status, x, width);
-                }}
+                style={styles.columnMobile}
               >
-                <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
-                <View style={styles.columnContent}>
+                <View
+                  onLayout={(e) => {
+                    const { x, width } = e.nativeEvent.layout;
+                    handleColumnLayout(status, x, width);
+                  }}
+                >
+                  <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
+                  <View style={styles.columnContent}>
                   {isLoading ? (
                     <Text style={styles.helperText}>Carregando tarefas...</Text>
                   ) : columnTasks.length === 0 ? (
@@ -248,7 +271,8 @@ export default function TasksScreen() {
                     ))
                   )}
                 </View>
-              </View>
+                </View>
+              </GlassCard>
             );
           })}
           </ScrollView>
@@ -258,16 +282,18 @@ export default function TasksScreen() {
           {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => {
             const columnTasks = grouped[status] ?? [];
             return (
-              <View
+              <GlassCard
                 key={status}
-                style={[styles.column, cardShadowStyle]}
-                onLayout={(e) => {
-                  const { x, width } = e.nativeEvent.layout;
-                  handleColumnLayout(status, x, width);
-                }}
+                style={styles.column}
               >
-                <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
-                <View style={styles.columnContent}>
+                <View
+                  onLayout={(e) => {
+                    const { x, width } = e.nativeEvent.layout;
+                    handleColumnLayout(status, x, width);
+                  }}
+                >
+                  <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
+                  <View style={styles.columnContent}>
                 {isLoading ? (
                   <Text style={styles.helperText}>Carregando tarefas...</Text>
                 ) : columnTasks.length === 0 ? (
@@ -311,15 +337,16 @@ export default function TasksScreen() {
                   ))
                 )}
               </View>
-            </View>
-          );
-        })}
+                </View>
+              </GlassCard>
+            );
+          })}
         </View>
       )}
 
       {isCreateOpen && (
         <View style={styles.inlineModalBackdrop}>
-          <View style={styles.inlineModal}>
+          <GlassCard style={styles.inlineModal}>
             <Text style={styles.modalTitle}>{editingTaskId ? 'Editar tarefa' : 'Nova tarefa'}</Text>
             <TextInput
               value={titleInput}
@@ -424,10 +451,11 @@ export default function TasksScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassCard>
         </View>
       )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </ErrorBoundary>
   );
 }
@@ -748,20 +776,42 @@ function TaskCardMobile({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
-  container: {
+  scrollContent: {
     flexGrow: 1,
     paddingTop: 24,
     paddingBottom: 40,
     paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
     gap: 20,
   },
   headerSection: {
     paddingHorizontal: 0,
+    marginBottom: 16,
+  },
+  headerIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  todoIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF44F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
   centered: {
     flex: 1,
@@ -772,11 +822,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFF44F',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#475569',
+    fontSize: 14,
+    color: '#FFFBE6',
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  subtitleSecondary: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 20,
   },
   kanbanContainer: {
     flexDirection: 'row',
@@ -797,43 +854,43 @@ const styles = StyleSheet.create({
   },
   column: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 16,
     minWidth: 200,
   },
   columnMobile: {
     width: 320,
-    backgroundColor: '#fff',
-    borderRadius: 16,
     padding: 16,
     marginRight: 16,
     minHeight: 400,
   },
   columnTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontWeight: '700',
+    color: '#FFFBE6',
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   columnContent: {
     gap: 12,
   },
   taskCard: {
-    borderRadius: 12,
-    backgroundColor: '#e0f2fe',
-    padding: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 14,
     gap: 8,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   taskCardDragging: {
-    shadowColor: '#1d4ed8',
+    shadowColor: '#FFF44F',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
     borderWidth: 2,
-    borderColor: '#1d4ed8',
+    borderColor: '#FFF44F',
   },
   taskDragHandle: {
     position: 'absolute',
@@ -842,13 +899,13 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   taskCardMobile: {
-    borderRadius: 12,
-    backgroundColor: '#f0f9ff',
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     padding: 16,
     gap: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e0f2fe',
+    borderColor: 'rgba(255,255,255,0.1)',
     position: 'relative',
   },
   taskDragHandleMobile: {
@@ -860,12 +917,12 @@ const styles = StyleSheet.create({
   taskTitleMobile: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
     lineHeight: 22,
   },
   taskDescriptionMobile: {
     fontSize: 14,
-    color: '#475569',
+    color: 'rgba(255,255,255,0.7)',
     lineHeight: 20,
   },
   taskMetaMobile: {
@@ -874,7 +931,7 @@ const styles = StyleSheet.create({
   },
   taskMetaTextMobile: {
     fontSize: 13,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
     fontWeight: '500',
   },
   pointsBadgeMobile: {
@@ -951,18 +1008,18 @@ const styles = StyleSheet.create({
   taskTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   taskDescription: {
     fontSize: 14,
-    color: '#475569',
+    color: 'rgba(255,255,255,0.7)',
   },
   taskMeta: {
     gap: 4,
   },
   taskMetaText: {
     fontSize: 12,
-    color: '#1d4ed8',
+    color: '#FFF44F',
     fontWeight: '500',
   },
   taskActionsRow: {
@@ -973,17 +1030,18 @@ const styles = StyleSheet.create({
   },
   taskActionLink: {
     fontSize: 12,
-    color: '#1d4ed8',
+    color: '#FFF44F',
     fontWeight: '600',
   },
   taskActionDanger: {
     fontSize: 12,
-    color: '#dc2626',
+    color: '#FF6B6B',
     fontWeight: '600',
   },
   helperText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#FFFBE6',
+    opacity: 0.8,
   },
   pointsText: {
     marginTop: 4,
@@ -993,36 +1051,39 @@ const styles = StyleSheet.create({
   },
   emptyColumnText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: 'rgba(255,255,255,0.5)',
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#FFFBE6',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
     marginTop: 8,
   },
-  actionsRow: {
-    marginTop: 8,
-    marginBottom: 4,
-    flexDirection: 'row',
-  },
   primaryAction: {
-    borderRadius: 999,
-    backgroundColor: '#1d4ed8',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    backgroundColor: '#FFF44F',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     alignSelf: 'flex-start',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   primaryActionText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    color: '#2C1A00',
+    fontWeight: '700',
+    fontSize: 15,
   },
   inlineModalBackdrop: {
     position: 'absolute',
@@ -1030,7 +1091,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -1038,24 +1099,23 @@ const styles = StyleSheet.create({
   inlineModal: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    padding: 20,
-    gap: 12,
+    padding: 24,
+    gap: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   modalInput: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#f8fafc',
-    fontSize: 14,
+    borderColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    fontSize: 15,
+    color: '#FFFBE6',
   },
   modalInputMultiline: {
     minHeight: 80,
@@ -1065,39 +1125,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 4,
+    marginTop: 16,
   },
   modalPrimary: {
     flex: 1,
-    backgroundColor: '#1d4ed8',
-    borderRadius: 999,
-    paddingVertical: 10,
+    backgroundColor: '#FFF44F',
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#FFF44F',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   modalPrimaryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    color: '#2C1A00',
+    fontWeight: '700',
+    fontSize: 15,
   },
   modalSecondary: {
     flex: 1,
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1d4ed8',
-    paddingVertical: 10,
+    borderColor: 'rgba(255,255,255,0.3)',
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSecondaryText: {
-    color: '#1d4ed8',
+    color: '#FFFBE6',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 15,
   },
   modalLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#FFFBE6',
     marginTop: 12,
     marginBottom: 8,
   },
@@ -1108,12 +1173,12 @@ const styles = StyleSheet.create({
   },
   priorityChip: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1122,27 +1187,27 @@ const styles = StyleSheet.create({
   },
   priorityChipLow: {
     borderColor: '#94a3b8',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: 'rgba(148,163,184,0.2)',
   },
   priorityChipMedium: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    borderColor: '#FFF44F',
+    backgroundColor: 'rgba(255,244,79,0.2)',
   },
   priorityChipHigh: {
     borderColor: '#f59e0b',
-    backgroundColor: '#fffbeb',
+    backgroundColor: 'rgba(245,158,11,0.2)',
   },
   priorityChipUrgent: {
     borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    backgroundColor: 'rgba(239,68,68,0.2)',
   },
   priorityChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748b',
+    color: 'rgba(255,255,255,0.6)',
   },
   priorityChipTextSelected: {
-    color: '#0f172a',
+    color: '#FFFBE6',
   },
   taskHeader: {
     flexDirection: 'row',
