@@ -1,99 +1,45 @@
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Wallet, BarChart3, Plus, Settings, ArrowLeft } from 'lucide-react-native';
-import { GlassCard } from '@/components/shared';
+import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, Plus, TrendingUp, Wallet, ArrowLeft } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 
-import {
-  useCreateExpense,
-  useDeleteExpense,
-  useExpenses,
-  useToggleExpensePaid,
-  useUpdateExpense,
-} from '@/hooks/useExpenses';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
-import {
-  useCreateExpenseCategory,
-  useDeleteExpenseCategory,
-  useExpenseCategories,
-  useUpdateExpenseCategory,
-} from '@/hooks/useExpenseCategories';
-import { useHouseMembers } from '@/hooks/useHouses';
-import { useCanAccessFinances } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
-import type { Expense } from '@/types/models';
-import { ExpenseFormModal, type ExpenseFormResult } from './components/ExpenseFormModal';
-import { CategoryManagerModal } from './components/CategoryManagerModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { GlassCard } from '@/components/shared';
+import { Colors } from '@/constants/Colors';
 
-const formatCurrency = (value: string | number) => {
-  const numericValue = Number(value);
-  if (Number.isNaN(numericValue)) {
-    return 'R$ 0,00';
-  }
-
-  return numericValue.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  });
-};
+// --- Helper Components for Light Theme ---
+const LightGlassCard = ({ children, style }: any) => (
+  <View style={[styles.glassCard, style]}>
+    <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.7)', ...StyleSheet.absoluteFillObject }} />
+    <View style={{ zIndex: 10 }}>{children}</View>
+  </View>
+);
 
 export default function FinancesScreen() {
   const router = useRouter();
   const houseId = useAuthStore((state) => state.houseId);
-  const user = useAuthStore((state) => state.user);
-  const canAccessFinances = useCanAccessFinances(houseId, user?.id);
   const { top } = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isMobile = screenWidth < 768;
 
-  if (!canAccessFinances) {
-    return (
-      <View style={styles.noAccessContainer}>
-        <Text style={styles.noAccessTitle}>Acesso Restrito</Text>
-        <Text style={styles.noAccessText}>
-          Apenas responsáveis pela casa têm acesso às informações financeiras.
-        </Text>
-      </View>
-    );
-  }
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
-  useRealtimeExpenses(houseId); // Atualização em tempo real
-  const { data: categories = [], isLoading: categoriesLoading } = useExpenseCategories(houseId);
-  const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId ?? undefined);
+  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+  useRealtimeExpenses(houseId);
 
-  const createExpenseMutation = useCreateExpense();
-  const updateExpenseMutation = useUpdateExpense();
-  const deleteExpenseMutation = useDeleteExpense();
-  const toggleExpensePaidMutation = useToggleExpensePaid(houseId);
-
-  const createCategoryMutation = useCreateExpenseCategory(houseId);
-  const updateCategoryMutation = useUpdateExpenseCategory(houseId);
-  const deleteCategoryMutation = useDeleteExpenseCategory(houseId);
-
-  const [isExpenseModalVisible, setExpenseModalVisible] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [isCategoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [togglingExpenseId, setTogglingExpenseId] = useState<string | null>(null);
-
-  const total = useMemo(
-    () => expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0,
-    [expenses],
-  );
-  const totalCount = expenses?.length ?? 0;
-  const paidCount = expenses?.filter((expense) => expense.isPaid).length ?? 0;
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'paid' | 'pending'>('all');
 
   if (!houseId) {
     return (
@@ -101,313 +47,255 @@ export default function FinancesScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
       >
-        <Text style={styles.emptyTitle}>Nenhuma casa selecionada</Text>
+        <Text style={styles.emptyTitle}>Selecione uma casa</Text>
         <Text style={styles.emptySubtitle}>
-          Vincule-se a uma casa ou crie uma nova para começar a registrar despesas.
+          Associe-se a uma casa para gerenciar as finanças compartilhadas.
         </Text>
       </ScrollView>
     );
   }
 
-  const isSubmittingExpense = createExpenseMutation.isPending || updateExpenseMutation.isPending;
-
-  const handleOpenCreate = () => {
-    setEditingExpense(null);
-    setExpenseModalVisible(true);
-  };
-
-  const handleOpenEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setExpenseModalVisible(true);
-  };
-
-  const handleCloseModal = () => {
-    setExpenseModalVisible(false);
-    setEditingExpense(null);
-  };
-
-  const handleSubmitExpense = async (form: ExpenseFormResult) => {
-    if (!houseId || !user?.id) {
-      throw new Error('Casa ou usuário não encontrados.');
-    }
-
-    const payload = {
-      houseId,
-      categoryId: form.categoryId,
-      createdById: editingExpense?.createdById ?? user.id,
-      amount: form.amount,
-      description: form.description,
-      expenseDate: form.expenseDate,
-      isRecurring: editingExpense?.isRecurring ?? false,
-      recurrencePeriod: editingExpense?.recurrencePeriod ?? null,
-      isPaid: form.isPaid,
-      notes: form.notes ?? null,
-      receiptUrl: form.receiptUrl ?? null,
-      splits: form.splits.map((split) => ({
-        userId: split.userId,
-        amount: split.amount,
-        isPaid: split.isPaid,
-      })),
-    };
-
-    if (editingExpense) {
-      await updateExpenseMutation.mutateAsync({ id: editingExpense.id, input: payload });
-    } else {
-      await createExpenseMutation.mutateAsync(payload);
-    }
-
-    handleCloseModal();
-  };
-
-  const handleDeleteExpense = async () => {
-    if (!editingExpense || !houseId) return;
-    await deleteExpenseMutation.mutateAsync({ id: editingExpense.id, houseId });
-    handleCloseModal();
-  };
-
-  const handleTogglePaid = async (expense: Expense, value: boolean) => {
-    try {
-      setTogglingExpenseId(expense.id);
-      await toggleExpensePaidMutation.mutateAsync({ id: expense.id, isPaid: value });
-    } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
-    } finally {
-      setTogglingExpenseId(null);
-    }
-  };
-
-  const handleCreateCategory = (name: string) => {
-    if (!houseId) {
-      return Promise.reject(new Error('Casa não encontrada.'));
-    }
-    return createCategoryMutation.mutateAsync(name);
-  };
-
-  const handleUpdateCategory = (id: string, name: string) =>
-    updateCategoryMutation.mutateAsync({ id, name });
-
-  const handleDeleteCategory = (id: string) => deleteCategoryMutation.mutateAsync(id);
-
-  const renderExpenseRow = (expense: Expense) => {
-    const isToggling = togglingExpenseId === expense.id && toggleExpensePaidMutation.isPending;
-    return (
-      <TouchableOpacity
-        key={expense.id}
-        style={styles.expenseRow}
-        onPress={() => handleOpenEdit(expense)}
-        activeOpacity={0.86}
-      >
-        <View style={styles.expenseIconBg}>
-          <Wallet size={18} color="#FFF44F" />
-        </View>
-        <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription}>{expense.description}</Text>
-          <Text style={styles.expenseMeta}>
-            {expense.category?.name ?? 'Sem categoria'} ·{' '}
-            {new Date(expense.expenseDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-          </Text>
-          {expense.splits && expense.splits.length > 0 && (
-            <Text style={styles.expenseHint}>
-              Dividido entre {expense.splits.length} pessoa(s)
-            </Text>
-          )}
-        </View>
-        <View style={styles.expenseAside}>
-          <Text
-            style={[
-              styles.expenseAmount,
-              expense.isPaid ? styles.expenseAmountPaid : styles.expenseAmountPending,
-            ]}
-          >
-            {formatCurrency(expense.amount)}
-          </Text>
-          <View style={styles.paidSwitchRow}>
-            <Text style={styles.paidSwitchLabel}>{expense.isPaid ? 'Pago' : 'Pendente'}</Text>
-            <Switch
-              value={expense.isPaid}
-              onValueChange={(value) => handleTogglePaid(expense, value)}
-              disabled={isToggling || toggleExpensePaidMutation.isPending}
-              trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#10b981' }}
-              thumbColor={expense.isPaid ? '#FFF44F' : '#f4f3f4'}
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
+  const summary = useMemo(() => {
+    if (!expenses) return { total: 0, paid: 0, pending: 0 };
+    return expenses.reduce(
+      (acc, expense) => {
+        const amount = Number(expense.amount);
+        acc.total += amount;
+        if (expense.status === 'PAID') {
+          acc.paid += amount;
+        } else {
+          acc.pending += amount;
+        }
+        return acc;
+      },
+      { total: 0, paid: 0, pending: 0 }
     );
+  }, [expenses]);
+
+  const budgetProgress = useMemo(() => {
+    if (!monthlyBudget || !monthlyBudget.amount) return 0;
+    return Math.min((summary.total / Number(monthlyBudget.amount)) * 100, 100);
+  }, [summary.total, monthlyBudget]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!expenses) return [];
+    if (selectedFilter === 'all') return expenses;
+    return expenses.filter((e) => (selectedFilter === 'paid' ? e.status === 'PAID' : e.status === 'PENDING'));
+  }, [expenses, selectedFilter]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#C28400', '#8F6100']}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-      
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FFF44F" />
-        }
-      >
-        <View style={styles.headerRow}>
-          <View style={styles.headerTopRow}>
-            <TouchableOpacity 
+    <ErrorBoundary>
+      <View style={styles.container}>
+        {/* Background Light Theme */}
+        <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
+        >
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
             >
-              <ArrowLeft size={24} color="#FFF44F" />
+              <ArrowLeft size={24} color={Colors.primary} />
             </TouchableOpacity>
-            <View style={styles.headerIconRow}>
+            <View style={styles.headerRow}>
               <View style={styles.walletIconBg}>
-                <Wallet size={24} color="#C28400" />
+                <Wallet size={24} color={Colors.background} />
               </View>
-              <View style={{ flex: 1 }}>
+              <View>
                 <Text style={styles.title}>Finanças da Casa</Text>
-                <Text style={styles.subtitle}>NOV</Text>
+                <Text style={styles.subtitle}>Gestão de despesas compartilhadas</Text>
               </View>
             </View>
+
+            <TouchableOpacity style={styles.settingsButton}>
+              <MoreHorizontal size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.subtitleSecondary}>
-            Controle total dos gastos e orçamento mensal.
-          </Text>
-        </View>
-        
-        <View style={styles.headerActionsRow}>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => router.push('/(tabs)/finances/reports')}
-          >
-            <BarChart3 size={18} color="#FFF44F" />
-            <Text style={styles.headerActionText}>Relatórios</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => router.push('/(tabs)/finances/budget')}
-          >
-            <Wallet size={18} color="#FFF44F" />
-            <Text style={styles.headerActionText}>Orçamento</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionButton}
-            onPress={() => setCategoryModalVisible(true)}
-          >
-            <Settings size={18} color="#FFF44F" />
-            <Text style={styles.headerActionText}>Categorias</Text>
-          </TouchableOpacity>
-        </View>
 
-      <GlassCard style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <Text style={styles.cardTitle}>Total do mês</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{totalCount} DESPESAS</Text>
+          {/* Main Summary Card */}
+          <LightGlassCard style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Total Gasto este Mês</Text>
+              <View style={styles.budgetBadge}>
+                <Text style={styles.budgetBadgeText}>
+                  Orçamento: {monthlyBudget ? formatCurrency(Number(monthlyBudget.amount)) : 'Não definido'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.totalAmount}>{formatCurrency(summary.total)}</Text>
+
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#ef4444' : Colors.primary }]} />
+            </View>
+            <Text style={styles.progressText}>{budgetProgress.toFixed(0)}% do orçamento utilizado</Text>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#22c55e20' }]}>
+                  <ArrowUpCircle size={20} color="#16a34a" />
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Pago</Text>
+                  <Text style={[styles.statValue, { color: '#16a34a' }]}>{formatCurrency(summary.paid)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#ef444420' }]}>
+                  <ArrowDownCircle size={20} color="#dc2626" />
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Pendente</Text>
+                  <Text style={[styles.statValue, { color: '#dc2626' }]}>{formatCurrency(summary.pending)}</Text>
+                </View>
+              </View>
+            </View>
+          </LightGlassCard>
+
+          {/* Actions Row */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionButtonPrimary}>
+              <Plus size={20} color={Colors.background} />
+              <Text style={styles.actionButtonTextPrimary}>Nova Despesa</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButtonSecondary}>
+              <PieChart size={20} color={Colors.primary} />
+              <Text style={styles.actionButtonTextSecondary}>Relatório</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-        <Text style={styles.cardValue}>{formatCurrency(String(total))}</Text>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${Math.min((paidCount / totalCount) * 100, 100)}%` }]} />
-        </View>
-        <Text style={styles.cardHint}>
-          {totalCount > 0
-            ? `${paidCount} de ${totalCount} despesas pagas`
-            : 'Nenhuma despesa registrada ainda.'}
-        </Text>
-      </GlassCard>
 
-      <GlassCard style={styles.listCard}>
-        <View style={styles.listHeader}>
-          <Text style={styles.cardTitle}>Movimentações recentes</Text>
-          <TouchableOpacity style={styles.addButton} onPress={handleOpenCreate}>
-            <Plus size={20} color="#2C1A00" />
-          </TouchableOpacity>
-        </View>
-
-        {isLoading || categoriesLoading || membersLoading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color="#FFF44F" />
-            <Text style={styles.helperText}>Carregando despesas...</Text>
+          {/* Filter Tabs */}
+          <View style={styles.filterTabs}>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'all' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('all')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'all' && styles.filterTabTextActive]}>Todas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'paid' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('paid')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'paid' && styles.filterTabTextActive]}>Pagas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'pending' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('pending')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'pending' && styles.filterTabTextActive]}>Pendentes</Text>
+            </TouchableOpacity>
           </View>
-        ) : expenses && expenses.length > 0 ? (
-          expenses.map((expense) => renderExpenseRow(expense))
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Nenhuma despesa registrada</Text>
-            <Text style={styles.emptySubtitle}>
-              Comece registrando contas como aluguel, luz, água ou supermercado.
-            </Text>
+
+          {/* Expenses List */}
+          <View style={styles.expensesList}>
+            <Text style={styles.sectionTitle}>Histórico Recente</Text>
+
+            {filteredExpenses.length > 0 ? (
+              filteredExpenses.map((expense) => (
+                <TouchableOpacity key={expense.id} style={styles.expenseItem}>
+                  <View style={styles.expenseIconBg}>
+                    <DollarSign size={20} color={Colors.primary} />
+                  </View>
+                  <View style={styles.expenseDetails}>
+                    <Text style={styles.expenseTitle}>{expense.description}</Text>
+                    <Text style={styles.expenseDate}>
+                      {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} • {expense.paidBy?.name || 'Desconhecido'}
+                    </Text>
+                  </View>
+                  <View style={styles.expenseAmountContainer}>
+                    <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      expense.status === 'PAID' ? styles.statusBadgePaid : styles.statusBadgePending
+                    ]}>
+                      <Text style={[
+                        styles.statusBadgeText,
+                        expense.status === 'PAID' ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
+                      ]}>
+                        {expense.status === 'PAID' ? 'Pago' : 'Pendente'}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Nenhuma despesa encontrada.</Text>
+              </View>
+            )}
           </View>
-        )}
-      </GlassCard>
-
-      <ExpenseFormModal
-        visible={isExpenseModalVisible}
-        mode={editingExpense ? 'edit' : 'create'}
-        initialExpense={editingExpense ?? undefined}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmitExpense}
-        onDelete={editingExpense ? handleDeleteExpense : undefined}
-        categories={categories}
-        members={members}
-        currentUserId={user?.id ?? null}
-        isSubmitting={isSubmittingExpense}
-        isDeleting={deleteExpenseMutation.isPending}
-        onCreateCategory={handleCreateCategory}
-      />
-
-      <CategoryManagerModal
-        visible={isCategoryModalVisible}
-        categories={categories}
-        onClose={() => setCategoryModalVisible(false)}
-        onCreate={handleCreateCategory}
-        onUpdate={handleUpdateCategory}
-        onDelete={handleDeleteCategory}
-      />
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.background,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    gap: 20,
+    paddingBottom: 100,
+    paddingHorizontal: 20,
   },
   centered: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: 40,
   },
-  headerRow: {
-    marginBottom: 16,
-  },
-  headerTopRow: {
-    marginBottom: 12,
+
+  // Header
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,244,79,0.1)',
+    backgroundColor: Colors.primary + '1A',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,244,79,0.3)',
+    marginRight: 12,
   },
-  headerIconRow: {
+  headerRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -415,238 +303,275 @@ const styles = StyleSheet.create({
   walletIconBg: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF44F',
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FFF44F',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
+    elevation: 4,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#FFF44F',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#FFFBE6',
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  subtitleSecondary: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    lineHeight: 20,
+    color: Colors.textSecondary,
   },
-  headerActionsRow: {
+  settingsButton: {
+    padding: 8,
+  },
+
+  // Summary Card
+  glassCard: {
+    borderRadius: 24,
+    padding: 20,
+    overflow: 'hidden',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    // Additional styles if needed
+  },
+  summaryHeader: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  budgetBadge: {
+    backgroundColor: Colors.primary + '10',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  budgetBadgeText: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  totalAmount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  progressContainer: {
+    height: 6,
+    backgroundColor: Colors.textSecondary + '20',
+    borderRadius: 3,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
     marginBottom: 20,
   },
-  headerActionButton: {
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.textSecondary + '20',
+    marginHorizontal: 16,
+  },
+
+  // Actions
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButtonPrimary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,244,79,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,244,79,0.3)',
-  },
-  headerActionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFF44F',
-  },
-  badge: {
-    backgroundColor: 'rgba(255,244,79,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    color: '#FFF44F',
-    fontWeight: '700',
-    fontSize: 10,
-    letterSpacing: 0.5,
-  },
-  summaryCard: {
-    padding: 24,
-  },
-  listCard: {
-    padding: 20,
-    gap: 16,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFBE6',
-  },
-  cardValue: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#FFF',
-    letterSpacing: -0.5,
-    marginTop: 8,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 2,
-    width: '100%',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 2,
-  },
-  cardHint: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  helperText: {
-    fontSize: 14,
-    color: '#FFFBE6',
-    opacity: 0.8,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF44F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#FFF44F',
-    shadowOpacity: 0.3,
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  expenseRow: {
+  actionButtonTextPrimary: {
+    color: Colors.background,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  actionButtonSecondary: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    marginBottom: 12,
+    borderColor: Colors.primary + '40',
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+  },
+  actionButtonTextSecondary: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  // Filters
+  filterTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    padding: 4,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  filterTabActive: {
+    backgroundColor: Colors.primary + '10',
+  },
+  filterTabText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+
+  // List
+  expensesList: {
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  expenseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   expenseIconBg: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,244,79,0.1)',
+    backgroundColor: Colors.primary + '10',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,244,79,0.2)',
+    marginRight: 12,
   },
-  expenseInfo: {
+  expenseDetails: {
     flex: 1,
-    gap: 4,
   },
-  expenseDescription: {
-    fontSize: 16,
+  expenseTitle: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#FFFBE6',
+    color: Colors.text,
+    marginBottom: 4,
   },
-  expenseMeta: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  expenseHint: {
+  expenseDate: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
   },
-  expenseAside: {
+  expenseAmountContainer: {
     alignItems: 'flex-end',
-    gap: 8,
   },
   expenseAmount: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 4,
   },
-  expenseAmountPaid: {
-    color: '#10b981',
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  expenseAmountPending: {
-    color: '#FFF44F',
+  statusBadgePaid: {
+    backgroundColor: '#22c55e20',
+  },
+  statusBadgePending: {
+    backgroundColor: '#ef444420',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  statusBadgeTextPaid: {
+    color: '#16a34a',
+  },
+  statusBadgeTextPending: {
+    color: '#dc2626',
   },
   emptyState: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
     padding: 24,
     alignItems: 'center',
-    gap: 8,
   },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFBE6',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
+  emptyStateText: {
+    color: Colors.textSecondary,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
-  },
-  loadingState: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 20,
-  },
-  paidSwitchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  paidSwitchLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '600',
-  },
-  noAccessContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  noAccessTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFBE6',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  noAccessText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    lineHeight: 24,
   },
 });
-

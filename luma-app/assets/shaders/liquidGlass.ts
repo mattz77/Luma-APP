@@ -48,23 +48,40 @@ half4 main(float2 xy) {
 
     float f = fbm(st+r);
 
-    // Mistura de cores estilo iOS 26 (Cianos, Roxos, Brancos sutis)
-    // Adaptado para Luma (Dourados, Ambar, Tons Quentes)
+    // Mistura de cores estilo iOS 26 Pearl/Holographic Glass (Ajustado para Contraste)
     
-    // Base Dourada/Ambar
-    float3 goldenBase = float3(0.76, 0.52, 0.0); // #C28400 aprox
-    float3 warmLight = float3(1.0, 0.95, 0.8);   // Luz quente
-    float3 deepGold = float3(0.2, 0.1, 0.0);     // Sombra
+    // Base mais neutra, mas não branco puro, para permitir luz/sombra
+    float3 colorBase = float3(0.92, 0.94, 0.96); 
+    
+    // Cores de refração mais saturadas para serem visíveis através do Blur
+    float3 colorCyan = float3(0.40, 0.75, 0.95);   // Ciano vibrante
+    float3 colorPurple = float3(0.70, 0.60, 0.90); // Roxo suave
+    float3 colorDeep = float3(0.85, 0.90, 0.95);   // Sombra leve
 
-    color = mix(goldenBase, warmLight, clamp((f*f)*4.0,0.0,1.0));
-    color = mix(color, deepGold, clamp(length(q),0.0,1.0));
-    color = mix(color, float3(1.0, 0.9, 0.6), clamp(length(r.x),0.0,1.0));
+    // Mix baseado no noise (f)
+    // Camada 1: Base vs Ciano
+    color = mix(colorBase, colorCyan, clamp((f*f)*3.5, 0.0, 1.0));
+    
+    // Camada 2: Adiciona Roxo nas áreas de distorção (q)
+    color = mix(color, colorPurple, clamp(length(q), 0.0, 0.8));
+    
+    // Camada 3: Adiciona profundidade nas áreas secundárias (r)
+    color = mix(color, colorDeep, clamp(length(r.x), 0.0, 1.0));
 
     // Adiciona um brilho especular "líquido" baseado na interação de toque (opcional)
     float dist = distance(st, touch / resolution.xy);
     float glow = 1.0 - smoothstep(0.0, 0.3, dist);
-    color += float3(glow * 0.2);
+    color += float3(glow * 0.15);
 
-    return half4((f*f*f+.6*f*f+.5*f)*color, 1.0);
+    // Contraste e Brilho
+    // Acentua os picos de luz para dar o efeito de vidro molhado
+    float3 finalColor = (f*f*f + 0.5*f*f + 0.7*f) * color;
+    
+    // Garante que não fique escuro demais
+    finalColor = min(finalColor + 0.05, 1.0);
+
+    // Alpha 0.45: Equilíbrio entre translucidez e visibilidade da cor
+    // Se for muito baixo, o BlurView branco lava tudo. Se for muito alto, fica opaco.
+    return half4(finalColor, 0.45);
 }
 `;
