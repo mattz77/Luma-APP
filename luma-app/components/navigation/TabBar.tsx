@@ -78,7 +78,14 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
     const handleMagicPress = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push('/(tabs)/index?action=magic');
+        // Navega para home e abre o modal de criação mágica
+        if (currentRouteName === 'index') {
+            // Se já estamos na home, apenas atualiza os parâmetros
+            router.setParams({ action: 'magic' });
+        } else {
+            // Se estamos em outra tela, navega para home com o parâmetro
+            router.push('/(tabs)/index?action=magic' as any);
+        }
     };
 
     // Hide dock on Luma Chat screen
