@@ -15,6 +15,9 @@ interface SpeedDialProps {
   actions: SpeedDialAction[];
   mainIcon?: LucideIcon;
   mainColor?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
+  buttonRef?: React.RefObject<View | null>;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -22,12 +25,17 @@ const { width, height } = Dimensions.get('window');
 export const SpeedDial = ({ 
   actions, 
   mainIcon: MainIcon = Plus, 
-  mainColor = '#FFF44F' 
+  mainColor = '#FFF44F',
+  isOpen: externalIsOpen,
+  onClose: externalOnClose,
+  buttonRef: externalButtonRef
 }: SpeedDialProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const animation = useRef(new Animated.Value(0)).current;
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const buttonRef = useRef<View>(null);
+  const internalButtonRef = useRef<View>(null);
+  const buttonRef = externalButtonRef || internalButtonRef;
 
   const measureButton = () => {
     buttonRef.current?.measureInWindow((x, y, width, height) => {
@@ -47,11 +55,21 @@ export const SpeedDial = ({
       useNativeDriver: true,
     }).start();
 
-    setIsOpen(!isOpen);
+    if (externalIsOpen === undefined) {
+      setInternalIsOpen(!isOpen);
+    } else if (externalOnClose) {
+      externalOnClose();
+    }
   };
 
   const closeMenu = () => {
-    if (isOpen) toggleMenu();
+    if (isOpen) {
+      if (externalIsOpen === undefined) {
+        if (internalIsOpen) toggleMenu();
+      } else if (externalOnClose) {
+        externalOnClose();
+      }
+    }
   };
 
   const rotation = animation.interpolate({
@@ -124,6 +142,21 @@ export const SpeedDial = ({
     );
   };
 
+  // Sync animation with isOpen state when controlled externally
+  useEffect(() => {
+    if (externalIsOpen !== undefined) {
+      Animated.spring(animation, {
+        toValue: externalIsOpen ? 1 : 0,
+        friction: 5,
+        useNativeDriver: true,
+      }).start();
+      
+      if (externalIsOpen) {
+        measureButton();
+      }
+    }
+  }, [externalIsOpen]);
+
   return (
     <View style={styles.container}>
       {/* Full Screen Modal for Backdrop AND Actions */}
@@ -155,18 +188,20 @@ export const SpeedDial = ({
         </View>
       </Modal>
 
-      {/* Static Main Button on Page */}
-      <View ref={buttonRef} collapsable={false}> 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={toggleMenu}
-          style={[styles.mainButton, { borderColor: 'rgba(255,244,79,0.2)', opacity: isOpen ? 0 : 1 }]}
-        >
-          <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-            <MainIcon size={24} color={mainColor} />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
+      {/* Static Main Button on Page - Hidden when controlled externally */}
+      {externalIsOpen === undefined && (
+        <View ref={internalButtonRef} collapsable={false}> 
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={toggleMenu}
+            style={[styles.mainButton, { borderColor: 'rgba(255,244,79,0.2)', opacity: isOpen ? 0 : 1 }]}
+          >
+            <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+              <MainIcon size={24} color={mainColor} />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };

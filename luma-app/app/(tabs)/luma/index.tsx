@@ -17,31 +17,32 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { LiquidGlassCard } from '../../../components/ui/LiquidGlassCard';
-import { 
-  Sparkles, 
-  ArrowLeft, 
-  Paperclip, 
-  Mic, 
-  MoreHorizontal, 
-  Image as ImageIcon, 
-  FileText, 
+import {
+  Sparkles,
+  ArrowLeft,
+  Paperclip,
+  Mic,
+  MoreHorizontal,
+  Image as ImageIcon,
+  FileText,
   ArrowUp
 } from 'lucide-react-native';
+import { Colors } from '@/constants/Colors';
 
 // --- MOCKS (Mantidos para funcionamento visual) ---
 const useAuthStore = (selector: any) => selector({ houseId: '123', user: { id: 'user1' } });
-const useConversations = (houseId: any) => ({ 
+const useConversations = (houseId: any) => ({
   data: [
     { id: '1', type: 'message', response: 'Olá! Como posso ajudar com a casa hoje?', created_at: new Date(Date.now() - 86400000).toISOString() },
     { id: '2', type: 'message', message: 'Preciso organizar a festa de natal.', created_at: new Date(Date.now() - 3600000).toISOString() },
     { id: '3', type: 'message', response: 'Criado! ✅ A tarefa "montar a árvore de Natal" está agendada para amanhã às 19h. Quer adicionar mais detalhes ou atribuir a alguém?', created_at: new Date().toISOString() },
-  ], 
-  isLoading: false, 
-  refetch: () => {}, 
-  isRefetching: false 
+  ],
+  isLoading: false,
+  refetch: () => { },
+  isRefetching: false
 });
-const useLumaChat = (h: any, u: any) => ({ mutateAsync: async (msg: string) => {}, isPending: false });
-const useRealtimeConversations = (h: any) => {};
+const useLumaChat = (h: any, u: any) => ({ mutateAsync: async (msg: string) => { }, isPending: false });
+const useRealtimeConversations = (h: any) => { };
 
 const getMessageDateLabel = (date: string) => {
   const msgDate = new Date(date);
@@ -49,13 +50,12 @@ const getMessageDateLabel = (date: string) => {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
+  const msgDay = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+
   if (msgDay.getTime() === today.getTime()) return 'Hoje';
   if (msgDay.getTime() === yesterday.getTime()) return 'Ontem';
   return msgDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
 };
-
-// Variável auxiliar para comparar datas
-const msgDay = new Date(); 
 
 export default function LumaChatScreen() {
   const router = useRouter();
@@ -68,8 +68,8 @@ export default function LumaChatScreen() {
 
   const { data: conversations, isLoading: isLoadingConversations, refetch, isRefetching } = useConversations(houseId);
   const { mutateAsync: sendMessage, isPending } = useLumaChat(houseId, userId);
-  useRealtimeConversations(houseId); 
-  
+  useRealtimeConversations(houseId);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function LumaChatScreen() {
       await refetch();
     } catch (error) {
       setErrorMessage('Não foi possível enviar.');
-      setMessage(messageToSend); 
+      setMessage(messageToSend);
     }
   };
 
@@ -115,13 +115,11 @@ export default function LumaChatScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
+      <StatusBar barStyle="dark-content" />
+
+      {/* Light Theme Background */}
       <View style={styles.backgroundContainer}>
-        <LinearGradient
-          colors={['#8C6A18', '#6B4F15']}
-          style={StyleSheet.absoluteFill}
-        />
+        <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
       </View>
 
       <KeyboardAvoidingView
@@ -129,17 +127,17 @@ export default function LumaChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        {/* Header com Blur leve para consistência */}
-        <BlurView intensity={20} tint="dark" style={[styles.header, { paddingTop: top + 10 }]}>
+        {/* Header */}
+        <BlurView intensity={20} tint="light" style={[styles.header, { paddingTop: top + 10 }]}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <ArrowLeft size={24} color="#FFF" />
+              <ArrowLeft size={24} color={Colors.primary} />
             </TouchableOpacity>
-            
+
             <View style={styles.headerTitleContainer}>
               <View style={styles.headerAvatarContainer}>
                 <Sparkles size={14} color="#FFF" />
@@ -147,8 +145,8 @@ export default function LumaChatScreen() {
               <View>
                 <Text style={styles.headerTitle}>Luma AI</Text>
                 <View style={styles.statusContainer}>
-                   <View style={styles.statusDot} />
-                   <Text style={styles.headerSubtitle}>Online</Text>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.headerSubtitle}>Online</Text>
                 </View>
               </View>
             </View>
@@ -156,10 +154,10 @@ export default function LumaChatScreen() {
 
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconButton}>
-              <Mic size={22} color="#FFF" strokeWidth={1.5} />
+              <Mic size={22} color={Colors.primary} strokeWidth={1.5} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton}>
-              <MoreHorizontal size={22} color="#FFF" strokeWidth={1.5} />
+              <MoreHorizontal size={22} color={Colors.primary} strokeWidth={1.5} />
             </TouchableOpacity>
           </View>
         </BlurView>
@@ -170,8 +168,7 @@ export default function LumaChatScreen() {
           keyExtractor={(item) => item.id}
           refreshing={isRefetching}
           onRefresh={refetch}
-          // Padding inferior aumentado para compensar o Liquid Glass Input que flutua
-          contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 90 }]} 
+          contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 90 }]}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => {
             if (item.type === 'date_separator') {
@@ -188,11 +185,11 @@ export default function LumaChatScreen() {
 
             return (
               <View style={styles.messageRow}>
-                {/* Luma Response (Ajuste de layout flex-row para espaçamento correto do avatar) */}
+                {/* Luma Response */}
                 {item.response && (
                   <View style={styles.lumaRow}>
                     <View style={styles.lumaAvatarContainer}>
-                       <Sparkles size={12} color="rgba(255,255,255,0.9)" />
+                      <Sparkles size={12} color={Colors.primary} />
                     </View>
                     <View style={styles.lumaBubbleWrapper}>
                       <Text style={styles.senderLabel}>Luma</Text>
@@ -220,58 +217,54 @@ export default function LumaChatScreen() {
             isPending ? (
               <View style={styles.lumaRow}>
                 <View style={styles.lumaAvatarContainer}>
-                    <Sparkles size={12} color="#FFF" />
+                  <Sparkles size={12} color={Colors.primary} />
                 </View>
                 <View style={[styles.lumaBubble, { width: 80, height: 45, justifyContent: 'center', alignItems: 'center', marginLeft: 8 }]}>
-                    <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={Colors.text} />
                 </View>
               </View>
             ) : null
           }
         />
 
-        {/* Input Area com Efeito Liquid Glass */}
-        <View style={[styles.inputBlurContainer, { paddingBottom: bottom > 0 ? bottom : 12, backgroundColor: 'transparent' }]}>
-          <LiquidGlassCard 
-             style={StyleSheet.absoluteFill} 
-             intensity={80} 
-             tint="dark"
-          />
+        {/* Input Area */}
+        <View style={[styles.inputBlurContainer, { paddingBottom: bottom > 0 ? bottom : 12 }]}>
+          <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
           <View style={styles.inputInnerRow}>
             <TouchableOpacity style={styles.attachButton}>
-               <Paperclip size={22} color="#C7C7CC" strokeWidth={1.5} />
+              <Paperclip size={22} color={Colors.textSecondary} strokeWidth={1.5} />
             </TouchableOpacity>
-            
+
             <View style={styles.inputPill}>
               <TextInput
                 value={message}
                 onChangeText={setMessage}
                 placeholder="Message Luma..."
-                placeholderTextColor="rgba(255,255,255,0.4)"
+                placeholderTextColor={Colors.textSecondary}
                 style={styles.inputField}
                 multiline
               />
               {message.length === 0 && (
                 <View style={styles.inputIconsRight}>
-                   <TouchableOpacity><ImageIcon size={20} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
-                   <TouchableOpacity><FileText size={20} color="rgba(255,255,255,0.4)" /></TouchableOpacity>
+                  <TouchableOpacity><ImageIcon size={20} color={Colors.textSecondary} /></TouchableOpacity>
+                  <TouchableOpacity><FileText size={20} color={Colors.textSecondary} /></TouchableOpacity>
                 </View>
               )}
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.sendButton, 
-                { backgroundColor: message.trim() ? '#D99030' : 'rgba(255,255,255,0.1)' }
+                styles.sendButton,
+                { backgroundColor: message.trim() ? Colors.primary : Colors.textSecondary + '20' }
               ]}
               onPress={handleSend}
               disabled={!message.trim()}
             >
               {isPending ? (
-                 <ActivityIndicator size="small" color="#FFF" />
-               ) : (
-                 <ArrowUp size={20} color={message.trim() ? "#FFF" : "rgba(255,255,255,0.3)"} strokeWidth={2.5} />
-               )}
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <ArrowUp size={20} color={message.trim() ? "#FFF" : Colors.textSecondary} strokeWidth={2.5} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -284,7 +277,7 @@ export default function LumaChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: Colors.background,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -293,7 +286,7 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  
+
   // HEADER
   header: {
     flexDirection: 'row',
@@ -302,7 +295,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -323,14 +316,14 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#D99030',
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   headerTitle: {
-    color: '#FFF',
+    color: Colors.text,
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
@@ -347,7 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   headerSubtitle: {
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textSecondary,
     fontSize: 12,
   },
   headerRight: {
@@ -370,12 +363,13 @@ const styles = StyleSheet.create({
   },
   datePill: {
     borderRadius: 12,
-    overflow: 'hidden', // Importante para o BlurView respeitar o border radius
+    overflow: 'hidden',
     paddingHorizontal: 12,
     paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   dateText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -384,51 +378,53 @@ const styles = StyleSheet.create({
   messageRow: {
     marginBottom: 24,
   },
-  
-  // LUMA STYLES (Updated Layout)
+
+  // LUMA STYLES
   lumaRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end', // Alinha o avatar com a base da mensagem
-    gap: 12, // Espaço entre avatar e balão
+    alignItems: 'flex-end',
+    gap: 12,
     maxWidth: '85%',
   },
   lumaAvatarContainer: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.primary + '10',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4, // Leve ajuste para alinhar visualmente com o balão
+    marginBottom: 4,
   },
   lumaBubbleWrapper: {
     flex: 1,
   },
   senderLabel: {
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textSecondary,
     fontSize: 11,
     marginBottom: 4,
     marginLeft: 2,
   },
   lumaBubble: {
-    backgroundColor: '#D99030',
+    backgroundColor: '#FFF',
     borderRadius: 18,
-    borderTopLeftRadius: 2, // Ponta do balão
+    borderTopLeftRadius: 2,
     paddingHorizontal: 16,
     paddingVertical: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   lumaText: {
-    color: '#FFF',
+    color: Colors.text,
     fontSize: 16,
     lineHeight: 22,
   },
   lumaTime: {
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.textSecondary,
     fontSize: 10,
     marginTop: 6,
     alignSelf: 'flex-start',
@@ -442,37 +438,38 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   userBubble: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.primary,
     borderRadius: 18,
     borderTopRightRadius: 2,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   userText: {
-    color: '#000',
+    color: '#FFF',
     fontSize: 16,
     lineHeight: 22,
   },
   userTime: {
-    color: 'rgba(0,0,0,0.4)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 10,
     marginTop: 4,
     alignSelf: 'flex-end',
   },
 
-  // INPUT AREA (LIQUID GLASS)
+  // INPUT AREA
   inputBlurContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.8)',
   },
   inputInnerRow: {
     flexDirection: 'row',
@@ -483,7 +480,7 @@ const styles = StyleSheet.create({
   },
   attachButton: {
     width: 40,
-    height: 44, // Altura alinhada com o input
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -492,18 +489,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.2)', // Escuro semi-transparente para contraste
+    backgroundColor: '#FFF',
     borderRadius: 24,
     paddingLeft: 16,
     paddingRight: 8,
     paddingVertical: 4,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   inputField: {
     flex: 1,
-    color: '#FFF',
+    color: Colors.text,
     fontSize: 16,
     paddingTop: 10,
     paddingBottom: 10,
