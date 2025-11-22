@@ -22,6 +22,7 @@ import {
   X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home,
   Search, ChevronDown, Users, CheckSquare, MoreHorizontal
 } from 'lucide-react-native';
+import { LiquidGlassCard } from '../../components/ui/LiquidGlassCard';
 import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRouter } from 'expo-router';
@@ -1416,7 +1417,7 @@ export default function Dashboard() {
             </GlassCard>
 
             {/* Right: Notes/Insight */}
-            <GlassCard style={[styles.splitCard, styles.splitCardRight]}>
+            <LiquidGlassCard style={[styles.splitCard, styles.splitCardRight]} intensity={40}>
               <View style={styles.splitHeader}>
                 <Text style={styles.splitTitle}>Luma Insight</Text>
                 <TouchableOpacity onPress={handleDailyBriefing}>
@@ -1444,7 +1445,7 @@ export default function Dashboard() {
                   <Plus size={20} color="#FFF" />
                 </TouchableOpacity>
               </View>
-            </GlassCard>
+            </LiquidGlassCard>
           </View>
 
           {/* Activity Feed */}
