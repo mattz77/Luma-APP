@@ -82,8 +82,14 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         // Navega para home e abre o modal de criação mágica
         if (currentRouteName === 'index') {
-            // Se já estamos na home, apenas atualiza os parâmetros
-            router.setParams({ action: 'magic' });
+            // Se já estamos na home, força uma atualização do parâmetro
+            // Primeiro remove o parâmetro (se existir) e depois adiciona novamente
+            // Isso garante que o useEffect sempre dispare
+            router.setParams({ action: undefined } as any);
+            // Usa setTimeout para garantir que a remoção aconteça antes da adição
+            setTimeout(() => {
+                router.setParams({ action: 'magic' });
+            }, 50);
         } else {
             // Se estamos em outra tela, navega para home com o parâmetro
             router.push('/(tabs)/index?action=magic' as any);
@@ -218,7 +224,8 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                             <TouchableOpacity
                                 style={styles.tabItem}
                                 onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    // Haptic feedback não bloqueia - executar de forma não bloqueante
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                                     if (!isSpeedDialOpen) {
                                         setIsSpeedDialVisible(true);
                                         setIsSpeedDialOpen(true);
@@ -227,6 +234,9 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                     }
                                 }}
                                 activeOpacity={1} // Disable opacity change on press since SpeedDial handles it
+                                // Permitir múltiplos toques rápidos no iOS
+                                delayPressIn={0}
+                                delayPressOut={0}
                             >
                                 <View style={styles.speedDialTriggerIcon}>
                                     <Plus
