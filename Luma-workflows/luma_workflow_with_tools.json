@@ -61,26 +61,26 @@
     },
     {
       "parameters": {
-        "model": {
+        "modelName": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-4o",
-          "cachedResultName": "gpt-4o"
+          "value": "models/gemini-1.5-pro",
+          "cachedResultName": "models/gemini-1.5-pro"
         },
         "options": {
           "temperature": 0.7,
-          "maxTokens": 1500
+          "maxOutputTokens": 1500
         }
       },
-      "id": "openai-model",
-      "name": "OpenAI GPT-4",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.3,
+      "id": "gemini-model",
+      "name": "Google Gemini Pro",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
       "position": [680, 240],
       "credentials": {
-        "openAiApi": {
-          "id": "openai-creds",
-          "name": "OpenAI Luma"
+        "googlePalmApi": {
+          "id": "gemini-creds",
+          "name": "Google Gemini Luma"
         }
       }
     },
@@ -323,7 +323,7 @@
             },
             {
               "fieldId": "metadata",
-              "fieldValue": "={{ JSON.stringify({\n  session_id: $('Extract Context').item.json.session_id,\n  processing_time_ms: $now.diff($('When Chat Message Received').item.json.timestamp || $now, 'milliseconds'),\n  tools_used: $json.usedTools || [],\n  model: 'gpt-4o'\n}) }}"
+              "fieldValue": "={{ JSON.stringify({\n  session_id: $('Extract Context').item.json.session_id,\n  processing_time_ms: $now.diff($('When Chat Message Received').item.json.timestamp || $now, 'milliseconds'),\n  tools_used: $json.usedTools || [],\n  model: 'gemini-1.5-pro'\n}) }}"
             }
           ]
         },
@@ -344,7 +344,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({\n  success: true,\n  response: $('Luma AI Agent').item.json.output,\n  metadata: {\n    session_id: $('Extract Context').item.json.session_id,\n    processing_time_ms: $now.diff($('When Chat Message Received').item.json.timestamp || $now, 'milliseconds'),\n    tools_used: $('Luma AI Agent').item.json.usedTools || [],\n    model: 'gpt-4o'\n  }\n}) }}",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  response: $('Luma AI Agent').item.json.output,\n  metadata: {\n    session_id: $('Extract Context').item.json.session_id,\n    processing_time_ms: $now.diff($('When Chat Message Received').item.json.timestamp || $now, 'milliseconds'),\n    tools_used: $('Luma AI Agent').item.json.usedTools || [],\n    model: 'gemini-1.5-pro'\n  }\n}) }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -368,7 +368,7 @@
     },
     {
       "parameters": {
-        "content": "## 🤖 Luma AI Assistant - Enhanced with Action Tools\n\n**Fluxo Principal:**\n1. Recebe mensagem via webhook POST /luma/chat\n2. Extrai contexto (house_id, user_id, message)\n3. AI Agent processa com GPT-4 + Memory\n4. Agent pode usar ferramentas:\n   - 💰 Financial Summary (consulta despesas e orçamento)\n   - 📋 Get Tasks (lista tarefas)\n   - ✅ Create Task (cria nova tarefa)\n   - 💵 Create Expense (registra despesa)\n   - 👥 Get House Members (info membros)\n5. Salva conversa no Supabase\n6. Retorna resposta JSON para o app\n\n**Diferenciais:**\n✨ Agent decide automaticamente quais ferramentas usar\n✨ Pode executar ações (criar tarefas/despesas)\n✨ Memória de conversação persistente\n✨ Respostas contextualizadas e inteligentes\n\n**Exemplo de Request:**\n```json\n{\n  \"house_id\": \"abc-123\",\n  \"user_id\": \"user-456\",\n  \"message\": \"Crie uma tarefa para comprar leite amanhã\"\n}\n```\n\n**Exemplo de Response:**\n```json\n{\n  \"success\": true,\n  \"response\": \"Perfeito! ✅ Criei a tarefa 'Comprar leite' para amanhã. Quer que eu atribua a alguém específico?\",\n  \"metadata\": {\n    \"session_id\": \"abc-123_user-456\",\n    \"processing_time_ms\": 1250,\n    \"tools_used\": [\"create_task\"],\n    \"model\": \"gpt-4o\"\n  }\n}\n```\n\n**Configuração:**\n- Supabase API credentials\n- OpenAI API key (GPT-4)\n- Tool workflows devem estar criados\n- Webhook ativo em produção",
+        "content": "## 🤖 Luma AI Assistant - Enhanced with Action Tools\n\n**Fluxo Principal:**\n1. Recebe mensagem via webhook POST /luma/chat\n2. Extrai contexto (house_id, user_id, message)\n3. AI Agent processa com Google Gemini Pro + Memory\n4. Agent pode usar ferramentas:\n   - 💰 Financial Summary (consulta despesas e orçamento)\n   - 📋 Get Tasks (lista tarefas)\n   - ✅ Create Task (cria nova tarefa)\n   - 💵 Create Expense (registra despesa)\n   - 👥 Get House Members (info membros)\n5. Salva conversa no Supabase\n6. Retorna resposta JSON para o app\n\n**Diferenciais:**\n✨ Agent decide automaticamente quais ferramentas usar\n✨ Pode executar ações (criar tarefas/despesas)\n✨ Memória de conversação persistente\n✨ Respostas contextualizadas e inteligentes\n\n**Exemplo de Request:**\n```json\n{\n  \"house_id\": \"abc-123\",\n  \"user_id\": \"user-456\",\n  \"message\": \"Crie uma tarefa para comprar leite amanhã\"\n}\n```\n\n**Exemplo de Response:**\n```json\n{\n  \"success\": true,\n  \"response\": \"Perfeito! ✅ Criei a tarefa 'Comprar leite' para amanhã. Quer que eu atribua a alguém específico?\",\n  \"metadata\": {\n    \"session_id\": \"abc-123_user-456\",\n    \"processing_time_ms\": 1250,\n    \"tools_used\": [\"create_task\"],\n    \"model\": \"gemini-1.5-pro\"\n  }\n}\n```\n\n**Configuração:**\n- Supabase API credentials\n- Google Gemini API key (gemini-1.5-pro)\n- Tool workflows devem estar criados\n- Webhook ativo em produção",
         "height": 680,
         "width": 420,
         "color": 5
@@ -403,7 +403,7 @@
         ]
       ]
     },
-    "OpenAI GPT-4": {
+    "Google Gemini Pro": {
       "ai_languageModel": [
         [
           {

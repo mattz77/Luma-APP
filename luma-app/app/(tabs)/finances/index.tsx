@@ -1,97 +1,46 @@
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Wallet, BarChart3 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, Plus, TrendingUp, Wallet, ArrowLeft } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 
-import {
-  useCreateExpense,
-  useDeleteExpense,
-  useExpenses,
-  useToggleExpensePaid,
-  useUpdateExpense,
-} from '@/hooks/useExpenses';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
-import {
-  useCreateExpenseCategory,
-  useDeleteExpenseCategory,
-  useExpenseCategories,
-  useUpdateExpenseCategory,
-} from '@/hooks/useExpenseCategories';
-import { useHouseMembers } from '@/hooks/useHouses';
-import { useCanAccessFinances } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
-import type { Expense } from '@/types/models';
-import { ExpenseFormModal, type ExpenseFormResult } from './components/ExpenseFormModal';
-import { CategoryManagerModal } from './components/CategoryManagerModal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { GlassCard } from '@/components/shared';
+import { Colors } from '@/constants/Colors';
 
-const formatCurrency = (value: string | number) => {
-  const numericValue = Number(value);
-  if (Number.isNaN(numericValue)) {
-    return 'R$ 0,00';
-  }
-
-  return numericValue.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  });
-};
+// --- Helper Components for Light Theme ---
+const LightGlassCard = ({ children, style }: any) => (
+  <View style={[styles.glassCard, style]}>
+    <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.7)', ...StyleSheet.absoluteFillObject }} />
+    <View style={{ zIndex: 10 }}>{children}</View>
+  </View>
+);
 
 export default function FinancesScreen() {
   const router = useRouter();
   const houseId = useAuthStore((state) => state.houseId);
-  const user = useAuthStore((state) => state.user);
-  const canAccessFinances = useCanAccessFinances(houseId, user?.id);
   const { top } = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const isMobile = screenWidth < 768;
 
-  if (!canAccessFinances) {
-    return (
-      <View style={styles.noAccessContainer}>
-        <Text style={styles.noAccessTitle}>Acesso Restrito</Text>
-        <Text style={styles.noAccessText}>
-          Apenas responsáveis pela casa têm acesso às informações financeiras.
-        </Text>
-      </View>
-    );
-  }
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
-  useRealtimeExpenses(houseId); // Atualização em tempo real
-  const { data: categories = [], isLoading: categoriesLoading } = useExpenseCategories(houseId);
-  const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId ?? undefined);
+  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+  useRealtimeExpenses(houseId);
 
-  const createExpenseMutation = useCreateExpense();
-  const updateExpenseMutation = useUpdateExpense();
-  const deleteExpenseMutation = useDeleteExpense();
-  const toggleExpensePaidMutation = useToggleExpensePaid(houseId);
-
-  const createCategoryMutation = useCreateExpenseCategory(houseId);
-  const updateCategoryMutation = useUpdateExpenseCategory(houseId);
-  const deleteCategoryMutation = useDeleteExpenseCategory(houseId);
-
-  const [isExpenseModalVisible, setExpenseModalVisible] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [isCategoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [togglingExpenseId, setTogglingExpenseId] = useState<string | null>(null);
-
-  const total = useMemo(
-    () => expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) ?? 0,
-    [expenses],
-  );
-  const totalCount = expenses?.length ?? 0;
-  const paidCount = expenses?.filter((expense) => expense.isPaid).length ?? 0;
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'paid' | 'pending'>('all');
 
   if (!houseId) {
     return (
@@ -99,456 +48,543 @@ export default function FinancesScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
       >
-        <Text style={styles.emptyTitle}>Nenhuma casa selecionada</Text>
+        <Text style={styles.emptyTitle}>Selecione uma casa</Text>
         <Text style={styles.emptySubtitle}>
-          Vincule-se a uma casa ou crie uma nova para começar a registrar despesas.
+          Associe-se a uma casa para gerenciar as finanças compartilhadas.
         </Text>
       </ScrollView>
     );
   }
 
-  const isSubmittingExpense = createExpenseMutation.isPending || updateExpenseMutation.isPending;
-
-  const handleOpenCreate = () => {
-    setEditingExpense(null);
-    setExpenseModalVisible(true);
-  };
-
-  const handleOpenEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setExpenseModalVisible(true);
-  };
-
-  const handleCloseModal = () => {
-    setExpenseModalVisible(false);
-    setEditingExpense(null);
-  };
-
-  const handleSubmitExpense = async (form: ExpenseFormResult) => {
-    if (!houseId || !user?.id) {
-      throw new Error('Casa ou usuário não encontrados.');
-    }
-
-    const payload = {
-      houseId,
-      categoryId: form.categoryId,
-      createdById: editingExpense?.createdById ?? user.id,
-      amount: form.amount,
-      description: form.description,
-      expenseDate: form.expenseDate,
-      isRecurring: editingExpense?.isRecurring ?? false,
-      recurrencePeriod: editingExpense?.recurrencePeriod ?? null,
-      isPaid: form.isPaid,
-      notes: form.notes ?? null,
-      receiptUrl: form.receiptUrl ?? null,
-      splits: form.splits.map((split) => ({
-        userId: split.userId,
-        amount: split.amount,
-        isPaid: split.isPaid,
-      })),
-    };
-
-    if (editingExpense) {
-      await updateExpenseMutation.mutateAsync({ id: editingExpense.id, input: payload });
-    } else {
-      await createExpenseMutation.mutateAsync(payload);
-    }
-
-    handleCloseModal();
-  };
-
-  const handleDeleteExpense = async () => {
-    if (!editingExpense || !houseId) return;
-    await deleteExpenseMutation.mutateAsync({ id: editingExpense.id, houseId });
-    handleCloseModal();
-  };
-
-  const handleTogglePaid = async (expense: Expense, value: boolean) => {
-    try {
-      setTogglingExpenseId(expense.id);
-      await toggleExpensePaidMutation.mutateAsync({ id: expense.id, isPaid: value });
-    } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
-    } finally {
-      setTogglingExpenseId(null);
-    }
-  };
-
-  const handleCreateCategory = (name: string) => {
-    if (!houseId) {
-      return Promise.reject(new Error('Casa não encontrada.'));
-    }
-    return createCategoryMutation.mutateAsync(name);
-  };
-
-  const handleUpdateCategory = (id: string, name: string) =>
-    updateCategoryMutation.mutateAsync({ id, name });
-
-  const handleDeleteCategory = (id: string) => deleteCategoryMutation.mutateAsync(id);
-
-  const renderExpenseRow = (expense: Expense) => {
-    const isToggling = togglingExpenseId === expense.id && toggleExpensePaidMutation.isPending;
-    return (
-      <TouchableOpacity
-        key={expense.id}
-        style={styles.expenseRow}
-        onPress={() => handleOpenEdit(expense)}
-        activeOpacity={0.86}
-      >
-        <View style={styles.expenseInfo}>
-          <Text style={styles.expenseDescription}>{expense.description}</Text>
-          <Text style={styles.expenseMeta}>
-            {expense.category?.name ?? 'Sem categoria'} ·{' '}
-            {new Date(expense.expenseDate).toLocaleDateString('pt-BR')}
-          </Text>
-          <Text style={styles.expenseHint}>
-            {expense.splits && expense.splits.length > 0
-              ? `Dividido entre ${expense.splits.length} participante(s)`
-              : 'Não dividido'}
-          </Text>
-        </View>
-        <View style={styles.expenseAside}>
-          <Text
-            style={[
-              styles.expenseAmount,
-              expense.isPaid ? styles.expenseAmountPaid : styles.expenseAmountPending,
-            ]}
-          >
-            {formatCurrency(expense.amount)}
-          </Text>
-          <View style={styles.paidSwitchRow}>
-            <Text style={styles.paidSwitchLabel}>Pago</Text>
-            <Switch
-              value={expense.isPaid}
-              onValueChange={(value) => handleTogglePaid(expense, value)}
-              disabled={isToggling || toggleExpensePaidMutation.isPending}
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
+  const summary = useMemo(() => {
+    if (!expenses) return { total: 0, paid: 0, pending: 0 };
+    return expenses.reduce(
+      (acc, expense) => {
+        const amount = Number(expense.amount);
+        acc.total += amount;
+        if (expense.isPaid) {
+          acc.paid += amount;
+        } else {
+          acc.pending += amount;
+        }
+        return acc;
+      },
+      { total: 0, paid: 0, pending: 0 }
     );
+  }, [expenses]);
+
+  const budgetProgress = useMemo(() => {
+    if (!monthlyBudget || !monthlyBudget.amount) return 0;
+    return Math.min((summary.total / Number(monthlyBudget.amount)) * 100, 100);
+  }, [summary.total, monthlyBudget]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!expenses) return [];
+    if (selectedFilter === 'all') return expenses;
+    return expenses.filter((e) => (selectedFilter === 'paid' ? e.isPaid : !e.isPaid));
+  }, [expenses, selectedFilter]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
-      refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
-      }
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>Finanças da Casa</Text>
-          <Text style={styles.subtitle}>
-            Veja, em segundos, quanto a casa já gastou neste mês e quais contas ainda estão em aberto.
-          </Text>
-        </View>
-      </View>
-      <View style={styles.headerActionsRow}>
-        <TouchableOpacity
-          style={styles.headerActionButton}
-          onPress={() => router.push('/(tabs)/finances/reports')}
+    <ErrorBoundary>
+      <View style={styles.container}>
+        {/* Background Light Theme */}
+        <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
+          }
         >
-          <BarChart3 size={18} color="#1d4ed8" />
-          <Text style={styles.headerActionText}>Relatórios</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerActionButton}
-          onPress={() => router.push('/(tabs)/finances/budget')}
-        >
-          <Wallet size={18} color="#1d4ed8" />
-          <Text style={styles.headerActionText}>Orçamento</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Header Section */}
+          <View style={styles.headerSection}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft size={24} color={Colors.primary} />
+            </TouchableOpacity>
+            <View style={styles.headerRow}>
+              <View style={styles.walletIconBg}>
+                <Wallet size={24} color={Colors.background} />
+              </View>
+              <View>
+                <Text style={styles.title}>Finanças da Casa</Text>
+                <Text style={styles.subtitle}>Gestão de despesas compartilhadas</Text>
+              </View>
+            </View>
 
-      <View style={[styles.summaryCard, cardShadowStyle]}>
-        <View style={styles.summaryHeader}>
-          <Text style={styles.cardTitle}>Despesas deste mês</Text>
-          <TouchableOpacity
-            style={styles.manageCategoriesButton}
-            onPress={() => setCategoryModalVisible(true)}
-          >
-            <Text style={styles.manageCategoriesText}>Gerenciar categorias</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.cardValue}>{formatCurrency(String(total))}</Text>
-        <Text style={styles.cardHint}>
-          {totalCount > 0
-            ? `Você tem ${totalCount} despesa(s) registrada(s) neste mês; ${paidCount} já marcada(s) como paga(s).`
-            : 'Nenhuma despesa registrada ainda para este mês.'}
-        </Text>
-      </View>
-
-      <View style={[styles.listCard, cardShadowStyle]}>
-        <View style={styles.listHeader}>
-          <Text style={styles.cardTitle}>Movimentações recentes</Text>
-          <TouchableOpacity style={styles.addButton} onPress={handleOpenCreate}>
-            <Text style={styles.addButtonText}>+ Adicionar</Text>
-          </TouchableOpacity>
-        </View>
-
-        {isLoading || categoriesLoading || membersLoading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color="#2563eb" />
-            <Text style={styles.helperText}>Carregando despesas da casa...</Text>
+            <TouchableOpacity style={styles.settingsButton}>
+              <MoreHorizontal size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
           </View>
-        ) : expenses && expenses.length > 0 ? (
-          expenses.map((expense) => renderExpenseRow(expense))
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Nenhuma despesa registrada</Text>
-            <Text style={styles.emptySubtitle}>
-              Comece registrando contas como aluguel, luz, água ou supermercado usando o botão
-              “Adicionar”.
-            </Text>
+
+          {/* Main Summary Card */}
+          <LightGlassCard style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Total Gasto este Mês</Text>
+              <View style={styles.budgetBadge}>
+                <Text style={styles.budgetBadgeText}>
+                  Orçamento: {monthlyBudget ? formatCurrency(Number(monthlyBudget.amount)) : 'Não definido'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.totalAmount}>{formatCurrency(summary.total)}</Text>
+
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#ef4444' : Colors.primary }]} />
+            </View>
+            <Text style={styles.progressText}>{budgetProgress.toFixed(0)}% do orçamento utilizado</Text>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#22c55e20' }]}>
+                  <ArrowUpCircle size={20} color="#16a34a" />
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Pago</Text>
+                  <Text style={[styles.statValue, { color: '#16a34a' }]}>{formatCurrency(summary.paid)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#ef444420' }]}>
+                  <ArrowDownCircle size={20} color="#dc2626" />
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Pendente</Text>
+                  <Text style={[styles.statValue, { color: '#dc2626' }]}>{formatCurrency(summary.pending)}</Text>
+                </View>
+              </View>
+            </View>
+          </LightGlassCard>
+
+          {/* Actions Row */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionButtonPrimary}>
+              <Plus size={20} color={Colors.background} />
+              <Text style={styles.actionButtonTextPrimary}>Nova Despesa</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButtonSecondary}>
+              <PieChart size={20} color={Colors.primary} />
+              <Text style={styles.actionButtonTextSecondary}>Relatório</Text>
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Filter Tabs */}
+          <View style={styles.filterTabs}>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'all' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('all')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'all' && styles.filterTabTextActive]}>Todas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'paid' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('paid')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'paid' && styles.filterTabTextActive]}>Pagas</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, selectedFilter === 'pending' && styles.filterTabActive]}
+              onPress={() => setSelectedFilter('pending')}
+            >
+              <Text style={[styles.filterTabText, selectedFilter === 'pending' && styles.filterTabTextActive]}>Pendentes</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Expenses List */}
+          <View style={styles.expensesList}>
+            <Text style={styles.sectionTitle}>Histórico Recente</Text>
+
+            {filteredExpenses.length > 0 ? (
+              filteredExpenses.map((expense) => (
+                <TouchableOpacity
+                  key={expense.id}
+                  style={styles.expenseItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push({
+                      pathname: '/(tabs)/finances/[id]',
+                      params: { id: expense.id },
+                    } as any);
+                  }}
+                >
+                  <View style={styles.expenseIconBg}>
+                    <DollarSign size={20} color={Colors.primary} />
+                  </View>
+                  <View style={styles.expenseDetails}>
+                    <Text style={styles.expenseTitle}>{expense.description}</Text>
+                    <Text style={styles.expenseDate}>
+                      {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} •{' '}
+                      {expense.createdBy?.name ?? expense.createdBy?.email ?? 'Desconhecido'}
+                    </Text>
+                  </View>
+                  <View style={styles.expenseAmountContainer}>
+                    <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      expense.isPaid ? styles.statusBadgePaid : styles.statusBadgePending
+                    ]}>
+                      <Text style={[
+                        styles.statusBadgeText,
+                        expense.isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
+                      ]}>
+                        {expense.isPaid ? 'Pago' : 'Pendente'}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Nenhuma despesa encontrada.</Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
-
-      <ExpenseFormModal
-        visible={isExpenseModalVisible}
-        mode={editingExpense ? 'edit' : 'create'}
-        initialExpense={editingExpense ?? undefined}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmitExpense}
-        onDelete={editingExpense ? handleDeleteExpense : undefined}
-        categories={categories}
-        members={members}
-        currentUserId={user?.id ?? null}
-        isSubmitting={isSubmittingExpense}
-        isDeleting={deleteExpenseMutation.isPending}
-        onCreateCategory={handleCreateCategory}
-      />
-
-      <CategoryManagerModal
-        visible={isCategoryModalVisible}
-        categories={categories}
-        onClose={() => setCategoryModalVisible(false)}
-        onCreate={handleCreateCategory}
-        onUpdate={handleUpdateCategory}
-        onDelete={handleDeleteCategory}
-      />
-    </ScrollView>
+    </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
   },
-  container: {
-    flexGrow: 1,
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    backgroundColor: '#f8fafc',
-    gap: 20,
+  scrollContent: {
+    paddingBottom: 100,
+    paddingHorizontal: 20,
   },
   centered: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    textAlign: 'center',
-  },
-  headerRow: {
-    marginBottom: 16,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#475569',
-    marginTop: 4,
-    lineHeight: 22,
-  },
-  headerActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
-  },
-  headerActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-  },
-  headerActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 12,
-  },
-  listCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  cardValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  manageCategoriesButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
-  },
-  manageCategoriesText: {
-    color: '#1d4ed8',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardHint: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  helperText: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  addButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  expenseRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
-  },
-  expenseInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  expenseDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  expenseMeta: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  expenseHint: {
-    fontSize: 12,
-    color: '#94a3b8',
-  },
-  expenseAside: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  expenseAmount: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  expenseAmountPaid: {
-    color: '#10b981',
-  },
-  expenseAmountPending: {
-    color: '#ef4444',
-  },
-  emptyState: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#cbd5f5',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
-    textAlign: 'center',
+    color: Colors.text,
+    marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: Colors.textSecondary,
     textAlign: 'center',
+    paddingHorizontal: 40,
   },
-  loadingState: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  paidSwitchRow: {
+
+  // Header
+  headerSection: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 6,
+    marginBottom: 24,
   },
-  noAccessContainer: {
-    flex: 1,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary + '1A',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#f8fafc',
+    marginRight: 12,
   },
-  noAccessTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
+  headerRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  walletIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  settingsButton: {
+    padding: 8,
+  },
+
+  // Summary Card
+  glassCard: {
+    borderRadius: 24,
+    padding: 20,
+    overflow: 'hidden',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    // Additional styles if needed
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    textAlign: 'center',
   },
-  noAccessText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 24,
+  summaryLabel: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  paidSwitchLabel: {
+  budgetBadge: {
+    backgroundColor: Colors.primary + '10',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  budgetBadgeText: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  totalAmount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 16,
+  },
+  progressContainer: {
+    height: 6,
+    backgroundColor: Colors.textSecondary + '20',
+    borderRadius: 3,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
     fontSize: 12,
-    color: '#475569',
+    color: Colors.textSecondary,
+    marginBottom: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.textSecondary + '20',
+    marginHorizontal: 16,
+  },
+
+  // Actions
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButtonPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionButtonTextPrimary: {
+    color: Colors.background,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  actionButtonSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+  },
+  actionButtonTextSecondary: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+
+  // Filters
+  filterTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    padding: 4,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  filterTabActive: {
+    backgroundColor: Colors.primary + '10',
+  },
+  filterTabText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+
+  // List
+  expensesList: {
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  expenseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  expenseIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  expenseDetails: {
+    flex: 1,
+  },
+  expenseTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  expenseDate: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  expenseAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  expenseAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  statusBadgePaid: {
+    backgroundColor: '#22c55e20',
+  },
+  statusBadgePending: {
+    backgroundColor: '#ef444420',
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  statusBadgeTextPaid: {
+    color: '#16a34a',
+  },
+  statusBadgeTextPending: {
+    color: '#dc2626',
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
 });
-

@@ -17,6 +17,25 @@ interface LumaResponse {
     processing_time_ms: number;
     tools_used: string[];
     model: string;
+    parsed?: {
+      type: 'expense' | 'task';
+      data: {
+        title?: string;
+        amount?: string;
+        date?: string;
+        description?: string;
+        due_date?: string | null;
+      };
+    } | {
+      type: 'expense' | 'task';
+      data: {
+        title?: string;
+        amount?: string;
+        date?: string;
+        description?: string;
+        due_date?: string | null;
+      };
+    }[];
   };
 }
 
