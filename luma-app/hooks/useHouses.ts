@@ -6,17 +6,40 @@ import type { CreateHouseInput } from '@/services/house.service';
 import type { House, HouseMemberWithUser, UserHouse } from '@/types/models';
 
 export const useUserHouses = (userId: string | undefined | null) => {
-  return useQuery<UserHouse[]>({
+  const query = useQuery<UserHouse[]>({
     queryKey: ['houses', userId],
-    queryFn: () => {
+    queryFn: async () => {
+      console.log('[useUserHouses] Fetching houses for userId:', userId);
       if (!userId) {
+        console.log('[useUserHouses] No userId, returning empty array');
         return Promise.resolve([]);
       }
-      return houseService.getUserHouses(userId);
+      try {
+        const houses = await houseService.getUserHouses(userId);
+        console.log('[useUserHouses] Fetched houses:', houses.length);
+        return houses;
+      } catch (error) {
+        console.error('[useUserHouses] Error fetching houses:', error);
+        throw error;
+      }
     },
     enabled: Boolean(userId),
     staleTime: 1000 * 30,
   });
+
+  // Debug logs
+  useEffect(() => {
+    console.log('[useUserHouses] Query state:', {
+      userId,
+      enabled: Boolean(userId),
+      isLoading: query.isLoading,
+      isError: query.isError,
+      error: query.error?.message,
+      dataLength: query.data?.length ?? 0,
+    });
+  }, [userId, query.isLoading, query.isError, query.error, query.data?.length]);
+
+  return query;
 };
 
 export const useHouseMembers = (houseId: string | undefined | null) =>

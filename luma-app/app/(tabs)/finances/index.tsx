@@ -16,7 +16,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GlassCard } from '@/components/shared';
 import { Colors } from '@/constants/Colors';
-import { ExpenseFormModal, type ExpenseFormResult } from './components/ExpenseFormModal';
+import { ExpenseFormModal, type ExpenseFormResult } from '@/components/finances/ExpenseFormModal';
 
 // --- Helper Components for Light Theme ---
 const LightGlassCard = ({ children, style }: any) => (

@@ -14,6 +14,37 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 - **AI & Orquestração**: n8n (Webhooks, AI Agents), OpenAI/Anthropic via n8n
 - **Arquitetura**: Mobile-First, Multi-tenant (Isolamento por house_id)
 
+### ⚠️ REGRA CRÍTICA: Consulta Obrigatória aos Guias MPC
+
+**SEMPRE** que for alterar, criar ou ajustar qualquer coisa relacionada a:
+- Expo SDK 54
+- Expo Router v6
+- React Native 0.81
+- TypeScript
+- Reanimated v4
+- Qualquer módulo ou funcionalidade do Expo
+
+**DEVE** consultar primeiro os guias em `docs/mpc-guides/`:
+- `Expo SDK 54 + Router v6 + React Native 0.81 + TypeScript + Reanimated v4.md` - Manual completo do stack
+- `expo_doc_guide.md` - Guia de documentação do Expo
+- `como criar efeito liquid glass do ios 26 com expo.md` - Guia de efeitos visuais
+
+**Processo obrigatório:**
+1. Antes de implementar, ler o guia relevante em `docs/mpc-guides/`
+2. Seguir os padrões, APIs e melhores práticas documentados
+3. Verificar compatibilidade com SDK 54 e Router v6
+4. Usar as APIs e hooks recomendados pelos guias
+5. Aplicar as configurações sugeridas (babel, app.json, etc.)
+
+**Exemplos de quando consultar:**
+- Criar nova rota → Consultar guia de Expo Router v6
+- Adicionar animação → Consultar guia de Reanimated v4
+- Configurar módulo Expo → Consultar expo_doc_guide.md
+- Implementar efeito visual → Consultar guia de liquid glass ou similar
+- Resolver problema de build → Consultar guia do SDK 54
+- Adicionar dependência → Verificar compatibilidade com SDK 54 nos guias
+- Configurar navegação → Consultar padrões do Router v6 nos guias
+
 ## Princípios Fundamentais
 
 ### 1. Isolamento Multi-Tenant (Regra de Ouro)
