@@ -20,6 +20,19 @@ export const useExpenses = (houseId: string | null | undefined) => {
   });
 };
 
+export const useExpense = (expenseId: string | null | undefined) => {
+  return useQuery({
+    queryKey: ['expense', expenseId],
+    queryFn: () => {
+      if (!expenseId) {
+        return Promise.resolve(null);
+      }
+      return expenseService.getById(expenseId);
+    },
+    enabled: Boolean(expenseId),
+  });
+};
+
 export const useCreateExpense = () => {
   const queryClient = useQueryClient();
 
