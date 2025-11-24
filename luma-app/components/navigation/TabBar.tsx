@@ -171,7 +171,10 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         <View style={styles.container}>
             {/* Bottom Vignette */}
             <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.05)']}
+                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0.14)']}
+                locations={[0, 0.55, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
                 style={styles.vignette}
                 pointerEvents="none"
             />
@@ -268,7 +271,7 @@ const styles = StyleSheet.create({
     vignette: {
         ...StyleSheet.absoluteFillObject,
         bottom: 0,
-        height: '100%',
+        height: '130%',
     },
     dockWrapper: {
         flexDirection: 'row',
