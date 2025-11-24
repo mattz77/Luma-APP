@@ -48,16 +48,27 @@ half4 main(float2 xy) {
 
     float f = fbm(st+r);
 
-    // Mistura de cores estilo iOS 26 (Cianos, Roxos, Brancos sutis)
-    color = mix(float3(0.1, 0.619, 0.667), float3(0.666, 0.666, 0.498), clamp((f*f)*4.0,0.0,1.0));
-    color = mix(color, float3(0.0, 0.0, 0.164706), clamp(length(q),0.0,1.0));
-    color = mix(color, float3(0.66667, 1.0, 1.0), clamp(length(r.x),0.0,1.0));
+    // Mistura de cores estilo iOS 26 - Tons muito sutis e translúcidos
+    // Base: branco translúcido com leves toques de cor teal/azul muito suave
+    float3 baseColor = float3(0.95, 0.97, 0.98); // Branco quase puro
+    float3 tealTint = float3(0.85, 0.92, 0.95); // Teal muito sutil
+    float3 blueTint = float3(0.88, 0.91, 0.96); // Azul muito sutil
+    
+    // Mistura muito sutil baseada no noise
+    color = mix(baseColor, tealTint, clamp((f*f)*0.3,0.0,0.15));
+    color = mix(color, blueTint, clamp(length(q)*0.2,0.0,0.1));
+    
+    // Adiciona variação muito sutil baseada no noise
+    float variation = clamp(length(r.x)*0.1, 0.0, 0.05);
+    color = mix(color, float3(0.9, 0.93, 0.95), variation);
 
-    // Adiciona um brilho especular "líquido" baseado na interação de toque (opcional)
+    // Adiciona um brilho especular "líquido" muito sutil
     float dist = distance(st, touch / resolution.xy);
     float glow = 1.0 - smoothstep(0.0, 0.3, dist);
-    color += float3(glow * 0.2);
+    color += float3(glow * 0.05); // Muito mais sutil
 
-    return half4((f*f*f+.6*f*f+.5*f)*color, 1.0);
+    // Retorna com opacidade reduzida para efeito translúcido
+    float alpha = 0.4 + (f * 0.2); // Opacidade variável entre 0.4 e 0.6
+    return half4(color, alpha);
 }
 `;
