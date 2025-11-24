@@ -1,543 +1,288 @@
-import { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, MessageSquare, Send, Trash2, X } from 'lucide-react-native';
-
-import { useTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
-import { useTaskComments, useCreateTaskComment, useDeleteTaskComment } from '@/hooks/useTaskComments';
+import { BlurView } from 'expo-blur';
+import { ArrowLeft, Calendar, CheckCircle2, Clock3, User, ListTodo, ArrowRight } from 'lucide-react-native';
+import { Colors } from '@/constants/Colors';
+import { useTask } from '@/hooks/useTasks';
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
-import type { Task, TaskStatus, TaskPriority } from '@/types/models';
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR', {
+const DetailCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <View style={styles.card}>
+    <BlurView tint="light" intensity={20} style={StyleSheet.absoluteFill} />
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.75)', ...StyleSheet.absoluteFillObject }} />
+    <View style={{ zIndex: 10 }}>{children}</View>
+  </View>
+);
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  return date.toLocaleString('pt-BR', {
     day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
   });
 };
 
-const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  LOW: 'Baixa',
-  MEDIUM: 'Média',
-  HIGH: 'Alta',
-  URGENT: 'Urgente',
-};
-
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  PENDING: 'Pendente',
-  IN_PROGRESS: 'Em andamento',
-  COMPLETED: 'Concluída',
-  CANCELLED: 'Cancelada',
+const statusPalette: Record<string, { label: string; color: string }> = {
+  PENDING: { label: 'Pendente', color: Colors.textSecondary },
+  IN_PROGRESS: { label: 'Em andamento', color: Colors.accent },
+  COMPLETED: { label: 'Concluída', color: Colors.primary },
+  CANCELLED: { label: 'Cancelada', color: '#DD4A4A' },
 };
 
 export default function TaskDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { top } = useSafeAreaInsets();
-  const user = useAuthStore((state) => state.user);
+  const params = useLocalSearchParams<{ id?: string }>();
+  const taskId = params.id ? String(params.id) : null;
+  const { houseId } = useAuthStore();
+  const { data: task, isLoading, error } = useTask(taskId);
 
-  // Se não houver ID ou for "undefined", redirecionar para a lista de tarefas
-  if (!id || id === 'undefined') {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>Tarefa não encontrada</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const palette = statusPalette[task?.status ?? 'PENDING'];
+  const assigneeName = task?.assignee?.name ?? task?.assignee?.email ?? 'Não atribuído';
+  const assignerName = task?.creator?.name ?? task?.creator?.email ?? 'Sistema';
+  const priorityLabel = task?.priority ? task.priority.toLowerCase() : 'normal';
 
-  const { data: task, isLoading } = useTask(id);
-  const { data: comments, isLoading: isLoadingComments } = useTaskComments(id);
-  const updateTaskMutation = useUpdateTask();
-  const deleteTaskMutation = useDeleteTask();
-  const createCommentMutation = useCreateTaskComment();
-  const deleteCommentMutation = useDeleteTaskComment();
+  const isAuthorized = useMemo(() => {
+    if (!task || !houseId) return true;
+    return task.houseId === houseId;
+  }, [task, houseId]);
 
-  const [commentInput, setCommentInput] = useState('');
-
-  const handleAddComment = async () => {
-    if (!commentInput.trim() || !id || !user) {
-      return;
+  const renderContent = () => {
+    if (!taskId) {
+      return <Text style={styles.message}>Tarefa inválida.</Text>;
     }
 
-    try {
-      await createCommentMutation.mutateAsync({
-        task_id: id,
-        user_id: user.id,
-        content: commentInput.trim(),
-      });
-      setCommentInput('');
-    } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
+    if (isLoading) {
+      return (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.message}>Carregando detalhes...</Text>
+        </View>
+      );
     }
-  };
 
-  const handleDeleteComment = async (commentId: string) => {
-    Alert.alert('Excluir comentário', 'Deseja realmente excluir este comentário?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteCommentMutation.mutateAsync(commentId);
-          } catch (error) {
-            Alert.alert('Erro', (error as Error).message);
-          }
-        },
-      },
-    ]);
-  };
+    if (error || !task || !isAuthorized) {
+      return <Text style={styles.message}>Não foi possível encontrar esta tarefa.</Text>;
+    }
 
-  const handleDeleteTask = async () => {
-    if (!task) return;
-
-    Alert.alert('Excluir tarefa', 'Deseja realmente excluir esta tarefa?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId });
-            router.back();
-          } catch (error) {
-            Alert.alert('Erro', (error as Error).message);
-          }
-        },
-      },
-    ]);
-  };
-
-  if (isLoading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#1d4ed8" />
-      </View>
-    );
-  }
-
-  if (!task) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.errorText}>Tarefa não encontrada</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Voltar</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={top}
-    >
-      <View style={[styles.header, { paddingTop: top + 16 }]}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0f172a" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalhes da Tarefa</Text>
-        <TouchableOpacity style={styles.headerButton} onPress={handleDeleteTask}>
-          <Trash2 size={20} color="#dc2626" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.taskCard, cardShadowStyle]}>
-          <View style={styles.taskHeader}>
-            <Text style={styles.taskTitle}>{task.title}</Text>
-            <View
-              style={[
-                styles.priorityBadge,
-                task.priority === 'LOW' && styles.priorityBadgeLow,
-                task.priority === 'MEDIUM' && styles.priorityBadgeMedium,
-                task.priority === 'HIGH' && styles.priorityBadgeHigh,
-                task.priority === 'URGENT' && styles.priorityBadgeUrgent,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.priorityBadgeText,
-                  (task.priority === 'HIGH' || task.priority === 'URGENT') && styles.priorityBadgeTextLight,
-                ]}
-              >
-                {PRIORITY_LABELS[task.priority]}
+      <>
+        <DetailCard>
+          <View style={styles.heroRow}>
+            <View style={styles.heroIcon}>
+              <ListTodo size={28} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroLabel}>Tarefa</Text>
+              <Text style={styles.heroTitle}>{task.title}</Text>
+            </View>
+          </View>
+          <View style={styles.badgeRow}>
+            <View style={[styles.statusBadge, { backgroundColor: palette.color + '20' }]}>
+              <Text style={[styles.statusText, { color: palette.color }]}>{palette.label}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: Colors.secondary + '20' }]}>
+              <Text style={[styles.statusText, { color: Colors.secondary }]}>
+                {priorityLabel}
               </Text>
             </View>
           </View>
+        </DetailCard>
 
-          <View style={styles.taskMeta}>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Status:</Text>
-              <Text style={styles.metaValue}>{STATUS_LABELS[task.status]}</Text>
+        <DetailCard>
+          <Text style={styles.sectionTitle}>Descrição</Text>
+          <Text style={styles.description}>{task.description || 'Sem descrição.'}</Text>
+        </DetailCard>
+
+        <DetailCard>
+          <Text style={styles.sectionTitle}>Informações</Text>
+          <View style={[styles.detailRow, styles.assignmentRow]}>
+            <User size={18} color={Colors.primary} />
+            <Text style={styles.detailLabel}>Atribuído para</Text>
+            <View style={styles.assignmentValue}>
+              <Text style={styles.assignmentUser}>{assignerName}</Text>
+              <ArrowRight size={16} color={Colors.textSecondary} style={{ marginHorizontal: 6 }} />
+              <Text style={styles.assignmentUser}>{assigneeName}</Text>
             </View>
-            {task.assignee?.name && (
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Responsável:</Text>
-                <Text style={styles.metaValue}>{task.assignee.name}</Text>
-              </View>
-            )}
-            {task.dueDate && (
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Prazo:</Text>
-                <Text style={styles.metaValue}>{new Date(task.dueDate).toLocaleDateString('pt-BR')}</Text>
-              </View>
-            )}
-            {task.tags && task.tags.length > 0 && (
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Tags:</Text>
-                <View style={styles.tagsContainer}>
-                  {task.tags.map((tag) => (
-                    <View key={tag} style={styles.tag}>
-                      <Text style={styles.tagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
           </View>
-
-          {task.description && (
-            <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionLabel}>Descrição</Text>
-              <Text style={styles.descriptionText}>{task.description}</Text>
+          <View style={styles.detailRow}>
+            <Calendar size={18} color={Colors.primary} />
+            <Text style={styles.detailLabel}>Prazo</Text>
+            <Text style={styles.detailValue}>{formatDateTime(task.dueDate)}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Clock3 size={18} color={Colors.primary} />
+            <Text style={styles.detailLabel}>Atualizada</Text>
+            <Text style={styles.detailValue}>{formatDateTime(task.updatedAt)}</Text>
+          </View>
+          {task.completedAt && (
+            <View style={styles.detailRow}>
+              <CheckCircle2 size={18} color={Colors.primary} />
+              <Text style={styles.detailLabel}>Concluída</Text>
+              <Text style={styles.detailValue}>{formatDateTime(task.completedAt)}</Text>
             </View>
           )}
+        </DetailCard>
+      </>
+    );
+  };
 
-          {task.status === 'COMPLETED' && task.points > 0 && (
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsText}>+{task.points} pontos para a casa</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={[styles.commentsSection, cardShadowStyle]}>
-          <View style={styles.commentsHeader}>
-            <MessageSquare size={20} color="#1d4ed8" />
-            <Text style={styles.commentsTitle}>Comentários ({comments?.length ?? 0})</Text>
-          </View>
-
-          {isLoadingComments ? (
-            <ActivityIndicator size="small" color="#1d4ed8" style={styles.loader} />
-          ) : comments && comments.length > 0 ? (
-            <View style={styles.commentsList}>
-              {comments.map((comment) => (
-                <View key={comment.id} style={styles.commentCard}>
-                  <View style={styles.commentHeader}>
-                    <Text style={styles.commentAuthor}>{comment.user?.name ?? 'Usuário'}</Text>
-                    <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
-                    {comment.userId === user?.id && (
-                      <TouchableOpacity
-                        style={styles.deleteCommentButton}
-                        onPress={() => handleDeleteComment(comment.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <X size={14} color="#dc2626" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <Text style={styles.commentContent}>{comment.content}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyComments}>Nenhum comentário ainda. Seja o primeiro!</Text>
-          )}
-
-          <View style={styles.commentInputContainer}>
-            <TextInput
-              value={commentInput}
-              onChangeText={setCommentInput}
-              placeholder="Adicionar comentário..."
-              style={styles.commentInput}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, !commentInput.trim() && styles.sendButtonDisabled]}
-              onPress={handleAddComment}
-              disabled={!commentInput.trim() || createCommentMutation.isPending}
-            >
-              {createCommentMutation.isPending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Send size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+  return (
+    <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color={Colors.text} />
+            <Text style={styles.backText}>Voltar</Text>
+          </TouchableOpacity>
+          <Text style={styles.pageTitle}>Detalhes da Tarefa</Text>
+          {renderContent()}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Colors.background,
   },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  content: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  headerButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    gap: 20,
-    paddingBottom: 100,
-  },
-  taskCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    paddingBottom: 40,
     gap: 16,
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  taskTitle: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  priorityBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  priorityBadgeLow: {
-    backgroundColor: '#f1f5f9',
-  },
-  priorityBadgeMedium: {
-    backgroundColor: '#eff6ff',
-  },
-  priorityBadgeHigh: {
-    backgroundColor: '#fffbeb',
-  },
-  priorityBadgeUrgent: {
-    backgroundColor: '#fef2f2',
-  },
-  priorityBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: '#64748b',
-  },
-  priorityBadgeTextLight: {
-    color: '#0f172a',
-  },
-  taskMeta: {
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  metaLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  metaValue: {
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  tag: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  descriptionSection: {
-    gap: 8,
-  },
-  descriptionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  descriptionText: {
-    fontSize: 15,
-    color: '#0f172a',
-    lineHeight: 22,
-  },
-  pointsBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  pointsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#16a34a',
-  },
-  commentsSection: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-  },
-  commentsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  commentsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  loader: {
-    marginVertical: 20,
-  },
-  commentsList: {
-    gap: 12,
-  },
-  commentCard: {
-    padding: 12,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    gap: 8,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  commentAuthor: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  commentDate: {
-    fontSize: 12,
-    color: '#94a3b8',
-    flex: 1,
-  },
-  deleteCommentButton: {
-    padding: 4,
-  },
-  commentContent: {
-    fontSize: 14,
-    color: '#0f172a',
-    lineHeight: 20,
-  },
-  emptyComments: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-    paddingVertical: 20,
-    fontStyle: 'italic',
-  },
-  commentInputContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-end',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  commentInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    backgroundColor: '#f8fafc',
-    maxHeight: 100,
-    textAlignVertical: 'top',
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#1d4ed8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#dc2626',
-    marginBottom: 16,
   },
   backButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#1d4ed8',
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
   },
-  backButtonText: {
-    color: '#fff',
+  backText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  card: {
+    borderRadius: 28,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    gap: 16,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+    marginBottom: 8,
+  },
+  heroIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroLabel: {
+    textTransform: 'uppercase',
+    fontSize: 13,
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+  },
+  heroTitle: {
+    fontSize: 20,
     fontWeight: '600',
+    color: Colors.text,
+    marginTop: 4,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  description: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  detailLabel: {
+    minWidth: 100,
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  detailValue: {
+    flex: 1,
+    textAlign: 'right',
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  assignmentRow: {
+    alignItems: 'flex-start',
+  },
+  assignmentValue: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+  },
+  assignmentUser: {
+    color: Colors.text,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  loader: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 40,
+  },
+  message: {
+    textAlign: 'center',
+    color: Colors.textSecondary,
+    fontSize: 16,
   },
 });
-

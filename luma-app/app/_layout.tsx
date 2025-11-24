@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth.store';
+import { HouseInitializer } from '@/components/HouseInitializer';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -60,7 +61,12 @@ function RootLayoutNav() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <ThemeProvider value={DefaultTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
+          <HouseInitializer />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
             <Stack.Screen name="landing" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />

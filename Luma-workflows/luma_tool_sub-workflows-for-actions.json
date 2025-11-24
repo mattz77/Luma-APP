@@ -285,7 +285,7 @@
                   },
                   {
                     "fieldId": "assigned_to_id",
-                    "fieldValue": "={{ $json.assigned_to_id || null }}"
+                    "fieldValue": "={{ $json.assigned_to_id || $json.created_by_id }}"
                   },
                   {
                     "fieldId": "points",
