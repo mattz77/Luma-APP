@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { StyleSheet, View, ViewStyle, Platform, LayoutChangeEvent } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  useSharedValue,
-  useDerivedValue,
-  withRepeat,
-  withTiming,
+import { 
+  useSharedValue, 
+  withRepeat, 
+  withTiming, 
   Easing,
+  useDerivedValue 
 } from 'react-native-reanimated';
+import { liquidGlassShader } from '../../assets/shaders/liquidGlass';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Imports condicionais para Skia (apenas mobile)
 let Canvas: any;
 let Fill: any;
 let Shader: any;
 let Skia: any;
-let liquidGlassShader: string;
-let SourceShader: any = null;
 
-  // Só carrega Skia em mobile (iOS/Android)
 if (Platform.OS !== 'web') {
   try {
     const skia = require('@shopify/react-native-skia');
@@ -26,66 +24,63 @@ if (Platform.OS !== 'web') {
     Fill = skia.Fill;
     Shader = skia.Shader;
     Skia = skia.Skia;
-
-    const shaderModule = require('../../assets/shaders/liquidGlass');
-    liquidGlassShader = shaderModule.liquidGlassShader;
-
-    if (Skia?.RuntimeEffect) {
-      SourceShader = Skia.RuntimeEffect.Make(liquidGlassShader);
-      if (SourceShader) {
-        console.log('[LiquidGlassCard] Shader criado com sucesso');
-      } else {
-        console.warn('[LiquidGlassCard] Falha ao criar shader');
-      }
-    }
   } catch (error) {
     console.warn('[LiquidGlassCard] Skia não disponível:', error);
   }
 }
 
 interface LiquidGlassCardProps {
-  children?: React.ReactNode;
+  children: React.ReactNode;
   style?: ViewStyle;
   intensity?: number;
-  tint?: 'light' | 'dark' | 'default' | 'extraLight' | 'regular' | 'prominent' | 'systemUltraThinMaterial' | 'systemThinMaterial' | 'systemMaterial' | 'systemThickMaterial' | 'systemChromeMaterial' | 'systemMaterialLight' | 'systemMaterialDark' | 'systemMaterialDn';
-  colors?: string[]; // Opcional: passar cores para o shader (futuro)
-  animated?: boolean; // Controla se o shader deve animar (padrão: false para evitar problemas no iOS)
+  tint?: 'light' | 'dark' | 'default' | 'systemMaterial' | 'systemMaterialLight' | 'systemThinMaterial' | 'systemThinMaterialLight' | 'systemUltraThinMaterial' | 'systemUltraThinMaterialLight';
+  animated?: boolean;
 }
 
-export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
-  children,
-  style,
-  intensity = 20, // Reduzido para permitir que o shader apareça através do blur
-  tint = 'light',
-  animated = false // Desabilitado por padrão para evitar problemas no iOS
+export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({ 
+  children, 
+  style, 
+  intensity = 80, // Aumentado para 80 para efeito "frosted" forte
+  tint = 'systemThinMaterialLight', // Material mais fino e moderno do iOS
+  animated = false
 }) => {
   const isWeb = Platform.OS === 'web';
-  const [layout, setLayout] = useState({ width: 200, height: 64 }); // Valores padrão
+  const [layout, setLayout] = useState({ width: 0, height: 0 });
 
-  // Sempre cria shared values (mesmo que não usados) para evitar warnings
-  // Só usa Reanimated em mobile
+  // Criar shader apenas em mobile e se Skia estiver disponível
+  const sourceShader = useMemo(() => {
+    if (isWeb || !Skia || !Skia.RuntimeEffect) {
+      return null;
+    }
+    try {
+      return Skia.RuntimeEffect.Make(liquidGlassShader);
+    } catch (error) {
+      console.warn('[LiquidGlassCard] Erro ao criar shader:', error);
+      return null;
+    }
+  }, [isWeb]);
+
+  // Shared Values para Worklets
   const time = isWeb ? null : useSharedValue(0);
-  const touchX = isWeb ? null : useSharedValue(100);
-  const touchY = isWeb ? null : useSharedValue(32);
-  // Shared values para dimensões (evita acessar state do React no worklet)
-  const resolutionX = isWeb ? null : useSharedValue(200);
-  const resolutionY = isWeb ? null : useSharedValue(64);
+  const touchX = isWeb ? null : useSharedValue(0);
+  const touchY = isWeb ? null : useSharedValue(0);
+  const resolutionX = isWeb ? null : useSharedValue(0);
+  const resolutionY = isWeb ? null : useSharedValue(0);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     if (width > 0 && height > 0) {
       setLayout({ width, height });
-      if (!isWeb && touchX && touchY && resolutionX && resolutionY) {
-        touchX.value = width / 2;
-        touchY.value = height / 2;
+      if (!isWeb && resolutionX && resolutionY && touchX && touchY) {
         resolutionX.value = width;
         resolutionY.value = height;
+        touchX.value = width / 2;
+        touchY.value = height / 2;
       }
     }
   };
 
   useEffect(() => {
-    // Só anima se explicitamente habilitado e não for web
     if (isWeb || !time) return;
     
     if (animated) {
@@ -95,19 +90,13 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         false
       );
     } else {
-      // Se não animar, mantém time fixo em 0 para efeito estático
       time.value = 0;
     }
   }, [isWeb, animated, time]);
 
-  // useDerivedValue deve ser chamado diretamente durante o render (é um hook)
-  // Usa shared values para dimensões para evitar acessar state do React no worklet
-  // Só cria uniforms se tiver dimensões válidas
-  const hasValidDimensions = layout.width > 0 && layout.height > 0;
-  const uniforms = (!isWeb && time && touchX && touchY && resolutionX && resolutionY && hasValidDimensions)
+  // Uniforms derived value
+  const uniforms = (!isWeb && time && touchX && touchY && resolutionX && resolutionY) 
     ? useDerivedValue(() => {
-        // Dentro do worklet do useDerivedValue, podemos acessar .value com segurança
-        // Este código roda no worklet thread, não durante o render do React
         'worklet';
         return {
           resolution: [resolutionX.value, resolutionY.value],
@@ -117,54 +106,49 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
       })
     : null;
 
+  // Fallback tint for Android/Web if system materials not supported
+  const actualTint = Platform.OS === 'ios' ? tint : (tint.includes('dark') ? 'dark' : 'light');
+
   return (
     <View 
       style={[styles.container, style]}
       onLayout={handleLayout}
     >
-      {/* Camada 1: O Fluido Vivo (Skia) - Apenas Mobile */}
-      {/* O shader deve estar ATRÁS do blur para criar o efeito de profundidade */}
-      {!isWeb && SourceShader && Canvas && uniforms && hasValidDimensions ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Canvas style={{ width: layout.width, height: layout.height }}>
-            <Fill>
-              <Shader source={SourceShader} uniforms={uniforms} />
-            </Fill>
-          </Canvas>
-        </View>
-      ) : !isWeb ? (
-        // Fallback se shader não estiver disponível - gradiente translúcido sutil
+       {/* Background para Web (Fallback) */}
+       {isWeb && (
         <LinearGradient
-          colors={['rgba(240, 245, 250, 0.3)', 'rgba(235, 242, 248, 0.25)', 'rgba(240, 245, 250, 0.28)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : (
-        // Fallback Web: Gradiente Simples
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.15)', 'rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.12)']}
+          colors={['rgba(255, 255, 255, 0.6)', 'rgba(255, 255, 255, 0.4)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       )}
 
-      {/* Camada 2: O Vidro Fosco (Blur Nativo) */}
-      {/* Blur mais sutil para permitir que o shader apareça através */}
-      <BlurView
-        intensity={intensity}
-        tint={tint as any}
-        style={StyleSheet.absoluteFill}
+      {/* Camada 1: Blur Nativo (O Fundo Fosco) */}
+      {/* Deve vir PRIMEIRO para borrar o que está atrás */}
+      <BlurView 
+        intensity={intensity} 
+        tint={actualTint as any}
+        style={StyleSheet.absoluteFill} 
       />
 
-      {/* Camada 3: Overlay muito sutil para realçar o efeito glass sem interferir */}
-      <View style={styles.glassOverlay} />
+      {/* Camada 2: Shader Skia (O Brilho Líquido) */}
+      {/* Desenhado POR CIMA do Blur para adicionar reflexos */}
+      {!isWeb && sourceShader && Canvas && Fill && Shader && uniforms && layout.width > 0 && layout.height > 0 && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Canvas style={{ width: layout.width, height: layout.height }}>
+            <Fill>
+              <Shader source={sourceShader} uniforms={uniforms} />
+            </Fill>
+          </Canvas>
+        </View>
+      )}
 
-      {/* Camada 4: Borda de Refração (Borda "Glass") */}
+      {/* Camada 3: Bordas e Overlays Sutis */}
+      <View style={styles.glassOverlay} />
       <View style={styles.borderOverlay} />
 
-      {/* Camada 5: Conteúdo */}
+      {/* Camada 4: Conteúdo */}
       <View style={styles.content}>
         {children}
       </View>
@@ -174,27 +158,27 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 24,
+    borderRadius: 32, // Mais arredondado como no iOS
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.02)', // Fallback muito sutil para não interferir
+    backgroundColor: 'transparent', // Importante: transparente para ver o blur
   },
   glassOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.02)', // Overlay muito sutil para não interferir
-    zIndex: 1,
-    pointerEvents: 'none',
+    backgroundColor: 'rgba(255,255,255,0.05)', // Overlay branco muito sutil
+    zIndex: 2,
   },
   borderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)', // Borda mais sutil
+    borderRadius: 32,
+    borderWidth: 1, // Borda fina
+    borderColor: 'rgba(255,255,255,0.2)', // Borda translúcida
     zIndex: 2,
-    pointerEvents: 'none', // Importante para não bloquear toques
   },
   content: {
     zIndex: 3,
-    flex: 1, // Garantir que o conteúdo ocupe o espaço
+    flex: 1,
+    position: 'relative',
+    // padding removido para flexibilidade, deve ser controlado pelo pai
   }
 });
