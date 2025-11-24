@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { ArrowLeft, Calendar, CheckCircle2, Clock3, User, ListTodo } from 'lucide-react-native';
+import { ArrowLeft, Calendar, CheckCircle2, Clock3, User, ListTodo, ArrowRight } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useTask } from '@/hooks/useTasks';
 import { useAuthStore } from '@/stores/auth.store';
@@ -50,6 +50,7 @@ export default function TaskDetailScreen() {
 
   const palette = statusPalette[task?.status ?? 'PENDING'];
   const assigneeName = task?.assignee?.name ?? task?.assignee?.email ?? 'Não atribuído';
+  const assignerName = task?.creator?.name ?? task?.creator?.email ?? 'Sistema';
   const priorityLabel = task?.priority ? task.priority.toLowerCase() : 'normal';
 
   const isAuthorized = useMemo(() => {
@@ -106,10 +107,14 @@ export default function TaskDetailScreen() {
 
         <DetailCard>
           <Text style={styles.sectionTitle}>Informações</Text>
-          <View style={styles.detailRow}>
+          <View style={[styles.detailRow, styles.assignmentRow]}>
             <User size={18} color={Colors.primary} />
-            <Text style={styles.detailLabel}>Responsável</Text>
-            <Text style={styles.detailValue}>{assigneeName}</Text>
+            <Text style={styles.detailLabel}>Atribuído para</Text>
+            <View style={styles.assignmentValue}>
+              <Text style={styles.assignmentUser}>{assignerName}</Text>
+              <ArrowRight size={16} color={Colors.textSecondary} style={{ marginHorizontal: 6 }} />
+              <Text style={styles.assignmentUser}>{assigneeName}</Text>
+            </View>
           </View>
           <View style={styles.detailRow}>
             <Calendar size={18} color={Colors.primary} />
@@ -182,12 +187,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
     overflow: 'hidden',
-    gap: 12,
+    gap: 16,
   },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 18,
+    marginBottom: 8,
   },
   heroIcon: {
     width: 56,
@@ -207,10 +213,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: Colors.text,
+    marginTop: 4,
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginTop: 6,
   },
   statusBadge: {
     borderRadius: 999,
@@ -236,6 +246,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 16,
   },
   detailLabel: {
     minWidth: 100,
@@ -248,6 +259,21 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: '500',
+  },
+  assignmentRow: {
+    alignItems: 'flex-start',
+  },
+  assignmentValue: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+  },
+  assignmentUser: {
+    color: Colors.text,
+    fontWeight: '600',
+    fontSize: 15,
   },
   loader: {
     alignItems: 'center',
