@@ -153,7 +153,7 @@ export default function FinancesScreen() {
           <View style={styles.headerSection}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(tabs)/' as any)}
             >
               <ArrowLeft size={24} color={Colors.primary} />
             </TouchableOpacity>
