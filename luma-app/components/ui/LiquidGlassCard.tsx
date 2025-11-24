@@ -25,7 +25,7 @@ if (Platform.OS !== 'web') {
     Fill = skia.Fill;
     Shader = skia.Shader;
     Skia = skia.Skia;
-    
+
     const reanimated = require('react-native-reanimated');
     Animated = reanimated.default;
     useSharedValue = reanimated.useSharedValue;
@@ -33,10 +33,10 @@ if (Platform.OS !== 'web') {
     withTiming = reanimated.withTiming;
     Easing = reanimated.Easing;
     useDerivedValue = reanimated.useDerivedValue;
-    
+
     const shaderModule = require('../../assets/shaders/liquidGlass');
     liquidGlassShader = shaderModule.liquidGlassShader;
-    
+
     if (Skia?.RuntimeEffect) {
       SourceShader = Skia.RuntimeEffect.Make(liquidGlassShader);
     }
@@ -53,9 +53,9 @@ interface LiquidGlassCardProps {
   colors?: string[]; // Opcional: passar cores para o shader (futuro)
 }
 
-export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({ 
-  children, 
-  style, 
+export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
+  children,
+  style,
   intensity = 30,
   tint = 'light'
 }) => {
@@ -97,11 +97,11 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
           </Canvas>
         </View>
       )}
-      
+
       {/* Fallback Web: Gradiente Dourado Simples */}
       {isWeb && (
         <LinearGradient
-          colors={['rgba(194, 132, 0, 0.15)', 'rgba(143, 97, 0, 0.1)', 'rgba(194, 132, 0, 0.12)']}
+          colors={['rgba(255, 255, 255, 0.7)', 'rgba(255, 255, 255, 0.5)', 'rgba(255, 255, 255, 0.6)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -109,10 +109,10 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
       )}
 
       {/* Camada 2: O Vidro Fosco (Blur Nativo) */}
-      <BlurView 
-        intensity={intensity} 
+      <BlurView
+        intensity={intensity}
         tint={tint as any}
-        style={StyleSheet.absoluteFill} 
+        style={StyleSheet.absoluteFill}
       />
 
       {/* Camada 3: Borda de Refração (Borda "Glass") */}
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
     zIndex: 2,
     pointerEvents: 'none', // Importante para não bloquear toques
   },
@@ -146,4 +146,3 @@ const styles = StyleSheet.create({
     flex: 1, // Garantir que o conteúdo ocupe o espaço
   }
 });
-

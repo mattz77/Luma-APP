@@ -8,6 +8,7 @@ import { Home, Wallet, ListTodo, MessageCircle, Plus, Search } from 'lucide-reac
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // --- Constants ---
 const ICON_SIZE = 24;
@@ -168,6 +169,13 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
     return (
         <View style={styles.container}>
+            {/* Bottom Vignette */}
+            <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.05)']}
+                style={styles.vignette}
+                pointerEvents="none"
+            />
+
             {/* Speed Dial Overlay */}
             <SpeedDial
                 isOpen={isSpeedDialOpen}
@@ -248,17 +256,25 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 30,
+        bottom: 0, // Changed from 30 to 0 to allow vignette to touch bottom
         left: 0,
         right: 0,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-end', // Align content to bottom
         zIndex: 1000,
+        height: 120, // Give it some height for the gradient
+        pointerEvents: 'box-none', // Allow touches to pass through empty areas
+    },
+    vignette: {
+        ...StyleSheet.absoluteFillObject,
+        bottom: 0,
+        height: '100%',
     },
     dockWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12, // Space between pill and magic button
+        marginBottom: 30, // Restore the bottom margin for the dock itself
     },
     mainPill: {
         borderRadius: 32,
