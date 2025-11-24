@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, Plus, TrendingUp, Wallet, ArrowLeft } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 
 import { useExpenses } from '@/hooks/useExpenses';
 import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
@@ -61,7 +62,7 @@ export default function FinancesScreen() {
       (acc, expense) => {
         const amount = Number(expense.amount);
         acc.total += amount;
-        if (expense.status === 'PAID') {
+        if (expense.isPaid) {
           acc.paid += amount;
         } else {
           acc.pending += amount;
@@ -80,7 +81,7 @@ export default function FinancesScreen() {
   const filteredExpenses = useMemo(() => {
     if (!expenses) return [];
     if (selectedFilter === 'all') return expenses;
-    return expenses.filter((e) => (selectedFilter === 'paid' ? e.status === 'PAID' : e.status === 'PENDING'));
+    return expenses.filter((e) => (selectedFilter === 'paid' ? e.isPaid : !e.isPaid));
   }, [expenses, selectedFilter]);
 
   const formatCurrency = (value: number) => {
@@ -211,27 +212,39 @@ export default function FinancesScreen() {
 
             {filteredExpenses.length > 0 ? (
               filteredExpenses.map((expense) => (
-                <TouchableOpacity key={expense.id} style={styles.expenseItem}>
+                <TouchableOpacity
+                  key={expense.id}
+                  style={styles.expenseItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push({
+                      pathname: '/(tabs)/finances/[id]',
+                      params: { id: expense.id },
+                    } as any);
+                  }}
+                >
                   <View style={styles.expenseIconBg}>
                     <DollarSign size={20} color={Colors.primary} />
                   </View>
                   <View style={styles.expenseDetails}>
                     <Text style={styles.expenseTitle}>{expense.description}</Text>
                     <Text style={styles.expenseDate}>
-                      {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} • {expense.paidBy?.name || 'Desconhecido'}
+                      {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} •{' '}
+                      {expense.createdBy?.name ?? expense.createdBy?.email ?? 'Desconhecido'}
                     </Text>
                   </View>
                   <View style={styles.expenseAmountContainer}>
                     <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
                     <View style={[
                       styles.statusBadge,
-                      expense.status === 'PAID' ? styles.statusBadgePaid : styles.statusBadgePending
+                      expense.isPaid ? styles.statusBadgePaid : styles.statusBadgePending
                     ]}>
                       <Text style={[
                         styles.statusBadgeText,
-                        expense.status === 'PAID' ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
+                        expense.isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
                       ]}>
-                        {expense.status === 'PAID' ? 'Pago' : 'Pendente'}
+                        {expense.isPaid ? 'Pago' : 'Pendente'}
                       </Text>
                     </View>
                   </View>

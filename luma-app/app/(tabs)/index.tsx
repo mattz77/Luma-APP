@@ -114,19 +114,53 @@ const GlassCard = ({ children, style, variant = 'default' }: any) => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, subtext, highlight = false }: any) => (
-  <GlassCard style={styles.statCard}>
-    <View style={styles.statHeader}>
-      <Text style={styles.statLabel}>{label}</Text>
-      {Icon && <Icon size={16} color={highlight ? Colors.secondary : Colors.textSecondary} />}
-    </View>
-    <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-    {subtext && <Text style={styles.statSubtext}>{subtext}</Text>}
-  </GlassCard>
-);
+type StatCardProps = {
+  icon?: any;
+  label: string;
+  value: string;
+  subtext?: string;
+  highlight?: boolean;
+  onPress?: () => void;
+};
 
-const ActivityItem = ({ icon: Icon, title, subtitle, time, type }: any) => (
-  <View style={styles.activityItem}>
+const StatCard = ({ icon: Icon, label, value, subtext, highlight = false, onPress }: StatCardProps) => {
+  const content = (
+    <GlassCard style={[styles.statCard, onPress && styles.statCardInteractive]}>
+      <View style={styles.statHeader}>
+        <Text style={styles.statLabel}>{label}</Text>
+        {Icon && <Icon size={16} color={highlight ? Colors.secondary : Colors.textSecondary} />}
+      </View>
+      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      {subtext && <Text style={styles.statSubtext}>{subtext}</Text>}
+    </GlassCard>
+  );
+
+  if (!onPress) {
+    return content;
+  }
+
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ flex: 1 }}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+type ActivityItemProps = {
+  icon: any;
+  title: string;
+  subtitle: string;
+  time: string;
+  onPress?: () => void;
+};
+
+const ActivityItem = ({ icon: Icon, title, subtitle, time, onPress }: ActivityItemProps) => (
+  <TouchableOpacity
+    style={styles.activityItem}
+    activeOpacity={onPress ? 0.8 : 1}
+    onPress={onPress}
+    disabled={!onPress}
+  >
     <View style={styles.activityIconBg}>
       <Icon size={18} color={Colors.primary} />
     </View>
@@ -135,7 +169,7 @@ const ActivityItem = ({ icon: Icon, title, subtitle, time, type }: any) => (
       <Text style={styles.activitySubtitle} numberOfLines={1}>{subtitle}</Text>
     </View>
     <Text style={styles.activityTime}>{time}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 export default function Dashboard() {
@@ -692,18 +726,30 @@ export default function Dashboard() {
               value={`R$ ${financialSummary.spent}`}
               subtext={`${financialSummary.percent}% do limite`}
               highlight={financialSummary.percent > 80}
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push('/(tabs)/finances' as any);
+              }}
             />
             <StatCard
               icon={ListTodo}
               label="Tarefas"
               value={pendingTasksCount.toString()}
               subtext="pendentes"
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push('/(tabs)/tasks' as any);
+              }}
             />
             <StatCard
               icon={Users}
               label="Membros"
               value={members.length.toString()}
               subtext="na casa"
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push('/(tabs)/house' as any);
+              }}
             />
           </View>
 
@@ -786,7 +832,20 @@ export default function Dashboard() {
                     title={item.title}
                     subtitle={item.subtitle}
                     time={item.time}
-                    type={item.type}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      if (item.type === 'finance') {
+                        router.push({
+                          pathname: '/(tabs)/finances/[id]',
+                          params: { id: item.id },
+                        } as any);
+                      } else {
+                        router.push({
+                          pathname: '/(tabs)/tasks/[id]',
+                          params: { id: item.id },
+                        } as any);
+                      }
+                    }}
                   />
                 ))
               ) : (
@@ -885,6 +944,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 100,
     justifyContent: 'space-between',
+  },
+  statCardInteractive: {
+    borderColor: Colors.primary + '33',
   },
   statHeader: {
     flexDirection: 'row',
