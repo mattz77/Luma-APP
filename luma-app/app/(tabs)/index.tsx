@@ -1027,11 +1027,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    // Garantir que o ícone fique centralizado
+    display: 'flex',
   },
 
   // Note/Insight Content
   noteContent: {
     flex: 1,
+    position: 'relative',
   },
   noteTagsRow: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+
 export const liquidGlassShader = `
 uniform float2 resolution;
 uniform float time;
@@ -36,8 +37,8 @@ float fbm ( in float2 _st) {
 
 half4 main(float2 xy) {
     float2 st = xy/resolution.xy;
-    float3 color = float3(0.0);
-
+    
+    // FBM para criar a textura líquida
     float2 q = float2(0.);
     q.x = fbm( st + 0.00*time);
     q.y = fbm( st + float2(1.0));
@@ -48,27 +49,23 @@ half4 main(float2 xy) {
 
     float f = fbm(st+r);
 
-    // Mistura de cores estilo iOS 26 - Tons muito sutis e translúcidos
-    // Base: branco translúcido com leves toques de cor teal/azul muito suave
-    float3 baseColor = float3(0.95, 0.97, 0.98); // Branco quase puro
-    float3 tealTint = float3(0.85, 0.92, 0.95); // Teal muito sutil
-    float3 blueTint = float3(0.88, 0.91, 0.96); // Azul muito sutil
-    
-    // Mistura muito sutil baseada no noise
-    color = mix(baseColor, tealTint, clamp((f*f)*0.3,0.0,0.15));
-    color = mix(color, blueTint, clamp(length(q)*0.2,0.0,0.1));
-    
-    // Adiciona variação muito sutil baseada no noise
-    float variation = clamp(length(r.x)*0.1, 0.0, 0.05);
-    color = mix(color, float3(0.9, 0.93, 0.95), variation);
+    // Cor base quase inexistente (transparente)
+    float3 color = float3(1.0, 1.0, 1.0);
 
-    // Adiciona um brilho especular "líquido" muito sutil
+    // Brilho Especular (Highlights)
+    // Onde 'f' é alto, temos "cristas" da onda líquida -> mais branco
+    float specular = smoothstep(0.4, 0.9, f*f);
+    
+    // Interação de toque (brilho localizado)
     float dist = distance(st, touch / resolution.xy);
-    float glow = 1.0 - smoothstep(0.0, 0.3, dist);
-    color += float3(glow * 0.05); // Muito mais sutil
+    float touchGlow = (1.0 - smoothstep(0.0, 0.4, dist)) * 0.3;
 
-    // Retorna com opacidade reduzida para efeito translúcido
-    float alpha = 0.4 + (f * 0.2); // Opacidade variável entre 0.4 e 0.6
-    return half4(color, alpha);
+    // Alpha Calculation
+    // Mantemos o alpha muito baixo (0.15) na base para ver o fundo borrado
+    // Aumentamos o alpha apenas onde há brilho especular (efeito molhado)
+    float alpha = 0.05 + (specular * 0.25) + touchGlow;
+
+    // Ajuste final de cor: Branco puro nos brilhos
+    return half4(color, clamp(alpha, 0.0, 0.4)); 
 }
 `;
