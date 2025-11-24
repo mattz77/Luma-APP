@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, TouchableOpacity, StyleSheet, Modal, Pressable, Dimensions, Platform, Text } from 'react-native';
 import { LucideIcon, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -41,7 +41,7 @@ const SpeedDialItem = ({
 }: {
   action: SpeedDialAction;
   index: number;
-  progress: Animated.SharedValue<number>;
+  progress: ReturnType<typeof useSharedValue<number>>;
   onPress: () => void;
 }) => {
   const actionStyle = useAnimatedStyle(() => {
@@ -116,14 +116,39 @@ export const SpeedDial = ({
   useEffect(() => {
     if (isOpen) {
       setShowModal(true);
-      // Measure button position when opening
-      buttonRef?.current?.measureInWindow((x, y, width, height) => {
-        setButtonLayout({ x, y, width, height });
-      });
-      progress.value = withSpring(1, { damping: 15, stiffness: 150 });
+      // Measure button position when opening - otimizado para iOS
+      const measureButton = () => {
+        buttonRef?.current?.measureInWindow((x, y, width, height) => {
+          setButtonLayout({ x, y, width, height });
+        });
+      };
+      
+      // No iOS, usar requestAnimationFrame para melhor performance
+      if (Platform.OS === 'ios') {
+        requestAnimationFrame(() => {
+          measureButton();
+          // Iniciar animação imediatamente após medir (não esperar layout)
+          progress.value = withSpring(1, { 
+            damping: 10, // Reduzido ainda mais para resposta mais rápida
+            stiffness: 250, // Aumentado para resposta instantânea
+            mass: 0.7 // Reduzido para menos inércia
+          });
+        });
+      } else {
+        measureButton();
+        progress.value = withSpring(1, { 
+          damping: 12,
+          stiffness: 200,
+          mass: 0.8
+        });
+      }
     } else {
-      // Close animation
-      progress.value = withSpring(0, { damping: 15, stiffness: 150 }, (finished) => {
+      // Close animation - mais rápida e não bloqueante
+      progress.value = withSpring(0, { 
+        damping: 10, // Mais rápido para fechar
+        stiffness: 250,
+        mass: 0.7
+      }, (finished) => {
         if (finished) {
           runOnJS(setShowModal)(false);
           if (onCloseAnimationComplete) {
@@ -132,25 +157,31 @@ export const SpeedDial = ({
         }
       });
     }
-  }, [isOpen, buttonRef]);
+  }, [isOpen, buttonRef, progress]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (externalOnClose) {
       externalOnClose();
     } else {
       setInternalIsOpen(false);
     }
-  };
+  }, [externalOnClose]);
 
-  // Backdrop animation
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-  }));
+  // Backdrop animation - otimizado para iOS
+  const backdropStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: progress.value,
+    };
+  }, []);
 
-  // Main button rotation
-  const buttonRotationStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${progress.value * 45}deg` }]
-  }));
+  // Main button rotation - otimizado para iOS
+  const buttonRotationStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ rotate: `${progress.value * 45}deg` }]
+    };
+  }, []);
 
   if (!showModal) return null;
 
@@ -160,12 +191,16 @@ export const SpeedDial = ({
       transparent
       animationType="none"
       onRequestClose={handleClose}
+      // No iOS, permitir interações durante animação
+      presentationStyle="overFullScreen"
     >
       <View style={styles.container}>
         {/* Backdrop */}
         <AnimatedPressable
           style={[StyleSheet.absoluteFill, backdropStyle]}
           onPress={handleClose}
+          // Permitir interações durante animação no iOS
+          pointerEvents={isOpen ? 'auto' : 'none'}
         >
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.2)' }]} />
@@ -191,7 +226,8 @@ export const SpeedDial = ({
                 progress={progress}
                 onPress={() => {
                   handleClose();
-                  setTimeout(action.onPress, 100);
+                  // Remover delay - executar imediatamente
+                  action.onPress();
                 }}
               />
             ))}
