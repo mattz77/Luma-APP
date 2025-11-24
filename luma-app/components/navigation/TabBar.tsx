@@ -61,6 +61,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const [dockWidth, setDockWidth] = useState(0);
     const router = useRouter();
     const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
+    const [isSpeedDialVisible, setIsSpeedDialVisible] = useState(false);
     const speedDialButtonRef = useRef<View | null>(null);
 
     // Animation values
@@ -91,7 +92,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     // Hide dock on Luma Chat screen
     const currentRouteName = state.routes[state.index].name;
     const shouldHideDock = currentRouteName?.includes('luma') || currentRouteName === 'luma' || currentRouteName === 'luma/index';
-    
+
     if (shouldHideDock) {
         return null;
     }
@@ -171,6 +172,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             <SpeedDial
                 isOpen={isSpeedDialOpen}
                 onClose={() => setIsSpeedDialOpen(false)}
+                onCloseAnimationComplete={() => setIsSpeedDialVisible(false)}
                 actions={speedDialActions}
                 buttonRef={speedDialButtonRef}
             />
@@ -205,14 +207,22 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                 style={styles.tabItem}
                                 onPress={() => {
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    setIsSpeedDialOpen(!isSpeedDialOpen);
+                                    if (!isSpeedDialOpen) {
+                                        setIsSpeedDialVisible(true);
+                                        setIsSpeedDialOpen(true);
+                                    } else {
+                                        setIsSpeedDialOpen(false);
+                                    }
                                 }}
+                                activeOpacity={1} // Disable opacity change on press since SpeedDial handles it
                             >
-                                <Animated.View style={{ transform: [{ rotate: isSpeedDialOpen ? '45deg' : '0deg' }] }}>
-                                    <View style={styles.speedDialTriggerIcon}>
-                                        <Plus size={24} color={Colors.textSecondary} />
-                                    </View>
-                                </Animated.View>
+                                <View style={styles.speedDialTriggerIcon}>
+                                    <Plus
+                                        size={24}
+                                        color={Colors.textSecondary}
+                                        style={{ opacity: isSpeedDialVisible ? 0 : 1 }}
+                                    />
+                                </View>
                             </TouchableOpacity>
                         </View>
                     </View>
