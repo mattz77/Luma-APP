@@ -7,13 +7,16 @@ import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, P
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
-import { useExpenses } from '@/hooks/useExpenses';
-import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useExpenses, useCreateExpense } from '@/hooks/useExpenses';
+import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
+import { useExpenseCategories, useCreateExpenseCategory } from '@/hooks/useExpenseCategories';
+import { useHouseMembers } from '@/hooks/useHouses';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
 import { useAuthStore } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GlassCard } from '@/components/shared';
 import { Colors } from '@/constants/Colors';
+import { ExpenseFormModal, type ExpenseFormResult } from './components/ExpenseFormModal';
 
 // --- Helper Components for Light Theme ---
 const LightGlassCard = ({ children, style }: any) => (
@@ -26,21 +29,63 @@ const LightGlassCard = ({ children, style }: any) => (
 
 export default function FinancesScreen() {
   const router = useRouter();
-  const houseId = useAuthStore((state) => state.houseId);
+  const { houseId, user } = useAuthStore();
   const { top } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 768;
 
-  const currentMonth = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
-
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
-  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+  const { data: budgetLimit } = useBudgetLimit(houseId);
+  const { data: categories = [] } = useExpenseCategories(houseId);
+  const { data: members = [] } = useHouseMembers(houseId);
+  const createExpenseMutation = useCreateExpense();
+  const createCategoryMutation = useCreateExpenseCategory(houseId);
   useRealtimeExpenses(houseId);
 
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'paid' | 'pending'>('all');
+  const [isExpenseModalVisible, setExpenseModalVisible] = useState(false);
+
+  const handleOpenExpenseModal = () => {
+    Haptics.selectionAsync();
+    setExpenseModalVisible(true);
+  };
+
+  const handleCloseExpenseModal = () => {
+    setExpenseModalVisible(false);
+  };
+
+  const handleSubmitExpense = async (formData: ExpenseFormResult) => {
+    if (!houseId || !user?.id) {
+      throw new Error('Selecione uma casa para registrar despesas.');
+    }
+
+    await createExpenseMutation.mutateAsync({
+      houseId,
+      createdById: user.id,
+      categoryId: formData.categoryId,
+      amount: formData.amount,
+      description: formData.description,
+      expenseDate: formData.expenseDate,
+      isRecurring: false,
+      recurrencePeriod: null,
+      isPaid: formData.isPaid,
+      notes: formData.notes,
+      receiptUrl: formData.receiptUrl,
+      splits: formData.splits.map((split) => ({
+        userId: split.userId,
+        amount: split.amount,
+        isPaid: split.isPaid,
+      })),
+    });
+
+    setExpenseModalVisible(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleCreateCategory = async (name: string) => {
+    const category = await createCategoryMutation.mutateAsync(name);
+    return category;
+  };
 
   if (!houseId) {
     return (
@@ -74,9 +119,9 @@ export default function FinancesScreen() {
   }, [expenses]);
 
   const budgetProgress = useMemo(() => {
-    if (!monthlyBudget || !monthlyBudget.amount) return 0;
-    return Math.min((summary.total / Number(monthlyBudget.amount)) * 100, 100);
-  }, [summary.total, monthlyBudget]);
+    if (!budgetLimit || !budgetLimit.amount) return 0;
+    return Math.min((summary.total / Number(budgetLimit.amount)) * 100, 100);
+  }, [summary.total, budgetLimit]);
 
   const filteredExpenses = useMemo(() => {
     if (!expenses) return [];
@@ -133,7 +178,7 @@ export default function FinancesScreen() {
               <Text style={styles.summaryLabel}>Total Gasto este Mês</Text>
               <View style={styles.budgetBadge}>
                 <Text style={styles.budgetBadgeText}>
-                  Orçamento: {monthlyBudget ? formatCurrency(Number(monthlyBudget.amount)) : 'Não definido'}
+                  Orçamento: {budgetLimit ? formatCurrency(Number(budgetLimit.amount)) : 'Não definido'}
                 </Text>
               </View>
             </View>
@@ -173,14 +218,17 @@ export default function FinancesScreen() {
 
           {/* Actions Row */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionButtonPrimary}>
+            <TouchableOpacity style={styles.actionButtonPrimary} onPress={handleOpenExpenseModal}>
               <Plus size={20} color={Colors.background} />
               <Text style={styles.actionButtonTextPrimary}>Nova Despesa</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButtonSecondary}>
+            <TouchableOpacity
+              style={styles.actionButtonSecondary}
+              onPress={() => router.push('/(tabs)/finances/budget' as any)}
+            >
               <PieChart size={20} color={Colors.primary} />
-              <Text style={styles.actionButtonTextSecondary}>Relatório</Text>
+              <Text style={styles.actionButtonTextSecondary}>Definir orçamento</Text>
             </TouchableOpacity>
           </View>
 
@@ -257,6 +305,19 @@ export default function FinancesScreen() {
             )}
           </View>
         </ScrollView>
+        <ExpenseFormModal
+          visible={isExpenseModalVisible}
+          mode="create"
+          initialExpense={null}
+          onClose={handleCloseExpenseModal}
+          onSubmit={handleSubmitExpense}
+          categories={categories}
+          members={members}
+          currentUserId={user?.id ?? null}
+          isSubmitting={createExpenseMutation.isPending}
+          isDeleting={false}
+          onCreateCategory={handleCreateCategory}
+        />
       </View>
     </ErrorBoundary>
   );

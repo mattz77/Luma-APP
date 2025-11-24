@@ -34,7 +34,7 @@ import type { TaskPriority } from '@/types/models';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
-import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
 import { useQueryClient } from '@tanstack/react-query';
 import { useHouseMembers } from '@/hooks/useHouses';
 import type { HouseMemberWithUser } from '@/types/models';
@@ -216,12 +216,7 @@ export default function Dashboard() {
   useRealtimeTasks(houseId);
   useRealtimeExpenses(houseId);
 
-  const currentMonth = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
-
-  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+      const { data: budgetLimit } = useBudgetLimit(houseId);
 
   const financialSummary = useMemo(() => {
     const now = new Date();
@@ -233,8 +228,8 @@ export default function Dashboard() {
       return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
     });
 
-    const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-    const limit = monthlyBudget ? Number(monthlyBudget.amount) : 0;
+        const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+        const limit = budgetLimit ? Number(budgetLimit.amount) : 0;
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
     return {
@@ -242,7 +237,7 @@ export default function Dashboard() {
       limit: limit.toFixed(2).replace('.', ','),
       percent: Math.min(percent, 100)
     };
-  }, [expenses, monthlyBudget, currentMonth]);
+      }, [expenses, budgetLimit]);
 
   const pendingTasksCount = useMemo(() => {
     return tasks.filter(task => task.status === 'PENDING').length;
