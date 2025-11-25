@@ -9,40 +9,23 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar,
-  Dimensions
+  StatusBar
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { LiquidGlassCard } from '../../../components/ui/LiquidGlassCard';
 import {
   Sparkles,
   ArrowLeft,
-  Paperclip,
   Mic,
   MoreHorizontal,
-  Image as ImageIcon,
-  FileText,
   ArrowUp
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
-
-// --- MOCKS (Mantidos para funcionamento visual) ---
-const useAuthStore = (selector: any) => selector({ houseId: '123', user: { id: 'user1' } });
-const useConversations = (houseId: any) => ({
-  data: [
-    { id: '1', type: 'message', response: 'Olá! Como posso ajudar com a casa hoje?', created_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: '2', type: 'message', message: 'Preciso organizar a festa de natal.', created_at: new Date(Date.now() - 3600000).toISOString() },
-    { id: '3', type: 'message', response: 'Criado! ✅ A tarefa "montar a árvore de Natal" está agendada para amanhã às 19h. Quer adicionar mais detalhes ou atribuir a alguém?', created_at: new Date().toISOString() },
-  ],
-  isLoading: false,
-  refetch: () => { },
-  isRefetching: false
-});
-const useLumaChat = (h: any, u: any) => ({ mutateAsync: async (msg: string) => { }, isPending: false });
-const useRealtimeConversations = (h: any) => { };
+import { useAuthStore } from '@/stores/auth.store';
+import { useConversations } from '@/hooks/useConversations';
+import { useLumaChat } from '@/hooks/useLumaChat';
+import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
 
 const getMessageDateLabel = (date: string) => {
   const msgDate = new Date(date);
@@ -62,6 +45,7 @@ export default function LumaChatScreen() {
   const [message, setMessage] = useState('');
   const houseId = useAuthStore((state: any) => state.houseId);
   const userId = useAuthStore((state: any) => state.user?.id ?? null);
+  const userName = useAuthStore((state: any) => state.user?.name ?? 'Você');
   const flatListRef = useRef<FlatList>(null);
   const { top, bottom } = useSafeAreaInsets();
   const { preset } = useLocalSearchParams<{ preset?: string }>();
@@ -100,16 +84,32 @@ export default function LumaChatScreen() {
     }
   };
 
-  const processedConversations = [];
+  const processedConversations: Array<{
+    type: 'date_separator' | 'message';
+    label?: string;
+    id: string;
+    message?: string;
+    response?: string | null;
+    created_at?: string;
+  }> = [];
+  
   if (conversations) {
     let lastDateLabel = '';
-    conversations.forEach((conv: any, index: number) => {
-      const dateLabel = getMessageDateLabel(conv.created_at || new Date().toISOString());
+    conversations.forEach((conv, index: number) => {
+      const dateLabel = getMessageDateLabel(conv.createdAt || new Date().toISOString());
       if (dateLabel !== lastDateLabel) {
-        processedConversations.push({ type: 'date_separator', label: dateLabel, id: `date-${dateLabel}-${index}` });
+        processedConversations.push({ 
+          type: 'date_separator', 
+          label: dateLabel, 
+          id: `date-${dateLabel}-${index}` 
+        });
         lastDateLabel = dateLabel;
       }
-      processedConversations.push({ ...conv, type: 'message' });
+      processedConversations.push({ 
+        ...conv, 
+        type: 'message',
+        created_at: conv.createdAt
+      });
     });
   }
 
@@ -162,15 +162,20 @@ export default function LumaChatScreen() {
           </View>
         </BlurView>
 
-        <FlatList
-          ref={flatListRef}
-          data={processedConversations}
-          keyExtractor={(item) => item.id}
-          refreshing={isRefetching}
-          onRefresh={refetch}
-          contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 90 }]}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
+        {isLoadingConversations && processedConversations.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={processedConversations}
+            keyExtractor={(item) => item.id}
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 100 }]}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
             if (item.type === 'date_separator') {
               return (
                 <View style={styles.dateSeparator}>
@@ -181,7 +186,7 @@ export default function LumaChatScreen() {
               );
             }
 
-            const time = new Date(item.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const time = new Date(item.created_at || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
             return (
               <View style={styles.messageRow}>
@@ -204,9 +209,12 @@ export default function LumaChatScreen() {
                 {/* User Message */}
                 {item.message && (
                   <View style={styles.userRow}>
-                    <View style={styles.userBubble}>
-                      <Text style={styles.userText}>{item.message}</Text>
-                      <Text style={styles.userTime}>{time}</Text>
+                    <View style={styles.userBubbleWrapper}>
+                      <Text style={styles.userSenderLabel}>{userName}</Text>
+                      <View style={styles.userBubble}>
+                        <Text style={styles.userText}>{item.message}</Text>
+                        <Text style={styles.userTime}>{time}</Text>
+                      </View>
                     </View>
                   </View>
                 )}
@@ -225,16 +233,13 @@ export default function LumaChatScreen() {
               </View>
             ) : null
           }
-        />
+          />
+        )}
 
         {/* Input Area */}
         <View style={[styles.inputBlurContainer, { paddingBottom: bottom > 0 ? bottom : 12 }]}>
           <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
           <View style={styles.inputInnerRow}>
-            <TouchableOpacity style={styles.attachButton}>
-              <Paperclip size={22} color={Colors.textSecondary} strokeWidth={1.5} />
-            </TouchableOpacity>
-
             <View style={styles.inputPill}>
               <TextInput
                 value={message}
@@ -244,12 +249,6 @@ export default function LumaChatScreen() {
                 style={styles.inputField}
                 multiline
               />
-              {message.length === 0 && (
-                <View style={styles.inputIconsRight}>
-                  <TouchableOpacity><ImageIcon size={20} color={Colors.textSecondary} /></TouchableOpacity>
-                  <TouchableOpacity><FileText size={20} color={Colors.textSecondary} /></TouchableOpacity>
-                </View>
-              )}
             </View>
 
             <TouchableOpacity
@@ -353,19 +352,27 @@ const styles = StyleSheet.create({
   },
 
   // MESSAGES
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   messagesList: {
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   dateSeparator: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 16,
+    marginTop: 24,
+    marginBottom: 20,
   },
   datePill: {
     borderRadius: 12,
     overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     backgroundColor: 'rgba(0,0,0,0.05)',
   },
   dateText: {
@@ -376,15 +383,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   messageRow: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
 
   // LUMA STYLES
   lumaRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 12,
+    gap: 10,
     maxWidth: '85%',
+    marginBottom: 2,
+    flexShrink: 1,
   },
   lumaAvatarContainer: {
     width: 28,
@@ -393,71 +402,95 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + '10',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
+    flexShrink: 0,
   },
   lumaBubbleWrapper: {
     flex: 1,
+    minWidth: 0,
   },
   senderLabel: {
     color: Colors.textSecondary,
     fontSize: 11,
-    marginBottom: 4,
+    marginBottom: 3,
     marginLeft: 2,
+    fontWeight: '500',
   },
   lumaBubble: {
     backgroundColor: '#FFF',
     borderRadius: 18,
-    borderTopLeftRadius: 2,
+    borderTopLeftRadius: 4,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(0,0,0,0.06)',
+    maxWidth: '100%',
   },
   lumaText: {
     color: Colors.text,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 21,
+    letterSpacing: 0.1,
+    flexShrink: 1,
   },
   lumaTime: {
     color: Colors.textSecondary,
     fontSize: 10,
-    marginTop: 6,
+    marginTop: 8,
     alignSelf: 'flex-start',
   },
 
   // USER STYLES
   userRow: {
     alignSelf: 'flex-end',
-    maxWidth: '80%',
+    maxWidth: '85%',
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginBottom: 2,
+    flexShrink: 1,
+  },
+  userBubbleWrapper: {
+    flex: 1,
+    alignItems: 'flex-end',
+    minWidth: 0,
+  },
+  userSenderLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginBottom: 3,
+    marginRight: 2,
+    fontWeight: '500',
+    alignSelf: 'flex-end',
   },
   userBubble: {
     backgroundColor: Colors.primary,
     borderRadius: 18,
-    borderTopRightRadius: 2,
+    borderTopRightRadius: 4,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+    maxWidth: '100%',
   },
   userText: {
     color: '#FFF',
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 21,
+    letterSpacing: 0.1,
+    flexShrink: 1,
   },
   userTime: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 10,
-    marginTop: 4,
+    marginTop: 8,
     alignSelf: 'flex-end',
   },
 
@@ -468,50 +501,36 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderTopColor: 'rgba(0,0,0,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
   inputInnerRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingTop: 12,
-    gap: 8,
-  },
-  attachButton: {
-    width: 40,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
+    paddingBottom: 8,
+    gap: 10,
   },
   inputPill: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
     backgroundColor: '#FFF',
     borderRadius: 24,
-    paddingLeft: 16,
-    paddingRight: 8,
-    paddingVertical: 4,
+    paddingLeft: 18,
+    paddingRight: 18,
+    paddingVertical: 6,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    borderColor: 'rgba(0,0,0,0.08)',
   },
   inputField: {
     flex: 1,
     color: Colors.text,
-    fontSize: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    maxHeight: 100,
-  },
-  inputIconsRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    fontSize: 15,
+    paddingTop: 12,
     paddingBottom: 12,
-    paddingRight: 4,
+    maxHeight: 100,
+    lineHeight: 20,
   },
   sendButton: {
     width: 44,
