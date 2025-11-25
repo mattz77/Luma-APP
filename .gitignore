@@ -23,8 +23,14 @@ supabase/.branches/
 supabase/.temp/
 
 # Workflows com possíveis segredos
-Luma-workflows/*.ps1
-Luma-workflows/verify_api_key.md
-Luma-workflows/api_key_test_results.md
-Luma-workflows/openai_api_key_setup.md
-Luma-workflows/supabase_credentials_setup.md
+Luma-workflows/
+
+# Arquivos de configuração e credenciais
+*.secrets.json
+*.credentials.json
+.secrets/
+
+# Documentação com dados sensíveis
+*credentials*.md
+*secret*.md
+*api_key*.md
