@@ -34,7 +34,7 @@ import type { TaskPriority } from '@/types/models';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
-import { useMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
 import { useQueryClient } from '@tanstack/react-query';
 import { useHouseMembers } from '@/hooks/useHouses';
 import type { HouseMemberWithUser } from '@/types/models';
@@ -176,15 +176,37 @@ export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
+  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
+
+  // Função helper para fechar o modal e limpar parâmetros
+  const closeModal = () => {
+    setModalMode(null);
+    setAiResponse('');
+    setTaskInput('');
+    setChatInput('');
+    setMagicInput('');
+    setMagicPreview(null);
+    setSelectedAssigneeId(null);
+    setShowAssigneeSelector(false);
+    // Limpar o parâmetro action da URL quando fechar o modal magic
+    if (params.action === 'magic') {
+      router.setParams({ action: undefined } as any);
+    }
+  };
+
   useEffect(() => {
     if (params.action === 'magic') {
       setModalMode('magic');
       setMagicInput('');
       setMagicPreview(null);
+    } else if (params.action === undefined && modalMode === 'magic') {
+      // Se o parâmetro foi removido e o modal ainda está aberto, fecha o modal
+      // Mas não chama closeModal() para evitar loop, apenas fecha o estado
+      setModalMode(null);
+      setMagicInput('');
+      setMagicPreview(null);
     }
   }, [params.action]);
-
-  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [taskInput, setTaskInput] = useState("");
@@ -216,12 +238,7 @@ export default function Dashboard() {
   useRealtimeTasks(houseId);
   useRealtimeExpenses(houseId);
 
-  const currentMonth = useMemo(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }, []);
-
-  const { data: monthlyBudget } = useMonthlyBudget(houseId, currentMonth);
+      const { data: budgetLimit } = useBudgetLimit(houseId);
 
   const financialSummary = useMemo(() => {
     const now = new Date();
@@ -233,8 +250,8 @@ export default function Dashboard() {
       return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
     });
 
-    const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-    const limit = monthlyBudget ? Number(monthlyBudget.amount) : 0;
+        const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+        const limit = budgetLimit ? Number(budgetLimit.amount) : 0;
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
     return {
@@ -242,7 +259,7 @@ export default function Dashboard() {
       limit: limit.toFixed(2).replace('.', ','),
       percent: Math.min(percent, 100)
     };
-  }, [expenses, monthlyBudget, currentMonth]);
+      }, [expenses, budgetLimit]);
 
   const pendingTasksCount = useMemo(() => {
     return tasks.filter(task => task.status === 'PENDING').length;
@@ -324,9 +341,7 @@ export default function Dashboard() {
 
   const handleConfirmMagic = async () => {
     // ... (Lógica de confirmação mantida)
-    setModalMode(null);
-    setMagicInput("");
-    setMagicPreview(null);
+    closeModal();
   };
 
   const handleFinancialInsight = async () => {
@@ -367,13 +382,7 @@ export default function Dashboard() {
               {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : isUserMenu ? 'Perfil' : 'Análise Financeira'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => {
-            setModalMode(null);
-            setAiResponse('');
-            setMagicPreview(null);
-            setSelectedAssigneeId(null);
-            setShowAssigneeSelector(false);
-          }}>
+          <TouchableOpacity onPress={closeModal}>
             <X size={24} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -382,7 +391,7 @@ export default function Dashboard() {
           {/* User Menu Modal */}
           {isUserMenu && (
             <View style={{ gap: 16 }}>
-              <TouchableOpacity style={styles.menuItem} onPress={() => setModalMode(null)}>
+              <TouchableOpacity style={styles.menuItem} onPress={closeModal}>
                 <View style={styles.menuIconBg}>
                   <User size={20} color={Colors.primary} />
                 </View>
@@ -390,7 +399,7 @@ export default function Dashboard() {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuItem} onPress={() => {
-                setModalMode(null);
+                closeModal();
                 router.push('/(tabs)/house' as any);
               }}>
                 <View style={styles.menuIconBg}>
@@ -400,7 +409,7 @@ export default function Dashboard() {
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: Colors.palette.merino, paddingTop: 16, marginTop: 8 }]} onPress={async () => {
-                setModalMode(null);
+                closeModal();
                 await signOut();
                 router.replace('/(auth)/login' as any);
               }}>
@@ -543,7 +552,7 @@ export default function Dashboard() {
                   <View style={styles.financeResponseContainer}>
                     <Text style={styles.financeResponseText}>{aiResponse}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => setModalMode(null)} style={styles.modalPrimaryButton}>
+                  <TouchableOpacity onPress={closeModal} style={styles.modalPrimaryButton}>
                     <Text style={styles.modalPrimaryButtonText}>Entendido</Text>
                   </TouchableOpacity>
                 </>
@@ -587,7 +596,7 @@ export default function Dashboard() {
 
               {aiResponse && (
                 <TouchableOpacity
-                  onPress={() => setModalMode(null)}
+                  onPress={closeModal}
                   style={styles.modalSecondaryButton}
                 >
                   <Text style={styles.modalSecondaryButtonText}>Adicionar Tarefas</Text>
@@ -615,7 +624,7 @@ export default function Dashboard() {
                     <Text style={styles.briefingText}>"{aiResponse}"</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => setModalMode(null)}
+                    onPress={closeModal}
                     style={styles.briefingCloseButton}
                   >
                     <Text style={styles.briefingCloseButtonText}>Fechar</Text>
@@ -1032,11 +1041,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    // Garantir que o ícone fique centralizado
+    display: 'flex',
   },
 
   // Note/Insight Content
   noteContent: {
     flex: 1,
+    position: 'relative',
   },
   noteTagsRow: {
     flexDirection: 'row',

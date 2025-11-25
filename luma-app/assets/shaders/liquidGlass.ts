@@ -1,3 +1,4 @@
+
 export const liquidGlassShader = `
 uniform float2 resolution;
 uniform float time;
@@ -36,8 +37,8 @@ float fbm ( in float2 _st) {
 
 half4 main(float2 xy) {
     float2 st = xy/resolution.xy;
-    float3 color = float3(0.0);
-
+    
+    // FBM para criar a textura líquida
     float2 q = float2(0.);
     q.x = fbm( st + 0.00*time);
     q.y = fbm( st + float2(1.0));
@@ -48,16 +49,23 @@ half4 main(float2 xy) {
 
     float f = fbm(st+r);
 
-    // Mistura de cores estilo iOS 26 (Cianos, Roxos, Brancos sutis)
-    color = mix(float3(0.1, 0.619, 0.667), float3(0.666, 0.666, 0.498), clamp((f*f)*4.0,0.0,1.0));
-    color = mix(color, float3(0.0, 0.0, 0.164706), clamp(length(q),0.0,1.0));
-    color = mix(color, float3(0.66667, 1.0, 1.0), clamp(length(r.x),0.0,1.0));
+    // Cor base quase inexistente (transparente)
+    float3 color = float3(1.0, 1.0, 1.0);
 
-    // Adiciona um brilho especular "líquido" baseado na interação de toque (opcional)
+    // Brilho Especular (Highlights)
+    // Onde 'f' é alto, temos "cristas" da onda líquida -> mais branco
+    float specular = smoothstep(0.4, 0.9, f*f);
+    
+    // Interação de toque (brilho localizado)
     float dist = distance(st, touch / resolution.xy);
-    float glow = 1.0 - smoothstep(0.0, 0.3, dist);
-    color += float3(glow * 0.2);
+    float touchGlow = (1.0 - smoothstep(0.0, 0.4, dist)) * 0.3;
 
-    return half4((f*f*f+.6*f*f+.5*f)*color, 1.0);
+    // Alpha Calculation
+    // Mantemos o alpha muito baixo (0.15) na base para ver o fundo borrado
+    // Aumentamos o alpha apenas onde há brilho especular (efeito molhado)
+    float alpha = 0.05 + (specular * 0.25) + touchGlow;
+
+    // Ajuste final de cor: Branco puro nos brilhos
+    return half4(color, clamp(alpha, 0.0, 0.4)); 
 }
 `;

@@ -82,8 +82,14 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         // Navega para home e abre o modal de criação mágica
         if (currentRouteName === 'index') {
-            // Se já estamos na home, apenas atualiza os parâmetros
-            router.setParams({ action: 'magic' });
+            // Se já estamos na home, força uma atualização do parâmetro
+            // Primeiro remove o parâmetro (se existir) e depois adiciona novamente
+            // Isso garante que o useEffect sempre dispare
+            router.setParams({ action: undefined } as any);
+            // Usa setTimeout para garantir que a remoção aconteça antes da adição
+            setTimeout(() => {
+                router.setParams({ action: 'magic' });
+            }, 50);
         } else {
             // Se estamos em outra tela, navega para home com o parâmetro
             router.push('/(tabs)/index?action=magic' as any);
@@ -169,10 +175,10 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
     return (
         <View style={styles.container}>
-            {/* Bottom Vignette */}
+            {/* Bottom Vignette - Mais sutil para não escurecer o dock */}
             <LinearGradient
-                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0.14)']}
-                locations={[0, 0.55, 1]}
+                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.03)', 'rgba(0,0,0,0.08)']}
+                locations={[0, 0.6, 1]}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
                 style={styles.vignette}
@@ -197,7 +203,8 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 onLayout={onDockLayout}
             >
                 {/* Left: Main Pill */}
-                <LiquidGlassCard style={styles.mainPill} intensity={40}>
+                {/* Intensity alto e tint específico para efeito vidro fino */}
+                <LiquidGlassCard style={styles.mainPill} intensity={85} tint="systemThinMaterialLight">
                     <View style={styles.pillContent}>
                         {/* Home */}
                         <View style={styles.sideItem}>
@@ -217,7 +224,8 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                             <TouchableOpacity
                                 style={styles.tabItem}
                                 onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                    // Haptic feedback não bloqueia - executar de forma não bloqueante
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                                     if (!isSpeedDialOpen) {
                                         setIsSpeedDialVisible(true);
                                         setIsSpeedDialOpen(true);
@@ -226,6 +234,9 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                     }
                                 }}
                                 activeOpacity={1} // Disable opacity change on press since SpeedDial handles it
+                                // Permitir múltiplos toques rápidos no iOS
+                                delayPressIn={0}
+                                delayPressOut={0}
                             >
                                 <View style={styles.speedDialTriggerIcon}>
                                     <Plus
@@ -244,7 +255,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                     activeOpacity={0.8}
                     onPress={handleMagicPress}
                 >
-                    <LiquidGlassCard style={styles.magicButton} intensity={40}>
+                    <LiquidGlassCard style={styles.magicButton} intensity={85} tint="systemThinMaterialLight">
                         <View style={styles.magicIconContainer}>
                             <Search size={24} color={Colors.text} />
                         </View>
@@ -259,7 +270,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 0, // Changed from 30 to 0 to allow vignette to touch bottom
+        bottom: 0, 
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -297,13 +308,12 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        // alignItems/justifyContent removed as they don't affect inner content of LiquidGlassCard correctly
+        position: 'relative',
     },
     magicIconContainer: {
-        flex: 1,
+        ...StyleSheet.absoluteFillObject,
         alignItems: 'center',
         justifyContent: 'center',
-        width: '100%',
     },
     sideItem: {
         alignItems: 'center',

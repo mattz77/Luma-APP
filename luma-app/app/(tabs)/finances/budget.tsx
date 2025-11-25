@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,12 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Save } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Save, Wallet } from 'lucide-react-native';
 
-import { useMonthlyBudget, useUpsertMonthlyBudget } from '@/hooks/useMonthlyBudget';
+import { useBudgetLimit, useUpsertBudgetLimit } from '@/hooks/useMonthlyBudget';
+import { useExpenses } from '@/hooks/useExpenses';
 import { useAuthStore } from '@/stores/auth.store';
 import { cardShadowStyle } from '@/lib/styles';
+import { Colors } from '@/constants/Colors';
 
 const formatCurrency = (value: string | number) => {
   const numericValue = Number(value);
@@ -30,25 +32,17 @@ const formatCurrency = (value: string | number) => {
   });
 };
 
-const formatMonth = (month: string) => {
-  const [year, monthNum] = month.split('-');
-  const date = new Date(Number(year), Number(monthNum) - 1, 1);
-  return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-};
-
 export default function BudgetScreen() {
   const router = useRouter();
-  const { month } = useLocalSearchParams<{ month?: string }>();
   const houseId = useAuthStore((state) => state.houseId);
   const { top } = useSafeAreaInsets();
 
-  const currentMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM
-  const { data: budget, isLoading } = useMonthlyBudget(houseId, currentMonth);
-  const upsertMutation = useUpsertMonthlyBudget();
+  const { data: budget, isLoading } = useBudgetLimit(houseId);
+  const upsertMutation = useUpsertBudgetLimit();
+  const { data: expenses = [] } = useExpenses(houseId);
 
   const [amount, setAmount] = useState('');
 
-  // Atualizar o input quando o budget carregar
   useEffect(() => {
     if (budget) {
       setAmount(budget.amount);
@@ -56,6 +50,18 @@ export default function BudgetScreen() {
       setAmount('');
     }
   }, [budget]);
+
+  const totalSpent = useMemo(() => {
+    if (!expenses) return 0;
+    return expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  }, [expenses]);
+
+  const progress = useMemo(() => {
+    if (!budget || !Number(budget.amount)) return 0;
+    return Math.min((totalSpent / Number(budget.amount)) * 100, 100);
+  }, [budget, totalSpent]);
+
+  const goToFinances = () => router.replace('/(tabs)/finances' as any);
 
   const handleSave = async () => {
     if (!houseId) {
@@ -70,17 +76,15 @@ export default function BudgetScreen() {
     }
 
     try {
-      await upsertMutation.mutateAsync({
-        house_id: houseId,
-        month: currentMonth,
-        amount: numericAmount,
-      });
-      Alert.alert('Sucesso', 'Orçamento salvo com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      await upsertMutation.mutateAsync({ houseId, amount: numericAmount });
+      Alert.alert('Sucesso', 'Limite salvo com sucesso!', [{ text: 'OK', onPress: goToFinances }]);
     } catch (error) {
       Alert.alert('Erro', (error as Error).message);
     }
+  };
+
+  const handleGoBack = () => {
+    goToFinances();
   };
 
   if (!houseId) {
@@ -91,7 +95,7 @@ export default function BudgetScreen() {
       >
         <Text style={styles.emptyTitle}>Selecione uma casa</Text>
         <Text style={styles.emptySubtitle}>
-          Associe-se a uma casa para definir o orçamento mensal.
+          Associe-se a uma casa para definir o limite de orçamento.
         </Text>
       </ScrollView>
     );
@@ -103,27 +107,54 @@ export default function BudgetScreen() {
       contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0f172a" />
+        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+          <ArrowLeft size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Orçamento Mensal</Text>
+        <Text style={styles.title}>Orçamento da Casa</Text>
+      </View>
+
+      <View style={[styles.summaryCard, cardShadowStyle]}>
+        <View style={styles.summaryHeader}>
+          <View style={styles.summaryIcon}>
+            <Wallet size={26} color={Colors.primary} />
+          </View>
+          <View>
+            <Text style={styles.summaryLabel}>Limite configurado</Text>
+            <Text style={styles.summaryAmount}>
+              {budget ? formatCurrency(budget.amount) : 'Defina um valor'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.progressMeta}>
+          <Text style={styles.progressValue}>{formatCurrency(totalSpent)}</Text>
+          <Text style={styles.progressCaption}>Gasto total este mês</Text>
+        </View>
+
+        <View style={styles.progressBarTrack}>
+          <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+        </View>
+        <View style={styles.progressFooter}>
+          <Text style={styles.progressFooterLabel}>{progress.toFixed(0)}% utilizado</Text>
+          <Text style={styles.progressFooterValue}>
+            Restante:{' '}
+            {budget ? formatCurrency(Math.max(Number(budget.amount) - totalSpent, 0)) : '—'}
+          </Text>
+        </View>
       </View>
 
       <View style={[styles.card, cardShadowStyle]}>
-        <Text style={styles.monthLabel}>{formatMonth(currentMonth)}</Text>
-
         {isLoading ? (
-          <ActivityIndicator size="large" color="#1d4ed8" style={styles.loader} />
+          <ActivityIndicator size="large" color={Colors.primary} style={styles.loader} />
         ) : (
           <>
-            <Text style={styles.label}>Valor do orçamento</Text>
+            <Text style={styles.label}>Atualizar limite geral</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               placeholder="0,00"
               style={styles.input}
               keyboardType="numeric"
-              autoFocus
             />
             {amount && !Number.isNaN(parseFloat(amount.replace(/[^0-9.,]/g, '').replace(',', '.'))) && (
               <Text style={styles.preview}>
@@ -141,7 +172,7 @@ export default function BudgetScreen() {
               ) : (
                 <>
                   <Save size={20} color="#fff" />
-                  <Text style={styles.saveButtonText}>Salvar orçamento</Text>
+                  <Text style={styles.saveButtonText}>Salvar limite</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -152,12 +183,12 @@ export default function BudgetScreen() {
       <View style={[styles.infoCard, cardShadowStyle]}>
         <Text style={styles.infoTitle}>Como funciona?</Text>
         <Text style={styles.infoText}>
-          Defina um orçamento mensal para sua casa. O Luma usará esse valor para:
+          Defina um limite geral de gastos. O Luma usará esse valor como referência mensal para:
         </Text>
         <View style={styles.infoList}>
           <Text style={styles.infoItem}>• Acompanhar o progresso dos gastos</Text>
-          <Text style={styles.infoItem}>• Alertar quando próximo do limite</Text>
-          <Text style={styles.infoItem}>• Sugerir ajustes nas despesas</Text>
+          <Text style={styles.infoItem}>• Alertar quando estiver perto do limite</Text>
+          <Text style={styles.infoItem}>• Gerar relatórios e insights personalizados</Text>
         </View>
       </View>
     </ScrollView>
@@ -167,11 +198,11 @@ export default function BudgetScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Colors.background,
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
   centered: {
@@ -186,48 +217,109 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    padding: 4,
+    padding: 6,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#0f172a',
+    color: Colors.text,
+  },
+  summaryCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    gap: 16,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  summaryIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  summaryAmount: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  progressMeta: {
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  progressValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  progressCaption: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+  progressBarTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.textSecondary + '20',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  progressFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressFooterLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+  progressFooterValue: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 20,
     padding: 20,
-    marginBottom: 20,
-  },
-  monthLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1d4ed8',
-    marginBottom: 20,
-    textTransform: 'capitalize',
+    marginBottom: 24,
+    gap: 12,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: 8,
+    color: Colors.text,
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderColor: Colors.textSecondary + '30',
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 18,
     fontWeight: '600',
-    color: '#0f172a',
-    backgroundColor: '#f8fafc',
+    color: Colors.text,
+    backgroundColor: Colors.background,
     marginBottom: 8,
   },
   preview: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: Colors.primary,
     marginBottom: 20,
   },
   saveButton: {
@@ -235,8 +327,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1d4ed8',
-    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
     paddingVertical: 14,
     marginTop: 8,
   },
@@ -252,19 +344,19 @@ const styles = StyleSheet.create({
     marginVertical: 40,
   },
   infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 20,
     padding: 20,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: Colors.text,
     marginBottom: 12,
   },
   infoText: {
     fontSize: 14,
-    color: '#475569',
+    color: Colors.textSecondary,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -273,18 +365,18 @@ const styles = StyleSheet.create({
   },
   infoItem: {
     fontSize: 14,
-    color: '#64748b',
+    color: Colors.textSecondary,
     lineHeight: 20,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: Colors.text,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
   },

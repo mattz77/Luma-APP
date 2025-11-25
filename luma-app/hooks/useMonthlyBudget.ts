@@ -14,6 +14,19 @@ export const useMonthlyBudget = (houseId: string | null | undefined, month: stri
   });
 };
 
+export const useBudgetLimit = (houseId: string | null | undefined) => {
+  return useQuery({
+    queryKey: ['budgetLimit', houseId],
+    queryFn: () => {
+      if (!houseId) {
+        return Promise.resolve(null);
+      }
+      return budgetService.getDefault(houseId);
+    },
+    enabled: Boolean(houseId),
+  });
+};
+
 export const useMonthlyBudgets = (houseId: string | null | undefined) => {
   return useQuery({
     queryKey: ['monthlyBudgets', houseId],
@@ -46,6 +59,18 @@ export const useDeleteMonthlyBudget = () => {
     mutationFn: budgetService.remove,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monthlyBudgets'] });
+    },
+  });
+};
+
+export const useUpsertBudgetLimit = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ houseId, amount }: { houseId: string; amount: number }) =>
+      budgetService.upsertDefault(houseId, amount),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['budgetLimit', data.houseId] });
     },
   });
 };
