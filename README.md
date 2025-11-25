@@ -2,9 +2,9 @@
 
 Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gerenciar finanças, tarefas e dispositivos IoT.
 
-![Luma Dashboard](./luma-app/assets/finalV.jpg)
+![Luma: Gestão Doméstica Simplificada](./luma-app/assets/Gemini_Generated_Image_p2g9tgp2g9tgp2g9.png)
 
-*Interface do Dashboard Luma mostrando controle financeiro, gestão de tarefas e interações mágicas com IA*
+*Interface promocional do Luma mostrando controle financeiro, gestão de tarefas, membros e insights inteligentes*
 
 ## 🚀 Stack Tecnológica
 
