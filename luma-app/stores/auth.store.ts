@@ -41,23 +41,38 @@ export const useAuthStore = create<AuthState>((set) => ({
   setHouseId: (houseId) => set({ houseId }),
 
   initialize: async () => {
-    const { data, error } = await supabase.auth.getUser();
+    console.log('[AuthStore] Initializing...');
+    try {
+      const { data, error } = await supabase.auth.getUser();
 
-    if (error) {
-      // Quando não há sessão salva (primeiro acesso / após logout),
-      // o Supabase lança AuthSessionMissingError. Tratamos como "sem usuário"
-      // sem logar como erro crítico para evitar ruído no console.
-      if (error.name !== 'AuthSessionMissingError') {
-        console.error('Erro ao recuperar usuário:', error);
+      if (error) {
+        // Quando não há sessão salva (primeiro acesso / após logout),
+        // o Supabase lança AuthSessionMissingError. Tratamos como "sem usuário"
+        // sem logar como erro crítico para evitar ruído no console.
+        if (error.name !== 'AuthSessionMissingError') {
+          console.error('[AuthStore] Erro ao recuperar usuário:', error);
+        } else {
+          console.log('[AuthStore] Nenhuma sessão encontrada (normal para primeiro acesso)');
+        }
+        set({ user: null, loading: false });
+        return;
       }
-      set({ user: null, loading: false });
-      return;
-    }
 
-    set({
-      user: mapAuthUser(data.user),
-      loading: false,
-    });
+      const mappedUser = mapAuthUser(data.user);
+      console.log('[AuthStore] User initialized:', {
+        hasUser: !!mappedUser,
+        userId: mappedUser?.id,
+        email: mappedUser?.email,
+      });
+
+      set({
+        user: mappedUser,
+        loading: false,
+      });
+    } catch (err) {
+      console.error('[AuthStore] Exception during initialization:', err);
+      set({ user: null, loading: false });
+    }
   },
 
   signIn: async (email, password) => {

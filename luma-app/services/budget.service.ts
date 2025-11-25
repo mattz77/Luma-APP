@@ -61,6 +61,25 @@ export const budgetService = {
     return (data ?? []).map((budget) => mapBudget(budget));
   },
 
+  async getDefault(houseId: string): Promise<MonthlyBudget | null> {
+    const { data, error } = await supabase
+      .from('monthly_budgets')
+      .select('*')
+      .eq('house_id', houseId)
+      .eq('month', 'default')
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return mapBudget(data);
+  },
+
   async create(budget: MonthlyBudgetInsert): Promise<MonthlyBudget> {
     const { data, error } = await supabase
       .from('monthly_budgets')
@@ -102,6 +121,14 @@ export const budgetService = {
     }
 
     return mapBudget(data);
+  },
+
+  async upsertDefault(houseId: string, amount: number): Promise<MonthlyBudget> {
+    return budgetService.upsert({
+      house_id: houseId,
+      month: 'default',
+      amount,
+    });
   },
 
   async remove(id: string): Promise<void> {
