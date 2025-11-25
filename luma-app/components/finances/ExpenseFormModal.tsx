@@ -14,6 +14,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Colors } from '@/constants/Colors';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
 import type { Expense, ExpenseCategory, ExpenseSplit, HouseMemberWithUser } from '@/types/models';
@@ -322,13 +324,16 @@ export function ExpenseFormModal({
   };
 
   return (
-    <Modal animationType="slide" visible={visible} onRequestClose={onClose} transparent>
+    <Modal animationType="fade" visible={visible} onRequestClose={onClose} transparent>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
+        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,10,10,0.35)' }]} />
         <View style={styles.modalContent}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.dragHandle} />
             <Text style={styles.modalTitle}>
               {isEditMode ? 'Editar despesa' : 'Nova despesa'}
             </Text>
@@ -576,42 +581,52 @@ const createEqualShareMap = (memberIds: string[], total: number) => {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    maxHeight: '90%',
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary + '20',
+    maxHeight: '88%',
     overflow: 'hidden',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-    gap: 14,
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 18,
+  },
+  dragHandle: {
+    alignSelf: 'center',
+    width: 60,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: Colors.textSecondary + '40',
+    marginBottom: 6,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#0f172a',
+    color: Colors.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937',
+    color: Colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderColor: Colors.textSecondary + '25',
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
-    backgroundColor: '#f8fafc',
+    fontSize: 16,
+    backgroundColor: Colors.background,
+    color: Colors.text,
   },
   multilineInput: {
     minHeight: 80,
@@ -621,6 +636,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 6,
   },
   categoryContainer: {
     flexDirection: 'row',
@@ -629,29 +645,29 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     borderWidth: 1,
-    borderColor: '#cbd5f5',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#fff',
+    borderColor: Colors.textSecondary + '30',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: Colors.card,
   },
   categoryChipSelected: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   categoryText: {
     fontSize: 13,
-    color: '#1e293b',
+    color: Colors.text,
     fontWeight: '600',
   },
   categoryTextSelected: {
-    color: '#fff',
+    color: Colors.background,
   },
   categoryAddChip: {
     borderStyle: 'dashed',
   },
   categoryAddText: {
-    color: '#2563eb',
+    color: Colors.primary,
   },
   newCategoryRow: {
     flexDirection: 'row',
@@ -662,15 +678,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   secondaryButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: Colors.primary + '15',
   },
   secondaryButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0f172a',
+    color: Colors.primary,
   },
   secondaryButtonGhost: {
     backgroundColor: 'transparent',
@@ -685,30 +701,32 @@ const styles = StyleSheet.create({
   },
   memberChip: {
     borderWidth: 1,
-    borderColor: '#cbd5f5',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderColor: Colors.textSecondary + '25',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: Colors.card,
   },
   memberChipSelected: {
-    backgroundColor: '#22c55e',
-    borderColor: '#22c55e',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   memberChipText: {
     fontSize: 13,
-    color: '#1f2937',
+    color: Colors.text,
     fontWeight: '500',
   },
   memberChipTextSelected: {
-    color: '#fff',
+    color: Colors.background,
   },
   shareHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 8,
   },
   linkButton: {
-    color: '#2563eb',
+    color: Colors.primary,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -721,10 +739,18 @@ const styles = StyleSheet.create({
   shareName: {
     flex: 1,
     fontSize: 14,
-    color: '#0f172a',
+    color: Colors.text,
   },
   shareInput: {
-    width: 110,
+    width: 120,
+    borderWidth: 1,
+    borderColor: Colors.textSecondary + '25',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    backgroundColor: Colors.background,
+    color: Colors.text,
   },
   errorText: {
     color: '#ef4444',
@@ -740,13 +766,13 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: Colors.primary,
   },
   primaryButtonText: {
     color: '#fff',
@@ -754,10 +780,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   cancelButton: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: Colors.textSecondary + '15',
   },
   cancelButtonText: {
-    color: '#1f2937',
+    color: Colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
