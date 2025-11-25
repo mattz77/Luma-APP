@@ -37,8 +37,8 @@ npm install
 O arquivo `.env.local` já foi criado com as credenciais do Supabase:
 
 ```env
-EXPO_PUBLIC_SUPABASE_URL=https://jlcpybfkicfbvcvhddwx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 EXPO_PUBLIC_N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook
 ```
 
@@ -377,11 +377,11 @@ Acesso rápido a:
 - Minha Casa
 - Sair da Conta
 
-## 👤 Usuário de Teste Playwright
+## 👤 Usuário de Teste
 
 | E-mail | Senha |
 | --- | --- |
-| `playwright.test@gmail.com` | `Test@12345` |
+| `test.user@example.com` | `YourTestPassword123!` |
 
-Use estas credenciais sempre que precisar automatizar os fluxos com Playwright.
+Crie um usuário de teste no seu projeto para automação de testes.
 
