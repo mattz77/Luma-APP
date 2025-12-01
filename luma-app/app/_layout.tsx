@@ -6,10 +6,13 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import '@/global.css';
 
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth.store';
 import { HouseInitializer } from '@/components/HouseInitializer';
+// Use platform-specific import for GluestackUIProvider
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -90,27 +93,29 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <ThemeProvider value={DefaultTheme}>
-          <HouseInitializer />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="landing" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="(modals)"
-              options={{
-                presentation: 'modal',
+    <GluestackUIProvider mode="light">
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <ThemeProvider value={DefaultTheme}>
+            <HouseInitializer />
+            <Stack
+              screenOptions={{
+                headerShown: false,
               }}
-            />
-          </Stack>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+            >
+              <Stack.Screen name="landing" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="(modals)"
+                options={{
+                  presentation: 'modal',
+                }}
+              />
+            </Stack>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </GluestackUIProvider>
   );
 }

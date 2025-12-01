@@ -1,288 +1,223 @@
-import React, { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, useWindowDimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
-import { ArrowLeft, Calendar, CheckCircle2, Clock3, User, ListTodo, ArrowRight } from 'lucide-react-native';
-import { Colors } from '@/constants/Colors';
-import { useTask } from '@/hooks/useTasks';
+
+// Gluestack UI imports
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
+import { Pressable } from '@/components/ui/pressable';
+import { Avatar, AvatarFallbackText, AvatarImage } from '@/components/ui/avatar';
+import { Spinner } from '@/components/ui/spinner';
+
+// Icons
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  Trash2,
+  User,
+  Tag,
+  AlertCircle,
+  Zap
+} from 'lucide-react-native';
+
+// Hooks
+import { useTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
 import { useAuthStore } from '@/stores/auth.store';
+import { Colors } from '@/constants/Colors';
+import { Toast } from '@/components/ui/Toast';
 
-const DetailCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <View style={styles.card}>
-    <BlurView tint="light" intensity={20} style={StyleSheet.absoluteFill} />
-    <View style={{ backgroundColor: 'rgba(255,255,255,0.75)', ...StyleSheet.absoluteFillObject }} />
-    <View style={{ zIndex: 10 }}>{children}</View>
-  </View>
-);
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '--';
-  const date = new Date(value);
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const statusPalette: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'Pendente', color: Colors.textSecondary },
-  IN_PROGRESS: { label: 'Em andamento', color: Colors.accent },
-  COMPLETED: { label: 'Concluída', color: Colors.primary },
-  CANCELLED: { label: 'Cancelada', color: '#DD4A4A' },
-};
-
-export default function TaskDetailScreen() {
+export default function TaskDetailsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const taskId = params.id ? String(params.id) : null;
-  const { houseId } = useAuthStore();
-  const { data: task, isLoading, error } = useTask(taskId);
+  const houseId = useAuthStore((state) => state.houseId);
 
-  const palette = statusPalette[task?.status ?? 'PENDING'];
-  const assigneeName = task?.assignee?.name ?? task?.assignee?.email ?? 'Não atribuído';
-  const assignerName = task?.creator?.name ?? task?.creator?.email ?? 'Sistema';
-  const priorityLabel = task?.priority ? task.priority.toLowerCase() : 'normal';
+  const { data: task, isLoading } = useTask(id as string, houseId);
+  const updateTaskMutation = useUpdateTask();
+  const deleteTaskMutation = useDeleteTask();
 
-  const isAuthorized = useMemo(() => {
-    if (!task || !houseId) return true;
-    return task.houseId === houseId;
-  }, [task, houseId]);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
 
-  const renderContent = () => {
-    if (!taskId) {
-      return <Text style={styles.message}>Tarefa inválida.</Text>;
-    }
-
-    if (isLoading) {
-      return (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.message}>Carregando detalhes...</Text>
-        </View>
-      );
-    }
-
-    if (error || !task || !isAuthorized) {
-      return <Text style={styles.message}>Não foi possível encontrar esta tarefa.</Text>;
-    }
-
-    return (
-      <>
-        <DetailCard>
-          <View style={styles.heroRow}>
-            <View style={styles.heroIcon}>
-              <ListTodo size={28} color={Colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.heroLabel}>Tarefa</Text>
-              <Text style={styles.heroTitle}>{task.title}</Text>
-            </View>
-          </View>
-          <View style={styles.badgeRow}>
-            <View style={[styles.statusBadge, { backgroundColor: palette.color + '20' }]}>
-              <Text style={[styles.statusText, { color: palette.color }]}>{palette.label}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: Colors.secondary + '20' }]}>
-              <Text style={[styles.statusText, { color: Colors.secondary }]}>
-                {priorityLabel}
-              </Text>
-            </View>
-          </View>
-        </DetailCard>
-
-        <DetailCard>
-          <Text style={styles.sectionTitle}>Descrição</Text>
-          <Text style={styles.description}>{task.description || 'Sem descrição.'}</Text>
-        </DetailCard>
-
-        <DetailCard>
-          <Text style={styles.sectionTitle}>Informações</Text>
-          <View style={[styles.detailRow, styles.assignmentRow]}>
-            <User size={18} color={Colors.primary} />
-            <Text style={styles.detailLabel}>Atribuído para</Text>
-            <View style={styles.assignmentValue}>
-              <Text style={styles.assignmentUser}>{assignerName}</Text>
-              <ArrowRight size={16} color={Colors.textSecondary} style={{ marginHorizontal: 6 }} />
-              <Text style={styles.assignmentUser}>{assigneeName}</Text>
-            </View>
-          </View>
-          <View style={styles.detailRow}>
-            <Calendar size={18} color={Colors.primary} />
-            <Text style={styles.detailLabel}>Prazo</Text>
-            <Text style={styles.detailValue}>{formatDateTime(task.dueDate)}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Clock3 size={18} color={Colors.primary} />
-            <Text style={styles.detailLabel}>Atualizada</Text>
-            <Text style={styles.detailValue}>{formatDateTime(task.updatedAt)}</Text>
-          </View>
-          {task.completedAt && (
-            <View style={styles.detailRow}>
-              <CheckCircle2 size={18} color={Colors.primary} />
-              <Text style={styles.detailLabel}>Concluída</Text>
-              <Text style={styles.detailValue}>{formatDateTime(task.completedAt)}</Text>
-            </View>
-          )}
-        </DetailCard>
-      </>
-    );
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
   };
 
+  const handleComplete = async () => {
+    if (!task) return;
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await updateTaskMutation.mutateAsync({
+        id: task.id,
+        updates: {
+          status: 'COMPLETED',
+          completed_at: new Date().toISOString(),
+        },
+      });
+      showToast('Tarefa concluída! 🎉');
+      setTimeout(() => router.back(), 1000);
+    } catch (error) {
+      showToast('Erro ao concluir tarefa', 'error');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!task) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId });
+      showToast('Tarefa excluída');
+      setTimeout(() => router.back(), 500);
+    } catch (error) {
+      showToast('Erro ao excluir tarefa', 'error');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center">
+        <Spinner size="large" color={Colors.primary} />
+      </Box>
+    );
+  }
+
+  if (!task) {
+    return (
+      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+        <AlertCircle size={48} color={Colors.textSecondary} />
+        <Heading size="lg" className="text-slate-900 text-center mt-4">Tarefa não encontrada</Heading>
+        <Button onPress={() => router.back()} className="mt-4" variant="outline">
+          <ButtonText>Voltar</ButtonText>
+        </Button>
+      </Box>
+    );
+  }
+
+  const isCompleted = task.status === 'COMPLETED';
+
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color={Colors.text} />
-            <Text style={styles.backText}>Voltar</Text>
-          </TouchableOpacity>
-          <Text style={styles.pageTitle}>Detalhes da Tarefa</Text>
-          {renderContent()}
+    <Box className="flex-1 bg-[#FDFBF7]">
+      <SafeAreaView className="flex-1" edges={['top']}>
+        {/* Header */}
+        <Box className="px-6 pt-4 pb-4 flex-row items-center justify-between">
+          <Pressable
+            onPress={() => router.back()}
+            className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95"
+          >
+            <ArrowLeft size={20} className="text-slate-900" />
+          </Pressable>
+          <Pressable
+            onPress={handleDelete}
+            className="w-10 h-10 rounded-full bg-red-50 border border-red-100 items-center justify-center active:scale-95"
+          >
+            <Trash2 size={20} className="text-red-500" />
+          </Pressable>
+        </Box>
+
+        <ScrollView contentContainerStyle={{ padding: 24 }}>
+          {/* Priority Badge */}
+          <Box className={`self-start px-3 py-1 rounded-full mb-4 ${task.priority === 'URGENT' ? 'bg-red-100' :
+              task.priority === 'HIGH' ? 'bg-orange-100' : 'bg-blue-100'
+            }`}>
+            <Text className={`text-xs font-bold uppercase tracking-wider ${task.priority === 'URGENT' ? 'text-red-700' :
+                task.priority === 'HIGH' ? 'text-orange-700' : 'text-blue-700'
+              }`}>
+              {task.priority === 'URGENT' ? 'Urgente' : task.priority === 'HIGH' ? 'Alta' : 'Normal'}
+            </Text>
+          </Box>
+
+          <Heading size="3xl" className="font-bold text-slate-900 mb-6 leading-tight">
+            {task.title}
+          </Heading>
+
+          {/* Meta Info */}
+          <VStack space="lg" className="mb-8">
+            <HStack space="md" className="items-center">
+              <Box className="w-10 h-10 rounded-full bg-slate-100 items-center justify-center">
+                <Clock size={20} className="text-slate-500" />
+              </Box>
+              <VStack>
+                <Text className="text-xs text-slate-400 font-bold uppercase">Prazo</Text>
+                <Text className="text-slate-900 font-medium">
+                  {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Sem prazo'}
+                </Text>
+              </VStack>
+            </HStack>
+
+            <HStack space="md" className="items-center">
+              <Box className="w-10 h-10 rounded-full bg-slate-100 items-center justify-center">
+                <User size={20} className="text-slate-500" />
+              </Box>
+              <VStack>
+                <Text className="text-xs text-slate-400 font-bold uppercase">Responsável</Text>
+                <Text className="text-slate-900 font-medium">
+                  {task.assignee?.name || 'Sem responsável'}
+                </Text>
+              </VStack>
+            </HStack>
+
+            <HStack space="md" className="items-center">
+              <Box className="w-10 h-10 rounded-full bg-emerald-50 items-center justify-center">
+                <Zap size={20} className="text-emerald-500" />
+              </Box>
+              <VStack>
+                <Text className="text-xs text-slate-400 font-bold uppercase">Recompensa</Text>
+                <Text className="text-slate-900 font-medium">+{task.points} pontos</Text>
+              </VStack>
+            </HStack>
+          </VStack>
+
+          {/* Description */}
+          {task.description && (
+            <VStack space="sm" className="mb-8">
+              <Text className="text-lg font-bold text-slate-900">Descrição</Text>
+              <Text className="text-slate-500 leading-relaxed">
+                {task.description}
+              </Text>
+            </VStack>
+          )}
+
         </ScrollView>
+
+        {/* Footer Action */}
+        {!isCompleted && (
+          <Box className="p-6 pt-0">
+            <Button
+              onPress={handleComplete}
+              className="bg-[#D9F99D] h-16 rounded-[24px] active:scale-[0.98]"
+            >
+              <ButtonIcon as={CheckCircle2} className="text-black mr-2" />
+              <ButtonText className="text-black font-bold text-lg">Concluir Tarefa</ButtonText>
+            </Button>
+          </Box>
+        )}
+
+        {isCompleted && (
+          <Box className="p-6 pt-0 items-center">
+            <HStack space="sm" className="bg-emerald-100 px-4 py-2 rounded-full items-center">
+              <CheckCircle2 size={16} className="text-emerald-700" />
+              <Text className="text-emerald-700 font-bold">Tarefa Concluída</Text>
+            </HStack>
+          </Box>
+        )}
+
+        {/* Toast */}
+        {toast && (
+          <Toast
+            visible={toast.visible}
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        )}
       </SafeAreaView>
-    </View>
+    </Box>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  backText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  card: {
-    borderRadius: 28,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    overflow: 'hidden',
-    gap: 16,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-    marginBottom: 8,
-  },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: Colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroLabel: {
-    textTransform: 'uppercase',
-    fontSize: 13,
-    color: Colors.textSecondary,
-    letterSpacing: 1,
-  },
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-    marginTop: 4,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  statusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  description: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  detailLabel: {
-    minWidth: 100,
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  detailValue: {
-    flex: 1,
-    textAlign: 'right',
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  assignmentRow: {
-    alignItems: 'flex-start',
-  },
-  assignmentValue: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-  },
-  assignmentUser: {
-    color: Colors.text,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  loader: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 40,
-  },
-  message: {
-    textAlign: 'center',
-    color: Colors.textSecondary,
-    fontSize: 16,
-  },
-});

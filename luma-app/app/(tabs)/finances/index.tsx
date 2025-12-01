@@ -1,11 +1,12 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { useMemo, useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, Plus, TrendingUp, Wallet, ArrowLeft } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 
 import { useExpenses, useCreateExpense } from '@/hooks/useExpenses';
 import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
@@ -17,6 +18,15 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GlassCard } from '@/components/shared';
 import { Colors } from '@/constants/Colors';
 import { ExpenseFormModal, type ExpenseFormResult } from '@/components/finances/ExpenseFormModal';
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Toast } from '@/components/ui/Toast';
+
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 
 // --- Helper Components for Light Theme ---
 const LightGlassCard = ({ children, style }: any) => (
@@ -44,6 +54,11 @@ export default function FinancesScreen() {
 
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'paid' | 'pending'>('all');
   const [isExpenseModalVisible, setExpenseModalVisible] = useState(false);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
 
   const handleOpenExpenseModal = () => {
     Haptics.selectionAsync();
@@ -80,6 +95,7 @@ export default function FinancesScreen() {
 
     setExpenseModalVisible(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast('Despesa registrada com sucesso!', 'success');
   };
 
   const handleCreateCategory = async (name: string) => {
@@ -183,7 +199,11 @@ export default function FinancesScreen() {
               </View>
             </View>
 
-            <Text style={styles.totalAmount}>{formatCurrency(summary.total)}</Text>
+            <AnimatedNumber
+              value={summary.total}
+              formatter={formatCurrency}
+              style={styles.totalAmount}
+            />
 
             {/* Progress Bar */}
             <View style={styles.progressContainer}>
@@ -198,7 +218,11 @@ export default function FinancesScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Pago</Text>
-                  <Text style={[styles.statValue, { color: '#16a34a' }]}>{formatCurrency(summary.paid)}</Text>
+                  <AnimatedNumber
+                    value={summary.paid}
+                    formatter={formatCurrency}
+                    style={[styles.statValue, { color: '#16a34a' }]}
+                  />
                 </View>
               </View>
 
@@ -210,7 +234,11 @@ export default function FinancesScreen() {
                 </View>
                 <View>
                   <Text style={styles.statLabel}>Pendente</Text>
-                  <Text style={[styles.statValue, { color: '#dc2626' }]}>{formatCurrency(summary.pending)}</Text>
+                  <AnimatedNumber
+                    value={summary.pending}
+                    formatter={formatCurrency}
+                    style={[styles.statValue, { color: '#dc2626' }]}
+                  />
                 </View>
               </View>
             </View>
@@ -258,45 +286,63 @@ export default function FinancesScreen() {
           <View style={styles.expensesList}>
             <Text style={styles.sectionTitle}>Histórico Recente</Text>
 
-            {filteredExpenses.length > 0 ? (
-              filteredExpenses.map((expense) => (
-                <TouchableOpacity
+            {isLoading ? (
+              <View style={{ gap: 16 }}>
+                {[1, 2, 3].map((i) => (
+                  <View key={i} style={styles.expenseItem}>
+                    <Skeleton width={40} height={40} borderRadius={12} style={{ marginRight: 12 }} />
+                    <View style={{ flex: 1, gap: 8 }}>
+                      <Skeleton width="60%" height={16} />
+                      <Skeleton width="40%" height={12} />
+                    </View>
+                    <Skeleton width={80} height={20} />
+                  </View>
+                ))}
+              </View>
+            ) : filteredExpenses.length > 0 ? (
+              filteredExpenses.map((expense, index) => (
+                <Animated.View
                   key={expense.id}
-                  style={styles.expenseItem}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    router.push({
-                      pathname: '/(tabs)/finances/[id]',
-                      params: { id: expense.id },
-                    } as any);
-                  }}
+                  entering={FadeInDown.delay(index * 50).springify()}
+                  layout={Layout.springify()}
                 >
-                  <View style={styles.expenseIconBg}>
-                    <DollarSign size={20} color={Colors.primary} />
-                  </View>
-                  <View style={styles.expenseDetails}>
-                    <Text style={styles.expenseTitle}>{expense.description}</Text>
-                    <Text style={styles.expenseDate}>
-                      {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} •{' '}
-                      {expense.createdBy?.name ?? expense.createdBy?.email ?? 'Desconhecido'}
-                    </Text>
-                  </View>
-                  <View style={styles.expenseAmountContainer}>
-                    <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
-                    <View style={[
-                      styles.statusBadge,
-                      expense.isPaid ? styles.statusBadgePaid : styles.statusBadgePending
-                    ]}>
-                      <Text style={[
-                        styles.statusBadgeText,
-                        expense.isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
-                      ]}>
-                        {expense.isPaid ? 'Pago' : 'Pendente'}
+                  <TouchableOpacity
+                    style={styles.expenseItem}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      router.push({
+                        pathname: '/(tabs)/finances/[id]',
+                        params: { id: expense.id },
+                      } as any);
+                    }}
+                  >
+                    <View style={styles.expenseIconBg}>
+                      <DollarSign size={20} color={Colors.primary} />
+                    </View>
+                    <View style={styles.expenseDetails}>
+                      <Text style={styles.expenseTitle}>{expense.description}</Text>
+                      <Text style={styles.expenseDate}>
+                        {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} •{' '}
+                        {expense.createdBy?.name ?? expense.createdBy?.email ?? 'Desconhecido'}
                       </Text>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                    <View style={styles.expenseAmountContainer}>
+                      <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
+                      <View style={[
+                        styles.statusBadge,
+                        expense.isPaid ? styles.statusBadgePaid : styles.statusBadgePending
+                      ]}>
+                        <Text style={[
+                          styles.statusBadgeText,
+                          expense.isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
+                        ]}>
+                          {expense.isPaid ? 'Pago' : 'Pendente'}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
               ))
             ) : (
               <View style={styles.emptyState}>
@@ -318,6 +364,14 @@ export default function FinancesScreen() {
           isDeleting={false}
           onCreateCategory={handleCreateCategory}
         />
+        {toast && (
+          <Toast
+            visible={toast.visible}
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        )}
       </View>
     </ErrorBoundary>
   );

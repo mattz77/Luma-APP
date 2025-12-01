@@ -1,25 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ActivityIndicator,
-} from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Colors } from '@/constants/Colors';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
 import type { Expense, ExpenseCategory, ExpenseSplit, HouseMemberWithUser } from '@/types/models';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
+
+// Gluestack UI v3 imports
+import {
+  Modal,
+  ModalBackdrop,
+  ModalContent,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from '@/components/ui/modal';
+import { Input, InputField } from '@/components/ui/input';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Box } from '@/components/ui/box';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Spinner } from '@/components/ui/spinner';
+import { Image } from '@/components/ui/image';
+import { Pressable } from '@/components/ui/pressable';
+import { Textarea, TextareaInput } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogBackdrop, AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter, AlertDialogCloseButton } from '@/components/ui/alert-dialog';
+import { Alert, AlertText } from '@/components/ui/alert';
 
 interface MemberShare {
   userId: string;
@@ -85,6 +97,8 @@ export function ExpenseFormModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [showInvalidMemberAlert, setShowInvalidMemberAlert] = useState(false);
 
   const isEditMode = mode === 'edit' && Boolean(initialExpense);
 
@@ -149,7 +163,7 @@ export function ExpenseFormModal({
     setSelectedMembers((prev) => {
       if (prev.includes(memberId)) {
         if (prev.length === 1) {
-          Alert.alert('Seleção inválida', 'A despesa deve estar associada a pelo menos um membro.');
+          setShowInvalidMemberAlert(true);
           return prev;
         }
         const updatedMembers = prev.filter((id) => id !== memberId);
@@ -185,7 +199,7 @@ export function ExpenseFormModal({
       setIsAddingCategory(false);
       setNewCategoryName('');
     } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
+      setErrorMessage((error as Error).message);
     }
   };
 
@@ -194,10 +208,10 @@ export function ExpenseFormModal({
       const result = await pickImageFromGallery();
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImageUri(result.assets[0].uri);
-        setReceiptUrl(''); // Limpar URL antiga se houver
+        setReceiptUrl('');
       }
     } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
+      setErrorMessage((error as Error).message);
     }
   };
 
@@ -206,15 +220,14 @@ export function ExpenseFormModal({
       const result = await takePhoto();
       if (!result.canceled && result.assets && result.assets[0]) {
         setSelectedImageUri(result.assets[0].uri);
-        setReceiptUrl(''); // Limpar URL antiga se houver
+        setReceiptUrl('');
       }
     } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
+      setErrorMessage((error as Error).message);
     }
   };
 
   const handleRemoveImage = async () => {
-    // Se há uma URL antiga (não é uma nova imagem), deletar do storage
     if (receiptUrl && receiptUrl.startsWith('http')) {
       try {
         await deleteImageFromStorage(receiptUrl);
@@ -273,7 +286,6 @@ export function ExpenseFormModal({
     try {
       let finalReceiptUrl = receiptUrl.trim() || null;
 
-      // Se há uma nova imagem selecionada, fazer upload
       if (selectedImageUri && !selectedImageUri.startsWith('http')) {
         setIsUploadingImage(true);
         const uploadResult = await uploadImageToStorage(selectedImageUri);
@@ -307,255 +319,363 @@ export function ExpenseFormModal({
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    Alert.alert('Excluir despesa', 'Deseja realmente excluir esta despesa?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await onDelete();
-          } catch (error) {
-            Alert.alert('Erro', (error as Error).message);
-          }
-        },
-      },
-    ]);
+    setShowDeleteAlert(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!onDelete) return;
+    try {
+      await onDelete();
+      setShowDeleteAlert(false);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+      setShowDeleteAlert(false);
+    }
   };
 
   return (
-    <Modal animationType="fade" visible={visible} onRequestClose={onClose} transparent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
-        <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,10,10,0.35)' }]} />
-        <View style={styles.modalContent}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <View style={styles.dragHandle} />
-            <Text style={styles.modalTitle}>
-              {isEditMode ? 'Editar despesa' : 'Nova despesa'}
-            </Text>
+    <>
+      <Modal isOpen={visible} onClose={onClose} size="full">
+        <ModalBackdrop />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <ModalContent style={styles.modalContent}>
+            <ModalHeader>
+              <VStack space="sm" className="w-full items-center">
+                <Box style={styles.dragHandle} />
+                <Heading size="lg">
+                  {isEditMode ? 'Editar despesa' : 'Nova despesa'}
+                </Heading>
+              </VStack>
+            </ModalHeader>
+            <ModalBody>
+              <ScrollView>
+                <VStack space="lg" style={styles.scrollContent}>
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Descrição</Text>
+                    <Input>
+                      <InputField
+                        value={description}
+                        onChangeText={setDescription}
+                        placeholder="Ex.: Mercado do mês"
+                      />
+                    </Input>
+                  </VStack>
 
-            <Text style={styles.label}>Descrição</Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              style={styles.input}
-              placeholder="Ex.: Mercado do mês"
-            />
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Valor (R$)</Text>
+                    <Input>
+                      <InputField
+                        value={amount}
+                        onChangeText={(value) => setAmount(formatNumber(value))}
+                        keyboardType="decimal-pad"
+                        placeholder="0,00"
+                      />
+                    </Input>
+                  </VStack>
 
-            <Text style={styles.label}>Valor (R$)</Text>
-            <TextInput
-              value={amount}
-              onChangeText={(value) => setAmount(formatNumber(value))}
-              keyboardType="decimal-pad"
-              style={styles.input}
-              placeholder="0,00"
-            />
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Data</Text>
+                    <Input>
+                      <InputField
+                        value={expenseDate}
+                        onChangeText={setExpenseDate}
+                        placeholder="AAAA-MM-DD"
+                      />
+                    </Input>
+                  </VStack>
 
-            <Text style={styles.label}>Data</Text>
-            <TextInput
-              value={expenseDate}
-              onChangeText={setExpenseDate}
-              style={styles.input}
-              placeholder="AAAA-MM-DD"
-            />
+                  <HStack space="md" className="items-center justify-between py-2">
+                    <Text size="sm" className="font-semibold">Pago</Text>
+                    <Switch value={isPaid} onValueChange={setIsPaid} />
+                  </HStack>
 
-            <View style={styles.switchRow}>
-              <Text style={styles.label}>Pago</Text>
-              <Switch value={isPaid} onValueChange={setIsPaid} />
-            </View>
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Categoria</Text>
+                    <HStack space="sm" className="flex-wrap">
+                      {categories.map((category) => {
+                        const selected = category.id === categoryId;
+                        return (
+                          <Pressable
+                            key={category.id}
+                            onPress={() => setCategoryId(category.id)}
+                            className={`px-3.5 py-2 rounded-[18px] border ${
+                              selected
+                                ? 'bg-primary-500 border-primary-500'
+                                : 'bg-background-0 border-outline-300'
+                            }`}
+                          >
+                            <Text
+                              size="xs"
+                              className={`font-semibold ${
+                                selected ? 'text-background-0' : 'text-typography-900'
+                              }`}
+                            >
+                              {category.name}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                      <Pressable
+                        onPress={() => setIsAddingCategory(true)}
+                        className="px-3.5 py-2 rounded-[18px] border border-dashed border-outline-300 bg-background-0"
+                      >
+                        <Text size="xs" className="font-semibold text-primary-500">
+                          + Categoria
+                        </Text>
+                      </Pressable>
+                    </HStack>
+                  </VStack>
 
-            <Text style={styles.label}>Categoria</Text>
-            <View style={styles.categoryContainer}>
-              {categories.map((category) => {
-                const selected = category.id === categoryId;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[styles.categoryChip, selected && styles.categoryChipSelected]}
-                    onPress={() => setCategoryId(category.id)}
-                  >
-                    <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
-                      {category.name}
+                  {isAddingCategory && (
+                    <HStack space="sm" className="items-center">
+                      <Input className="flex-1">
+                        <InputField
+                          value={newCategoryName}
+                          onChangeText={setNewCategoryName}
+                          placeholder="Nome da categoria"
+                        />
+                      </Input>
+                      <Button size="sm" action="secondary" onPress={handleAddCategory}>
+                        <ButtonText>Salvar</ButtonText>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        action="secondary"
+                        onPress={() => {
+                          setIsAddingCategory(false);
+                          setNewCategoryName('');
+                        }}
+                      >
+                        <ButtonText>Cancelar</ButtonText>
+                      </Button>
+                    </HStack>
+                  )}
+
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Dividir com</Text>
+                    <HStack space="sm" className="flex-wrap">
+                      {members.map((member) => {
+                        const selected = selectedMembers.includes(member.userId);
+                        return (
+                          <Pressable
+                            key={member.id}
+                            onPress={() => handleToggleMember(member.userId)}
+                            className={`px-3.5 py-2 rounded-[18px] border ${
+                              selected
+                                ? 'bg-primary-500 border-primary-500'
+                                : 'bg-background-0 border-outline-200'
+                            }`}
+                          >
+                            <Text
+                              size="xs"
+                              className={`font-medium ${
+                                selected ? 'text-background-0' : 'text-typography-900'
+                              }`}
+                            >
+                              {member.user.name ?? member.user.email}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </HStack>
+                  </VStack>
+
+                  {selectedMembers.length > 0 && (
+                    <VStack space="sm">
+                      <HStack space="md" className="justify-between items-center mt-2">
+                        <Text size="sm" className="font-semibold">Valores individuais</Text>
+                        <Pressable onPress={handleDistributeEqually}>
+                          <Text size="xs" className="font-semibold text-primary-500">
+                            Distribuir igualmente
+                          </Text>
+                        </Pressable>
+                      </HStack>
+                      {selectedMembers.map((memberId) => {
+                        const member = memberLookup.get(memberId);
+                        if (!member) {
+                          return null;
+                        }
+                        return (
+                          <HStack key={memberId} space="md" className="items-center justify-between">
+                            <Text size="sm" className="flex-1">
+                              {member.user.name ?? member.user.email}
+                            </Text>
+                            <Input className="w-[120px]">
+                              <InputField
+                                value={shares[memberId] ?? '0'}
+                                onChangeText={(value) =>
+                                  setShares((prev) => ({ ...prev, [memberId]: formatNumber(value) }))
+                                }
+                                keyboardType="decimal-pad"
+                              />
+                            </Input>
+                          </HStack>
+                        );
+                      })}
+                    </VStack>
+                  )}
+
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Notas</Text>
+                    <Textarea>
+                      <TextareaInput
+                        value={notes}
+                        onChangeText={setNotes}
+                        placeholder="Observações adicionais"
+                        multiline
+                      />
+                    </Textarea>
+                  </VStack>
+
+                  <VStack space="sm">
+                    <Text size="sm" className="font-semibold">Comprovante</Text>
+                    {selectedImageUri ? (
+                      <Box style={styles.imagePreviewContainer}>
+                        <Image
+                          source={{ uri: selectedImageUri }}
+                          style={styles.imagePreview}
+                          alt="Preview do comprovante"
+                        />
+                        <Pressable style={styles.removeImageButton} onPress={handleRemoveImage}>
+                          <X size={20} color="#fff" />
+                        </Pressable>
+                      </Box>
+                    ) : (
+                      <HStack space="md" className="mb-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          action="primary"
+                          onPress={handlePickImage}
+                          disabled={isUploadingImage}
+                          className="flex-1"
+                        >
+                          <ImageIcon size={20} color="#1d4ed8" />
+                          <ButtonText>Escolher da galeria</ButtonText>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          action="secondary"
+                          onPress={handleTakePhoto}
+                          disabled={isUploadingImage}
+                          className="flex-1"
+                        >
+                          <Camera size={20} color="#64748b" />
+                          <ButtonText>Tirar foto</ButtonText>
+                        </Button>
+                      </HStack>
+                    )}
+                    {isUploadingImage && (
+                      <HStack space="sm" className="items-center justify-center py-2 mb-2">
+                        <Spinner size="small" color="#1d4ed8" />
+                        <Text size="xs" className="text-typography-500">
+                          Fazendo upload da imagem...
+                        </Text>
+                      </HStack>
+                    )}
+                    <Text size="xs" className="text-typography-400 mt-2 mb-1">
+                      Ou insira uma URL manualmente
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity
-                style={[styles.categoryChip, styles.categoryAddChip]}
-                onPress={() => setIsAddingCategory(true)}
-              >
-                <Text style={[styles.categoryText, styles.categoryAddText]}>+ Categoria</Text>
-              </TouchableOpacity>
-            </View>
+                    <Input>
+                      <InputField
+                        value={receiptUrl}
+                        onChangeText={setReceiptUrl}
+                        placeholder="https://..."
+                        editable={!selectedImageUri && !isUploadingImage}
+                      />
+                    </Input>
+                  </VStack>
 
-            {isAddingCategory ? (
-              <View style={styles.newCategoryRow}>
-                <TextInput
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  placeholder="Nome da categoria"
-                  style={[styles.input, styles.flex1]}
-                />
-                <TouchableOpacity style={styles.secondaryButton} onPress={handleAddCategory}>
-                  <Text style={styles.secondaryButtonText}>Salvar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.secondaryButton, styles.secondaryButtonGhost]}
-                  onPress={() => {
-                    setIsAddingCategory(false);
-                    setNewCategoryName('');
-                  }}
-                >
-                  <Text style={[styles.secondaryButtonText, styles.secondaryButtonGhostText]}>
-                    Cancelar
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            <Text style={styles.label}>Dividir com</Text>
-            <View style={styles.memberGrid}>
-              {members.map((member) => {
-                const selected = selectedMembers.includes(member.userId);
-                return (
-                  <TouchableOpacity
-                    key={member.id}
-                    onPress={() => handleToggleMember(member.userId)}
-                    style={[styles.memberChip, selected && styles.memberChipSelected]}
+                  {errorMessage && (
+                    <Alert action="error" variant="solid">
+                      <AlertText>{errorMessage}</AlertText>
+                    </Alert>
+                  )}
+                </VStack>
+              </ScrollView>
+            </ModalBody>
+            <ModalFooter>
+              <HStack space="md" className="w-full">
+                {isEditMode && onDelete ? (
+                  <Button
+                    action="negative"
+                    variant="outline"
+                    onPress={handleDelete}
+                    disabled={isDeleting || isSubmitting}
+                    className="flex-1"
                   >
-                    <Text
-                      style={[styles.memberChipText, selected && styles.memberChipTextSelected]}
-                    >
-                      {member.user.name ?? member.user.email}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {selectedMembers.length > 0 ? (
-              <View style={styles.shareHeader}>
-                <Text style={styles.label}>Valores individuais</Text>
-                <TouchableOpacity onPress={handleDistributeEqually}>
-                  <Text style={styles.linkButton}>Distribuir igualmente</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {selectedMembers.map((memberId) => {
-              const member = memberLookup.get(memberId);
-              if (!member) {
-                return null;
-              }
-              return (
-                <View key={memberId} style={styles.shareRow}>
-                  <Text style={styles.shareName}>{member.user.name ?? member.user.email}</Text>
-                  <TextInput
-                    value={shares[memberId] ?? '0'}
-                    onChangeText={(value) =>
-                      setShares((prev) => ({ ...prev, [memberId]: formatNumber(value) }))
-                    }
-                    keyboardType="decimal-pad"
-                    style={[styles.input, styles.shareInput]}
-                  />
-                </View>
-              );
-            })}
-
-            <Text style={styles.label}>Notas</Text>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              style={[styles.input, styles.multilineInput]}
-              multiline
-              numberOfLines={3}
-              placeholder="Observações adicionais"
-            />
-
-            <Text style={styles.label}>Comprovante</Text>
-            
-            {selectedImageUri ? (
-              <View style={styles.imagePreviewContainer}>
-                <Image source={{ uri: selectedImageUri }} style={styles.imagePreview} />
-                <TouchableOpacity style={styles.removeImageButton} onPress={handleRemoveImage}>
-                  <X size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.imageUploadButtons}>
-                <TouchableOpacity
-                  style={[styles.imageUploadButton, styles.imageUploadButtonPrimary]}
-                  onPress={handlePickImage}
-                  disabled={isUploadingImage}
+                    <ButtonText>{isDeleting ? 'Removendo...' : 'Excluir'}</ButtonText>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    action="secondary"
+                    onPress={onClose}
+                    className="flex-1"
+                  >
+                    <ButtonText>Cancelar</ButtonText>
+                  </Button>
+                )}
+                <Button
+                  action="primary"
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex-1"
                 >
-                  <ImageIcon size={20} color="#1d4ed8" />
-                  <Text style={styles.imageUploadButtonText}>Escolher da galeria</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.imageUploadButton, styles.imageUploadButtonSecondary]}
-                  onPress={handleTakePhoto}
-                  disabled={isUploadingImage}
-                >
-                  <Camera size={20} color="#64748b" />
-                  <Text style={[styles.imageUploadButtonText, styles.imageUploadButtonTextSecondary]}>
-                    Tirar foto
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  <ButtonText>
+                    {isSubmitting ? 'Salvando...' : isEditMode ? 'Salvar alterações' : 'Adicionar'}
+                  </ButtonText>
+                </Button>
+              </HStack>
+            </ModalFooter>
+          </ModalContent>
+        </KeyboardAvoidingView>
+      </Modal>
 
-            {isUploadingImage && (
-              <View style={styles.uploadingIndicator}>
-                <ActivityIndicator size="small" color="#1d4ed8" />
-                <Text style={styles.uploadingText}>Fazendo upload da imagem...</Text>
-              </View>
-            )}
+      {/* Alert Dialog for Delete Confirmation */}
+      <AlertDialog isOpen={showDeleteAlert} onClose={() => setShowDeleteAlert(false)}>
+        <AlertDialogBackdrop />
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <Heading size="lg">Excluir despesa</Heading>
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            <Text>Deseja realmente excluir esta despesa?</Text>
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button variant="outline" action="secondary" onPress={() => setShowDeleteAlert(false)}>
+              <ButtonText>Cancelar</ButtonText>
+            </Button>
+            <Button action="negative" onPress={confirmDelete} disabled={isDeleting}>
+              <ButtonText>{isDeleting ? 'Removendo...' : 'Excluir'}</ButtonText>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-            <Text style={[styles.label, styles.helperLabel]}>Ou insira uma URL manualmente</Text>
-            <TextInput
-              value={receiptUrl}
-              onChangeText={setReceiptUrl}
-              style={styles.input}
-              placeholder="https://..."
-              editable={!selectedImageUri && !isUploadingImage}
-            />
-
-            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-          </ScrollView>
-
-          <View style={styles.footer}>
-            {isEditMode && onDelete ? (
-              <TouchableOpacity
-                style={[styles.footerButton, styles.deleteButton]}
-                onPress={handleDelete}
-                disabled={isDeleting || isSubmitting}
-              >
-                <Text style={styles.deleteButtonText}>
-                  {isDeleting ? 'Removendo...' : 'Excluir'}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={[styles.footerButton, styles.cancelButton]} onPress={onClose}>
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.footerButton, styles.primaryButton]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.primaryButtonText}>
-                {isSubmitting ? 'Salvando...' : isEditMode ? 'Salvar alterações' : 'Adicionar'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      {/* Alert Dialog for Invalid Member Selection */}
+      <AlertDialog isOpen={showInvalidMemberAlert} onClose={() => setShowInvalidMemberAlert(false)}>
+        <AlertDialogBackdrop />
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <Heading size="lg">Seleção inválida</Heading>
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            <Text>A despesa deve estar associada a pelo menos um membro.</Text>
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button action="primary" onPress={() => setShowInvalidMemberAlert(false)}>
+              <ButtonText>Entendi</ButtonText>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -579,10 +699,6 @@ const createEqualShareMap = (memberIds: string[], total: number) => {
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
   modalContent: {
     backgroundColor: Colors.card,
     borderTopLeftRadius: 32,
@@ -596,7 +712,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 24,
-    gap: 18,
   },
   dragHandle: {
     alignSelf: 'center',
@@ -605,227 +720,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: Colors.textSecondary + '40',
     marginBottom: 6,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '25',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: Colors.background,
-    color: Colors.text,
-  },
-  multilineInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '30',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: Colors.card,
-  },
-  categoryChipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  categoryText: {
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  categoryTextSelected: {
-    color: Colors.background,
-  },
-  categoryAddChip: {
-    borderStyle: 'dashed',
-  },
-  categoryAddText: {
-    color: Colors.primary,
-  },
-  newCategoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  flex1: {
-    flex: 1,
-  },
-  secondaryButton: {
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: Colors.primary + '15',
-  },
-  secondaryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  secondaryButtonGhost: {
-    backgroundColor: 'transparent',
-  },
-  secondaryButtonGhostText: {
-    color: '#64748b',
-  },
-  memberGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  memberChip: {
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '25',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: Colors.card,
-  },
-  memberChipSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  memberChipText: {
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: '500',
-  },
-  memberChipTextSelected: {
-    color: Colors.background,
-  },
-  shareHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  linkButton: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  shareRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  shareName: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  shareInput: {
-    width: 120,
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '25',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: Colors.background,
-    color: Colors.text,
-  },
-  errorText: {
-    color: '#ef4444',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  footerButton: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    backgroundColor: Colors.primary,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  cancelButton: {
-    backgroundColor: Colors.textSecondary + '15',
-  },
-  cancelButtonText: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-  },
-  deleteButtonText: {
-    color: '#b91c1c',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  imageUploadButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
-  },
-  imageUploadButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-  imageUploadButtonPrimary: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#1d4ed8',
-  },
-  imageUploadButtonSecondary: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#e2e8f0',
-  },
-  imageUploadButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  imageUploadButtonTextSecondary: {
-    color: '#64748b',
   },
   imagePreviewContainer: {
     position: 'relative',
@@ -851,23 +745,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  uploadingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  uploadingText: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  helperLabel: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 8,
-    marginBottom: 4,
-  },
 });
-

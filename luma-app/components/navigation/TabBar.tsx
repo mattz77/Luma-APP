@@ -1,14 +1,19 @@
-import { View, StyleSheet, LayoutChangeEvent, Dimensions, TouchableOpacity, Text } from 'react-native';
+import { LayoutChangeEvent, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useState, useEffect, useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import { SpeedDial } from '../SpeedDial';
 import { Home, Wallet, ListTodo, MessageCircle, Plus, Search } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
 import { LinearGradient } from 'expo-linear-gradient';
+
+// Gluestack UI v3 imports
+import { Box } from '@/components/ui/box';
+import { HStack } from '@/components/ui/hstack';
+import { Pressable } from '@/components/ui/pressable';
 
 // --- Constants ---
 const ICON_SIZE = 24;
@@ -41,11 +46,10 @@ const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color }: 
     }));
 
     return (
-        <TouchableOpacity
+        <Pressable
             onPress={onPress}
             onLongPress={onLongPress}
-            style={styles.tabItem}
-            activeOpacity={0.7}
+            className="items-center justify-center w-11 h-11"
         >
             <Animated.View style={[styles.iconContainer, animatedStyle]}>
                 <Icon size={ICON_SIZE} color={active ? Colors.primary : Colors.textSecondary} />
@@ -53,7 +57,7 @@ const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color }: 
             {active && (
                 <Animated.View style={styles.activeDot} />
             )}
-        </TouchableOpacity>
+        </Pressable>
     );
 };
 
@@ -61,13 +65,20 @@ const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color }: 
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const [dockWidth, setDockWidth] = useState(0);
     const router = useRouter();
+    const params = useLocalSearchParams();
     const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
     const [isSpeedDialVisible, setIsSpeedDialVisible] = useState(false);
-    const speedDialButtonRef = useRef<View | null>(null);
+    const speedDialButtonRef = useRef<React.ComponentRef<typeof Box> | null>(null);
 
     // Animation values
     const mainDockOpacity = useSharedValue(1);
     const mainDockTranslateY = useSharedValue(0);
+
+    // Use animated style para shared values (corrige warning do Reanimated)
+    const dockAnimatedStyle = useAnimatedStyle(() => ({
+        opacity: mainDockOpacity.value,
+        transform: [{ translateY: mainDockTranslateY.value }]
+    }));
 
     const onDockLayout = (event: LayoutChangeEvent) => {
         setDockWidth(event.nativeEvent.layout.width);
@@ -88,7 +99,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             router.setParams({ action: undefined } as any);
             // Usa setTimeout para garantir que a remoção aconteça antes da adição
             setTimeout(() => {
-                router.setParams({ action: 'magic' });
+                router.setParams({ action: 'magic' } as any);
             }, 50);
         } else {
             // Se estamos em outra tela, navega para home com o parâmetro
@@ -96,9 +107,17 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         }
     };
 
-    // Hide dock on Luma Chat screen
+    // Hide dock on Luma Chat screen OR when modals are open
     const currentRouteName = state.routes[state.index].name;
-    const shouldHideDock = currentRouteName?.includes('luma') || currentRouteName === 'luma' || currentRouteName === 'luma/index';
+    // Check if any modal-related params are present
+    // Note: Only modals using params.action will be detected here
+    // Other modals (briefing, user_menu) may need to set params.action as well
+    const hasModalOpen = params.action !== undefined && params.action !== null && params.action !== '';
+    const shouldHideDock =
+        currentRouteName?.includes('luma') ||
+        currentRouteName === 'luma' ||
+        currentRouteName === 'luma/index' ||
+        hasModalOpen;
 
     if (shouldHideDock) {
         return null;
@@ -158,7 +177,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             label: 'Nova Tarefa',
             onPress: () => {
                 setIsSpeedDialOpen(false);
-                router.push('/(tabs)/tasks');
+                router.push('/(tabs)/tasks?action=create');
             },
             backgroundColor: Colors.primary,
         },
@@ -174,7 +193,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     ];
 
     return (
-        <View style={styles.container}>
+        <Box style={styles.container}>
             {/* Bottom Vignette - Mais sutil para não escurecer o dock */}
             <LinearGradient
                 colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.03)', 'rgba(0,0,0,0.08)']}
@@ -196,36 +215,33 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
             {/* Main Dock Container */}
             <Animated.View
-                style={[
-                    styles.dockWrapper,
-                    { opacity: mainDockOpacity, transform: [{ translateY: mainDockTranslateY }] }
-                ]}
+                style={[styles.dockWrapper, dockAnimatedStyle]}
                 onLayout={onDockLayout}
             >
                 {/* Left: Main Pill */}
                 {/* Intensity alto e tint específico para efeito vidro fino */}
                 <LiquidGlassCard style={styles.mainPill} intensity={85} tint="systemThinMaterialLight">
-                    <View style={styles.pillContent}>
+                    <HStack space="md" className="items-center justify-between px-5 h-full w-[220px]">
                         {/* Home */}
-                        <View style={styles.sideItem}>
+                        <Box className="items-center justify-center w-11 h-11">
                             {renderTabItem('index', Home)}
-                        </View>
+                        </Box>
 
                         {/* Center: Luma Chat */}
-                        <TouchableOpacity
-                            style={styles.centerButton}
+                        <Pressable
+                            className="w-11 h-11 items-center justify-center"
                             onPress={handleLumaPress}
                         >
                             <MessageCircle size={24} color={Colors.textSecondary} />
-                        </TouchableOpacity>
+                        </Pressable>
 
                         {/* Right: Speed Dial Trigger */}
-                        <View style={styles.sideItem} ref={speedDialButtonRef} collapsable={false}>
-                            <TouchableOpacity
-                                style={styles.tabItem}
+                        <Box className="items-center justify-center w-11 h-11" ref={speedDialButtonRef}>
+                            <Pressable
+                                className="w-11 h-11 items-center justify-center"
                                 onPress={() => {
                                     // Haptic feedback não bloqueia - executar de forma não bloqueante
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
                                     if (!isSpeedDialOpen) {
                                         setIsSpeedDialVisible(true);
                                         setIsSpeedDialOpen(true);
@@ -233,44 +249,42 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                         setIsSpeedDialOpen(false);
                                     }
                                 }}
-                                activeOpacity={1} // Disable opacity change on press since SpeedDial handles it
                                 // Permitir múltiplos toques rápidos no iOS
                                 delayPressIn={0}
                                 delayPressOut={0}
                             >
-                                <View style={styles.speedDialTriggerIcon}>
+                                <Box className="w-11 h-11 items-center justify-center">
                                     <Plus
                                         size={24}
                                         color={Colors.textSecondary}
                                         style={{ opacity: isSpeedDialVisible ? 0 : 1 }}
                                     />
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+                                </Box>
+                            </Pressable>
+                        </Box>
+                    </HStack>
                 </LiquidGlassCard>
 
                 {/* Right: Magic Button */}
-                <TouchableOpacity
-                    activeOpacity={0.8}
+                <Pressable
                     onPress={handleMagicPress}
                 >
                     <LiquidGlassCard style={styles.magicButton} intensity={85} tint="systemThinMaterialLight">
-                        <View style={styles.magicIconContainer}>
+                        <Box style={styles.magicIconContainer}>
                             <Search size={24} color={Colors.text} />
-                        </View>
+                        </Box>
                     </LiquidGlassCard>
-                </TouchableOpacity>
+                </Pressable>
 
             </Animated.View>
-        </View>
+        </Box>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        bottom: 0, 
+        bottom: 0,
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -296,14 +310,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         minWidth: 200, // Ensure enough width for items
     },
-    pillContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        height: '100%',
-        width: 220, // Fixed width for content
-    },
     magicButton: {
         width: 64,
         height: 64,
@@ -314,18 +320,6 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    sideItem: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 44,
-        height: 44,
-    },
-    tabItem: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 44,
-        height: 44,
     },
     iconContainer: {
         alignItems: 'center',
@@ -339,17 +333,4 @@ const styles = StyleSheet.create({
         borderRadius: 2,
         backgroundColor: Colors.primary,
     },
-    centerButton: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        // Removed previous circular background styles
-    },
-    speedDialTriggerIcon: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    }
 });

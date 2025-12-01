@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { X } from 'lucide-react-native';
+
+// Gluestack UI v3 imports
+import { HStack } from '@/components/ui/hstack';
+import { VStack } from '@/components/ui/vstack';
+import { Input, InputField } from '@/components/ui/input';
+import { Pressable } from '@/components/ui/pressable';
+import { Text } from '@/components/ui/text';
+import { Badge, BadgeText } from '@/components/ui/badge';
+import { Box } from '@/components/ui/box';
 
 interface TagInputProps {
   tags: string[];
@@ -45,82 +53,39 @@ export function TagInput({ tags, onChange, placeholder = 'Adicionar tag...', max
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tagsContainer}>
+    <VStack space="sm">
+      <HStack space="sm" className="flex-wrap">
         {tags.map((tag) => (
-          <View key={tag} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
-            <TouchableOpacity
-              style={styles.removeButton}
+          <Badge key={tag} action="primary" variant="outline" className="px-2.5 py-1.5 rounded-2xl border-primary-500 bg-primary-50">
+            <BadgeText className="text-primary-500 font-semibold text-xs mr-1.5">{tag}</BadgeText>
+            <Pressable
               onPress={() => handleRemoveTag(tag)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="p-0.5"
             >
               <X size={14} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+            </Pressable>
+          </Badge>
         ))}
-      </View>
+      </HStack>
       {tags.length < maxTags && (
-        <TextInput
-          value={inputValue}
-          onChangeText={setInputValue}
-          placeholder={placeholder}
-          style={styles.input}
-          onSubmitEditing={handleAddTag}
-          onKeyPress={handleKeyPress}
-          returnKeyType="done"
-          maxLength={20}
-        />
+        <Input>
+          <InputField
+            value={inputValue}
+            onChangeText={setInputValue}
+            placeholder={placeholder}
+            onSubmitEditing={handleAddTag}
+            onKeyPress={handleKeyPress}
+            returnKeyType="done"
+            maxLength={20}
+          />
+        </Input>
       )}
       {tags.length >= maxTags && (
-        <Text style={styles.limitText}>Limite de {maxTags} tags atingido</Text>
+        <Text size="xs" className="text-typography-400 italic">
+          Limite de {maxTags} tags atingido
+        </Text>
       )}
-    </View>
+    </VStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 8,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  tagText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1d4ed8',
-  },
-  removeButton: {
-    padding: 2,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    backgroundColor: '#f8fafc',
-  },
-  limitText: {
-    fontSize: 12,
-    color: '#94a3b8',
-    fontStyle: 'italic',
-  },
-});
-

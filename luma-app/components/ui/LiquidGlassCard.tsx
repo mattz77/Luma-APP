@@ -120,7 +120,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
           colors={['rgba(255, 255, 255, 0.6)', 'rgba(255, 255, 255, 0.4)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
+          style={isWeb ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } : StyleSheet.absoluteFill}
         />
       )}
 
@@ -129,7 +129,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
       <BlurView 
         intensity={intensity} 
         tint={actualTint as any}
-        style={StyleSheet.absoluteFill} 
+        style={isWeb ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } : StyleSheet.absoluteFill} 
       />
 
       {/* Camada 2: Shader Skia (O Brilho Líquido) */}
@@ -164,12 +164,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent', // Importante: transparente para ver o blur
   },
   glassOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(255,255,255,0.05)', // Overlay branco muito sutil
     zIndex: 2,
   },
   borderOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: 32,
     borderWidth: 1, // Borda fina
     borderColor: 'rgba(255,255,255,0.2)', // Borda translúcida

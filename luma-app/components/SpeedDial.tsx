@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Modal, Pressable, Dimensions, Platform, Text } from 'react-native';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
 import { LucideIcon, Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -8,11 +8,18 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withDelay,
   interpolate,
   Extrapolation,
-  runOnJS
+  runOnJS,
+  Easing
 } from 'react-native-reanimated';
+
+// Gluestack UI v3 imports
+import { Modal, ModalBackdrop } from '@/components/ui/modal';
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { Pressable } from '@/components/ui/pressable';
+import { Text } from '@/components/ui/text';
 
 interface SpeedDialAction {
   icon: LucideIcon;
@@ -27,11 +34,9 @@ interface SpeedDialProps {
   mainColor?: string;
   isOpen?: boolean;
   onClose?: () => void;
-  buttonRef?: React.RefObject<View | null>;
+  buttonRef?: React.RefObject<React.ComponentRef<typeof Box> | null>;
   onCloseAnimationComplete?: () => void;
 }
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const SpeedDialItem = ({
   action,
@@ -78,16 +83,39 @@ const SpeedDialItem = ({
   });
 
   return (
-    <Animated.View style={[styles.actionWrapper, actionStyle]}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>{action.label}</Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.actionButton, { backgroundColor: action.backgroundColor }]}
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          right: -22, // Compensar metade da largura do botão (44/2) para centralizar
+          width: 200,
+          transform: [{ translateY: -22 }] // Compensar metade da altura do botão (44/2) para centralizar verticalmente
+        },
+        actionStyle
+      ]}
+    >
+      <Box className="px-3 py-1.5 bg-black/80 rounded-xl mr-3 border border-white/15">
+        <Text className="text-[#FFFBE6] text-sm font-semibold">
+          {action.label}
+        </Text>
+      </Box>
+      <Pressable
+        className="w-11 h-11 rounded-full items-center justify-center border border-[#FFF44F]/30"
+        style={{
+          backgroundColor: action.backgroundColor,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+          elevation: 5,
+        }}
         onPress={onPress}
       >
         <action.icon size={20} color="#FFF44F" />
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 };
@@ -116,48 +144,96 @@ export const SpeedDial = ({
   useEffect(() => {
     if (isOpen) {
       setShowModal(true);
-      // Measure button position when opening - otimizado para iOS
+      // Measure button position when opening - suporte para web e native
       const measureButton = () => {
-        buttonRef?.current?.measureInWindow((x, y, width, height) => {
-          setButtonLayout({ x, y, width, height });
-        });
+        if (!buttonRef?.current) return;
+
+        if (Platform.OS === 'web') {
+          // Web: usar getBoundingClientRect via ref
+          try {
+            // Para web, precisamos acessar o elemento DOM
+            const element = buttonRef.current as any;
+            const domNode = element?._nativeNode || element;
+            
+            if (domNode && typeof domNode.getBoundingClientRect === 'function') {
+              const rect = domNode.getBoundingClientRect();
+              const windowWidth = Dimensions.get('window').width;
+              const windowHeight = Dimensions.get('window').height;
+              
+              setButtonLayout({
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height
+              });
+            } else {
+              // Fallback: usar valores padrão se não conseguir medir
+              setButtonLayout({
+                x: Dimensions.get('window').width - 80,
+                y: Dimensions.get('window').height - 100,
+                width: 64,
+                height: 64
+              });
+            }
+          } catch (error) {
+            console.warn('[SpeedDial] Erro ao medir botão na web:', error);
+            // Fallback para valores padrão
+            setButtonLayout({
+              x: Dimensions.get('window').width - 80,
+              y: Dimensions.get('window').height - 100,
+              width: 64,
+              height: 64
+            });
+          }
+        } else {
+          // Native: usar measureInWindow
+          if (typeof buttonRef.current.measureInWindow === 'function') {
+            buttonRef.current.measureInWindow((x, y, width, height) => {
+              setButtonLayout({ x, y, width, height });
+            });
+          } else {
+            // Fallback se measureInWindow não estiver disponível
+            setButtonLayout({
+              x: Dimensions.get('window').width - 80,
+              y: Dimensions.get('window').height - 100,
+              width: 64,
+              height: 64
+            });
+          }
+        }
       };
       
       // No iOS, usar requestAnimationFrame para melhor performance
       if (Platform.OS === 'ios') {
         requestAnimationFrame(() => {
           measureButton();
-          // Iniciar animação imediatamente após medir (não esperar layout)
-          progress.value = withSpring(1, { 
-            damping: 10, // Reduzido ainda mais para resposta mais rápida
-            stiffness: 250, // Aumentado para resposta instantânea
-            mass: 0.7 // Reduzido para menos inércia
+          // Iniciar animação suave (sem bounce)
+          progress.value = withTiming(1, {
+            duration: 250,
+            easing: Easing.out(Easing.cubic),
           });
         });
       } else {
+        // Web e Android: medir imediatamente
         measureButton();
-        progress.value = withSpring(1, { 
-          damping: 12,
-          stiffness: 200,
-          mass: 0.8
+        progress.value = withTiming(1, {
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
         });
       }
     } else {
-      // Close animation - mais rápida e não bloqueante
-      progress.value = withSpring(0, { 
-        damping: 10, // Mais rápido para fechar
-        stiffness: 250,
-        mass: 0.7
-      }, (finished) => {
-        if (finished) {
-          runOnJS(setShowModal)(false);
-          if (onCloseAnimationComplete) {
-            runOnJS(onCloseAnimationComplete)();
-          }
-        }
+      // Close animation - suave
+      setShowModal(false);
+      if (onCloseAnimationComplete) {
+        onCloseAnimationComplete();
+      }
+      // Animar em background sem bloquear
+      progress.value = withTiming(0, { 
+        duration: 200,
+        easing: Easing.out(Easing.cubic),
       });
     }
-  }, [isOpen, buttonRef, progress]);
+  }, [isOpen, buttonRef, progress, onCloseAnimationComplete]);
 
   const handleClose = useCallback(() => {
     if (externalOnClose) {
@@ -186,36 +262,41 @@ export const SpeedDial = ({
   if (!showModal) return null;
 
   return (
-    <Modal
-      visible={showModal}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-      // No iOS, permitir interações durante animação
-      presentationStyle="overFullScreen"
-    >
-      <View style={styles.container}>
-        {/* Backdrop */}
-        <AnimatedPressable
-          style={[StyleSheet.absoluteFill, backdropStyle]}
-          onPress={handleClose}
-          // Permitir interações durante animação no iOS
-          pointerEvents={isOpen ? 'auto' : 'none'}
-        >
-          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.2)' }]} />
-        </AnimatedPressable>
+    <Modal isOpen={showModal} onClose={handleClose} size="full" closeOnOverlayClick={true}>
+      {/* ModalBackdrop do gluestack-ui */}
+      <ModalBackdrop onPress={handleClose} />
+      
+      {/* Blur effect customizado sobre o backdrop */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          backdropStyle
+        ]}
+        pointerEvents="none"
+      >
+        <BlurView 
+          intensity={80} 
+          tint="light" 
+          style={StyleSheet.absoluteFill} 
+        />
+        {/* Overlay sutil para melhorar contraste */}
+        <Box 
+          className="absolute left-0 top-0 right-0 bottom-0 bg-black/10"
+        />
+      </Animated.View>
 
+      {/* Container principal */}
+      <Box className="absolute w-full h-full top-0 left-0" pointerEvents="box-none">
         {/* Actions */}
         {buttonLayout && (
-          <View
-            style={[
-              styles.actionsContainer,
-              {
-                left: buttonLayout.x + (buttonLayout.width / 2),
-                top: buttonLayout.y - 20
-              }
-            ]}
+          <Box
+            className="absolute items-end justify-center overflow-visible"
+            style={{
+              left: buttonLayout.x + (buttonLayout.width / 2),
+              top: buttonLayout.y + (buttonLayout.height / 2),
+              width: 0,
+              height: 0,
+            }}
             pointerEvents="box-none"
           >
             {actions.map((action, index) => (
@@ -225,118 +306,52 @@ export const SpeedDial = ({
                 index={index}
                 progress={progress}
                 onPress={() => {
-                  handleClose();
-                  // Remover delay - executar imediatamente
+                  // Executar ação primeiro (sem delay)
                   action.onPress();
+                  // Fechar imediatamente sem esperar animação
+                  handleClose();
                 }}
               />
             ))}
-          </View>
+          </Box>
         )}
 
         {/* Fake Button to maintain visual continuity */}
         {buttonLayout && (
-          <View
-            style={[
-              styles.fakeButtonContainer,
-              {
-                left: buttonLayout.x,
-                top: buttonLayout.y,
-                width: buttonLayout.width,
-                height: buttonLayout.height,
-              }
-            ]}
+          <Box
+            className="absolute items-center justify-center"
+            style={{
+              left: buttonLayout.x,
+              top: buttonLayout.y,
+              width: buttonLayout.width,
+              height: buttonLayout.height,
+            }}
             pointerEvents="none"
           >
-            <View style={styles.fakeButton}>
+            <Box className="w-full h-full items-center justify-center">
               <Animated.View style={buttonRotationStyle}>
                 <MainIcon size={24} color={mainColor} />
               </Animated.View>
-            </View>
-          </View>
+            </Box>
+          </Box>
         )}
 
         {/* Invisible touch target for the button to close */}
         {buttonLayout && (
-          <TouchableOpacity
-            style={[
-              styles.closeTouchTarget,
-              {
-                left: buttonLayout.x,
-                top: buttonLayout.y,
-                width: buttonLayout.width,
-                height: buttonLayout.height,
-              }
-            ]}
+          <Pressable
+            className="absolute"
+            style={{
+              left: buttonLayout.x,
+              top: buttonLayout.y,
+              width: buttonLayout.width,
+              height: buttonLayout.height,
+            }}
             onPress={handleClose}
-            activeOpacity={1}
           />
         )}
-      </View>
+      </Box>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  actionsContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    width: 0,
-    height: 0,
-    overflow: 'visible',
-  },
-  actionWrapper: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    right: 6,
-    width: 200,
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255,244,79,0.3)',
-  },
-  labelContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderRadius: 12,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  label: {
-    color: '#FFFBE6',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  fakeButtonContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fakeButton: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeTouchTarget: {
-    position: 'absolute',
-  }
-});
+// Estilos removidos - usando className do gluestack-ui

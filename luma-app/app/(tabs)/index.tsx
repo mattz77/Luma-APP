@@ -1,22 +1,48 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   Dimensions,
-  ScrollView,
-  ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  Modal,
-  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Gluestack UI v3 imports
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Input, InputField } from '@/components/ui/input';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Spinner } from '@/components/ui/spinner';
+import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
+import { Image } from '@/components/ui/image';
+import {
+  Modal,
+  ModalBackdrop,
+  ModalContent,
+  ModalBody,
+  ModalHeader,
+  ModalFooter,
+} from '@/components/ui/modal';
+import { Skeleton, SkeletonText } from '@/components/ui/skeleton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import Animated, {
+  FadeInDown,
+  ZoomIn,
+  Layout,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing
+} from 'react-native-reanimated';
 import {
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles,
   X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home,
@@ -100,17 +126,53 @@ const formatTaskDate = (dateValue: string | null): string => {
 
 // --- Componentes Atualizados para Light Theme ---
 
+const BouncyPressable = ({ children, onPress, style, className, disabled, ...props }: any) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  if (disabled) {
+    return (
+      <Box style={style} className={className} {...props}>
+        {children}
+      </Box>
+    );
+  }
+
+  return (
+    <Pressable
+      onPressIn={() => {
+        scale.value = withSpring(0.96, { damping: 10, stiffness: 300 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+      }}
+      onPress={onPress}
+      style={style}
+      className={className}
+      disabled={disabled}
+      {...props}
+    >
+      <Animated.View style={animatedStyle}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+};
+
 const GlassCard = ({ children, style, variant = 'default' }: any) => {
   // Variants: default, primary (yellow tint), danger (red tint)
   const isPrimary = variant === 'primary';
 
   return (
-    <View style={[styles.glassCard, isPrimary && styles.glassCardPrimary, style]}>
+    <Box style={[styles.glassCard, isPrimary && styles.glassCardPrimary, style]}>
       {/* Light theme: White blur instead of dark */}
       <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-      <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', ...StyleSheet.absoluteFillObject }} />
-      <View style={{ zIndex: 10, flex: 1 }}>{children}</View>
-    </View>
+      <Box style={[styles.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)' }]} />
+      <Box style={{ zIndex: 10, flex: 1 }}>{children}</Box>
+    </Box>
   );
 };
 
@@ -126,12 +188,12 @@ type StatCardProps = {
 const StatCard = ({ icon: Icon, label, value, subtext, highlight = false, onPress }: StatCardProps) => {
   const content = (
     <GlassCard style={[styles.statCard, onPress && styles.statCardInteractive]}>
-      <View style={styles.statHeader}>
-        <Text style={styles.statLabel}>{label}</Text>
+      <HStack space="sm" className="justify-between items-center mb-2">
+        <Text size="xs" className="font-medium text-typography-500">{label}</Text>
         {Icon && <Icon size={16} color={highlight ? Colors.secondary : Colors.textSecondary} />}
-      </View>
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      {subtext && <Text style={styles.statSubtext}>{subtext}</Text>}
+      </HStack>
+      <Text size="xl" className="font-bold text-typography-900" isTruncated>{value}</Text>
+      {subtext && <Text size="xs" className="text-typography-500">{subtext}</Text>}
     </GlassCard>
   );
 
@@ -140,9 +202,9 @@ const StatCard = ({ icon: Icon, label, value, subtext, highlight = false, onPres
   }
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={{ flex: 1 }}>
+    <BouncyPressable onPress={onPress} className="flex-1">
       {content}
-    </TouchableOpacity>
+    </BouncyPressable>
   );
 };
 
@@ -155,21 +217,103 @@ type ActivityItemProps = {
 };
 
 const ActivityItem = ({ icon: Icon, title, subtitle, time, onPress }: ActivityItemProps) => (
-  <TouchableOpacity
+  <BouncyPressable
     style={styles.activityItem}
-    activeOpacity={onPress ? 0.8 : 1}
     onPress={onPress}
     disabled={!onPress}
   >
-    <View style={styles.activityIconBg}>
-      <Icon size={18} color={Colors.primary} />
-    </View>
-    <View style={{ flex: 1 }}>
-      <Text style={styles.activityTitle} numberOfLines={1}>{title}</Text>
-      <Text style={styles.activitySubtitle} numberOfLines={1}>{subtitle}</Text>
-    </View>
-    <Text style={styles.activityTime}>{time}</Text>
-  </TouchableOpacity>
+    <HStack className="items-center flex-1 gap-4">
+      <Box style={styles.activityIconBg}>
+        <Icon size={18} color={Colors.primary} />
+      </Box>
+      <Box className="flex-1 justify-center gap-0.5">
+        <Text size="sm" className="font-semibold text-typography-900 leading-tight" numberOfLines={1}>{title}</Text>
+        <Text size="xs" className="text-typography-500" numberOfLines={1}>{subtitle}</Text>
+      </Box>
+      <Box className="items-end justify-center pl-2">
+        <Text size="xs" className="font-medium text-typography-400 text-[10px]">{time}</Text>
+      </Box>
+    </HStack>
+  </BouncyPressable>
+);
+
+const PulsingSparkles = () => {
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.2, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Sparkles size={16} color={Colors.primary} />
+    </Animated.View>
+  );
+};
+
+const DashboardSkeleton = () => (
+  <VStack space="md" className="flex-1 p-5 pt-24">
+    {/* Stats Row Skeleton */}
+    <HStack space="md" className="mb-6">
+      {[1, 2, 3].map((i) => (
+        <Box key={i} className="flex-1 h-[100px] rounded-3xl bg-white border border-outline-100 p-4 justify-between">
+          <Skeleton variant="rounded" className="h-4 w-16 rounded" />
+          <SkeletonText _lines={1} className="h-6 w-20 rounded" />
+          <SkeletonText _lines={1} className="h-3 w-12 rounded" />
+        </Box>
+      ))}
+    </HStack>
+
+    {/* Split Section Skeleton */}
+    <HStack space="md" className="h-[220px] mb-8">
+      <Box className="flex-1 rounded-3xl bg-white border border-outline-100 p-5">
+        <HStack className="justify-between mb-4">
+          <Skeleton variant="rounded" className="h-6 w-20 rounded" />
+          <Skeleton variant="circular" className="h-4 w-4" />
+        </HStack>
+        <VStack space="md">
+          <SkeletonText _lines={3} className="h-4 w-full rounded" />
+        </VStack>
+      </Box>
+      <Box className="flex-1 rounded-3xl bg-white border border-outline-100 p-5">
+        <HStack className="justify-between mb-4">
+          <Skeleton variant="rounded" className="h-6 w-24 rounded" />
+          <Skeleton variant="circular" className="h-4 w-4" />
+        </HStack>
+        <VStack space="md">
+          <Skeleton variant="rounded" className="h-4 w-full rounded" />
+          <Skeleton variant="rounded" className="h-20 w-full rounded" />
+        </VStack>
+      </Box>
+    </HStack>
+
+    {/* Activity Skeleton */}
+    <VStack space="md">
+      <Skeleton variant="rounded" className="h-5 w-32 mb-4 rounded" />
+      <Box className="rounded-3xl bg-white border border-outline-100 p-2">
+        {[1, 2, 3].map((i) => (
+          <HStack key={i} className="p-3 gap-3 items-center">
+            <Skeleton variant="circular" className="h-10 w-10" />
+            <VStack className="flex-1 gap-2">
+              <SkeletonText _lines={1} className="h-4 w-32 rounded" />
+              <SkeletonText _lines={1} className="h-3 w-20 rounded" />
+            </VStack>
+          </HStack>
+        ))}
+      </Box>
+    </VStack>
+  </VStack>
 );
 
 export default function Dashboard() {
@@ -188,8 +332,8 @@ export default function Dashboard() {
     setMagicPreview(null);
     setSelectedAssigneeId(null);
     setShowAssigneeSelector(false);
-    // Limpar o parâmetro action da URL quando fechar o modal magic
-    if (params.action === 'magic') {
+    // Limpar o parâmetro action da URL quando fechar qualquer modal
+    if (params.action === 'magic' || params.action === 'briefing') {
       router.setParams({ action: undefined } as any);
     }
   };
@@ -199,12 +343,18 @@ export default function Dashboard() {
       setModalMode('magic');
       setMagicInput('');
       setMagicPreview(null);
-    } else if (params.action === undefined && modalMode === 'magic') {
+    } else if (params.action === 'briefing') {
+      setModalMode('briefing');
+    } else if (params.action === undefined) {
       // Se o parâmetro foi removido e o modal ainda está aberto, fecha o modal
       // Mas não chama closeModal() para evitar loop, apenas fecha o estado
-      setModalMode(null);
-      setMagicInput('');
-      setMagicPreview(null);
+      if (modalMode === 'magic') {
+        setModalMode(null);
+        setMagicInput('');
+        setMagicPreview(null);
+      } else if (modalMode === 'briefing') {
+        setModalMode(null);
+      }
     }
   }, [params.action]);
   const [loading, setLoading] = useState(false);
@@ -234,11 +384,13 @@ export default function Dashboard() {
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(houseId);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
 
+  const isLoading = tasksLoading || expensesLoading || membersLoading;
+
   // Atualização em tempo real
   useRealtimeTasks(houseId);
   useRealtimeExpenses(houseId);
 
-      const { data: budgetLimit } = useBudgetLimit(houseId);
+  const { data: budgetLimit } = useBudgetLimit(houseId);
 
   const financialSummary = useMemo(() => {
     const now = new Date();
@@ -250,8 +402,8 @@ export default function Dashboard() {
       return expenseDate >= startOfMonth && expenseDate <= endOfMonth;
     });
 
-        const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-        const limit = budgetLimit ? Number(budgetLimit.amount) : 0;
+    const spent = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    const limit = budgetLimit ? Number(budgetLimit.amount) : 0;
     const percent = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
     return {
@@ -259,7 +411,7 @@ export default function Dashboard() {
       limit: limit.toFixed(2).replace('.', ','),
       percent: Math.min(percent, 100)
     };
-      }, [expenses, budgetLimit]);
+  }, [expenses, budgetLimit]);
 
   const pendingTasksCount = useMemo(() => {
     return tasks.filter(task => task.status === 'PENDING').length;
@@ -277,7 +429,16 @@ export default function Dashboard() {
   }, [tasks]);
 
   const recentActivity = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // 1. Filter expenses: Current Month only, sort desc, take top 3
     const recentExpenses = expenses
+      .filter(e => {
+        const date = new Date(e.expenseDate);
+        return date >= startOfMonth && date <= endOfMonth;
+      })
       .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
       .slice(0, 3)
       .map(e => ({
@@ -289,8 +450,13 @@ export default function Dashboard() {
         time: new Date(e.expenseDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }));
 
+    // 2. Filter tasks: Completed, Current Month (updatedAt), sort desc, take top 3
     const recentTasks = tasks
-      .filter(t => t.status === 'COMPLETED')
+      .filter(t => {
+        if (t.status !== 'COMPLETED') return false;
+        const date = new Date(t.updatedAt);
+        return date >= startOfMonth && date <= endOfMonth;
+      })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 3)
       .map(t => ({
@@ -302,9 +468,9 @@ export default function Dashboard() {
         time: new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }));
 
+    // 3. Merge and sort by date desc
     return [...recentExpenses, ...recentTasks]
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 4);
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [expenses, tasks]);
 
   // --- Handlers (Mantidos) ---
@@ -355,6 +521,8 @@ export default function Dashboard() {
 
   const handleDailyBriefing = async () => {
     setModalMode('briefing');
+    // Set param so TabBar can detect modal is open
+    router.setParams({ action: 'briefing' } as any);
     // ...
   };
 
@@ -375,107 +543,115 @@ export default function Dashboard() {
 
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <View style={styles.modalHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <HStack space="sm" className="justify-between items-center mb-6">
+          <HStack space="sm" className="items-center">
             {isUserMenu ? <User size={20} color={Colors.primary} /> : <Sparkles size={20} color={Colors.primary} />}
-            <Text style={styles.modalTitle}>
+            <Heading size="lg" className="text-primary-500 font-bold">
               {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : isUserMenu ? 'Perfil' : 'Análise Financeira'}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={closeModal}>
+            </Heading>
+          </HStack>
+          <Pressable onPress={closeModal}>
             <X size={24} color={Colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+          </Pressable>
+        </HStack>
 
-        <View style={styles.modalBody}>
+        <Box style={styles.modalBody} className="flex-1">
           {/* User Menu Modal */}
           {isUserMenu && (
-            <View style={{ gap: 16 }}>
-              <TouchableOpacity style={styles.menuItem} onPress={closeModal}>
-                <View style={styles.menuIconBg}>
-                  <User size={20} color={Colors.primary} />
-                </View>
-                <Text style={styles.menuItemText}>Meu Perfil</Text>
-              </TouchableOpacity>
+            <VStack space="md">
+              <Pressable style={styles.menuItem} onPress={closeModal}>
+                <HStack space="md" className="items-center">
+                  <Box style={styles.menuIconBg}>
+                    <User size={20} color={Colors.primary} />
+                  </Box>
+                  <Text size="lg" className="font-medium text-typography-900">Meu Perfil</Text>
+                </HStack>
+              </Pressable>
 
-              <TouchableOpacity style={styles.menuItem} onPress={() => {
+              <Pressable style={styles.menuItem} onPress={() => {
                 closeModal();
                 router.push('/(tabs)/house' as any);
               }}>
-                <View style={styles.menuIconBg}>
-                  <Home size={20} color={Colors.primary} />
-                </View>
-                <Text style={styles.menuItemText}>Minha Casa</Text>
-              </TouchableOpacity>
+                <HStack space="md" className="items-center">
+                  <Box style={styles.menuIconBg}>
+                    <Home size={20} color={Colors.primary} />
+                  </Box>
+                  <Text size="lg" className="font-medium text-typography-900">Minha Casa</Text>
+                </HStack>
+              </Pressable>
 
-              <TouchableOpacity style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: Colors.palette.merino, paddingTop: 16, marginTop: 8 }]} onPress={async () => {
+              <Pressable style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: Colors.palette.merino, paddingTop: 16, marginTop: 8 }]} onPress={async () => {
                 closeModal();
                 await signOut();
                 router.replace('/(auth)/login' as any);
               }}>
-                <View style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.1)' }]}>
-                  <LogOut size={20} color="#FF4F4F" />
-                </View>
-                <Text style={[styles.menuItemText, { color: '#FF4F4F' }]}>Sair da Conta</Text>
-              </TouchableOpacity>
-            </View>
+                <HStack space="md" className="items-center">
+                  <Box style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.1)' }]}>
+                    <LogOut size={20} color="#FF4F4F" />
+                  </Box>
+                  <Text size="lg" className="font-medium" style={{ color: '#FF4F4F' }}>Sair da Conta</Text>
+                </HStack>
+              </Pressable>
+            </VStack>
           )}
 
           {/* Magic Input Modal */}
           {isMagic && (
-            <View style={{ flex: 1, gap: 16 }}>
-              <Text style={styles.taskDescriptionText}>Descreva o que você precisa (tarefa ou despesa) e eu cuido do resto.</Text>
+            <VStack space="md" className="flex-1">
+              <Text size="sm" className="text-typography-500">Descreva o que você precisa (tarefa ou despesa) e eu cuido do resto.</Text>
 
-              <View style={styles.taskInputWrapper}>
-                <TextInput
-                  style={styles.taskInput}
-                  placeholder="Ex: Comprar leite R$ 5 amanhã..."
-                  placeholderTextColor={Colors.textSecondary}
-                  value={magicInput}
-                  onChangeText={setMagicInput}
-                  onSubmitEditing={handleMagicInput}
-                />
-                <TouchableOpacity
+              <Box style={styles.taskInputWrapper}>
+                <Input>
+                  <InputField
+                    placeholder="Ex: Comprar leite R$ 5 amanhã..."
+                    value={magicInput}
+                    onChangeText={setMagicInput}
+                    onSubmitEditing={handleMagicInput}
+                  />
+                </Input>
+                <Button
+                  size="sm"
+                  action="primary"
                   onPress={handleMagicInput}
                   disabled={loading || !magicInput.trim()}
                   style={[styles.taskSubmitButton, (!magicInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
                 >
                   {loading ? (
-                    <ActivityIndicator size={20} color={Colors.background} />
+                    <Spinner size="small" color={Colors.background} />
                   ) : (
                     <Wand2 size={20} color={Colors.background} />
                   )}
-                </TouchableOpacity>
-              </View>
+                </Button>
+              </Box>
 
               {magicPreview && (
-                <View style={{ gap: 12 }}>
+                <VStack space="md">
                   {(Array.isArray(magicPreview) ? magicPreview : [magicPreview]).map((preview: any, index: number) => (
-                    <View key={index} style={styles.financeResponseContainer}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Box key={index} style={styles.financeResponseContainer}>
+                      <HStack space="sm" className="items-center mb-3">
                         {preview.type === 'expense' ? <Wallet size={20} color={Colors.primary} /> : <CheckCircle size={20} color={Colors.primary} />}
-                        <Text style={styles.taskResponseLabel}>
+                        <Text size="xs" className="font-bold text-primary-500 uppercase tracking-wide">
                           {preview.type === 'expense' ? 'Nova Despesa Detectada' : 'Nova Tarefa Detectada'}
                         </Text>
-                      </View>
-                      <Text style={styles.financeResponseText}>{preview.data.title || preview.data.description}</Text>
+                      </HStack>
+                      <Text size="lg" className="text-typography-900 leading-7">{preview.data.title || preview.data.description}</Text>
                       {preview.type === 'expense' && preview.data.amount && (
-                        <Text style={[styles.subText, { color: Colors.primary }]}>Valor: R$ {preview.data.amount}</Text>
+                        <Text size="sm" className="text-primary-500 mt-[-2px]">Valor: R$ {preview.data.amount}</Text>
                       )}
                       {preview.type === 'task' && preview.data.due_date && (
-                        <Text style={[styles.subText, { color: Colors.primary }]}>
+                        <Text size="sm" className="text-primary-500 mt-[-2px]">
                           Data: {formatTaskDate(preview.data.due_date)}
                         </Text>
                       )}
-                    </View>
+                    </Box>
                   ))}
-                </View>
+                </VStack>
               )}
 
               {/* Seletor de Responsável para Tarefas */}
               {showAssigneeSelector && magicPreview && members.length > 0 && (
-                <View style={{ gap: 12, marginTop: 16 }}>
-                  <Text style={[styles.subText, { fontSize: 14, marginBottom: 8 }]}>
+                <VStack space="md" className="mt-4">
+                  <Text size="sm" className="mb-2">
                     A quem você quer atribuir esta tarefa?
                   </Text>
                   <ScrollView
@@ -485,153 +661,143 @@ export default function Dashboard() {
                     contentContainerStyle={{ gap: 8 }}
                   >
                     {members.map((member) => (
-                      <TouchableOpacity
+                      <Pressable
                         key={member.userId}
                         onPress={() => {
                           setSelectedAssigneeId(member.userId);
                           setShowAssigneeSelector(false);
                         }}
-                        style={[
-                          {
-                            paddingHorizontal: 16,
-                            paddingVertical: 10,
-                            borderRadius: 20,
-                            borderWidth: 2,
-                            borderColor: selectedAssigneeId === member.userId ? Colors.primary : Colors.palette.merino,
-                            backgroundColor: selectedAssigneeId === member.userId ? Colors.primary + '33' : 'transparent',
-                          }
-                        ]}
+                        className={`px-4 py-2.5 rounded-[20px] border-2 ${selectedAssigneeId === member.userId
+                          ? 'border-primary-500 bg-primary-500/20'
+                          : 'border-outline-200 bg-transparent'
+                          }`}
                       >
-                        <Text style={[styles.subText, { color: selectedAssigneeId === member.userId ? Colors.primary : Colors.text, fontSize: 13 }]}>
+                        <Text size="xs" className={selectedAssigneeId === member.userId ? 'text-primary-500' : 'text-typography-900'}>
                           {member.user.name || member.user.email}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </ScrollView>
-                </View>
+                </VStack>
               )}
 
               {magicPreview && (
-                <View style={{ flexDirection: 'row', gap: 12, marginTop: 'auto' }}>
-                  <TouchableOpacity
+                <HStack space="md" className="mt-auto">
+                  <Button
+                    variant="outline"
+                    action="secondary"
                     onPress={() => {
                       setMagicPreview(null);
                       setSelectedAssigneeId(null);
                       setShowAssigneeSelector(false);
                     }}
-                    style={[styles.modalSecondaryButton, { flex: 1, borderColor: Colors.textSecondary }]}
+                    className="flex-1"
                   >
-                    <Text style={[styles.modalSecondaryButtonText, { color: Colors.text }]}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                    <ButtonText>Cancelar</ButtonText>
+                  </Button>
+                  <Button
+                    action="primary"
                     onPress={handleConfirmMagic}
                     disabled={showAssigneeSelector && !selectedAssigneeId}
-                    style={[
-                      styles.modalPrimaryButton,
-                      { flex: 1 },
-                      showAssigneeSelector && !selectedAssigneeId && { opacity: 0.5 }
-                    ]}
+                    className="flex-1"
+                    style={showAssigneeSelector && !selectedAssigneeId ? { opacity: 0.5 } : {}}
                   >
-                    <Text style={styles.modalPrimaryButtonText}>Confirmar</Text>
-                  </TouchableOpacity>
-                </View>
+                    <ButtonText>Confirmar</ButtonText>
+                  </Button>
+                </HStack>
               )}
-            </View>
+            </VStack>
           )}
 
           {/* Finance Modal */}
           {isFinance && (
-            <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
+            <VStack space="md" className="flex-1 justify-center">
               {loading ? (
-                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <ActivityIndicator size="large" color={Colors.primary} />
-                  <Text style={{ color: Colors.textSecondary, marginTop: 8 }}>Calculando...</Text>
-                </View>
+                <VStack space="sm" className="items-center py-8">
+                  <Spinner size="large" color={Colors.primary} />
+                  <Text size="sm" className="text-typography-500 mt-2">Calculando...</Text>
+                </VStack>
               ) : (
                 <>
-                  <View style={styles.financeResponseContainer}>
-                    <Text style={styles.financeResponseText}>{aiResponse}</Text>
-                  </View>
-                  <TouchableOpacity onPress={closeModal} style={styles.modalPrimaryButton}>
-                    <Text style={styles.modalPrimaryButtonText}>Entendido</Text>
-                  </TouchableOpacity>
+                  <Box style={styles.financeResponseContainer}>
+                    <Text size="lg" className="text-typography-900 leading-7">{aiResponse}</Text>
+                  </Box>
+                  <Button action="primary" onPress={closeModal} className="w-full">
+                    <ButtonText>Entendido</ButtonText>
+                  </Button>
                 </>
               )}
-            </View>
+            </VStack>
           )}
 
           {/* Task Planner Modal */}
           {isTask && (
-            <View style={{ flex: 1, gap: 16 }}>
-              <Text style={styles.taskDescriptionText}>Diga uma meta e eu crio o plano.</Text>
+            <VStack space="md" className="flex-1">
+              <Text size="sm" className="text-typography-500">Diga uma meta e eu crio o plano.</Text>
 
-              <View style={styles.taskInputWrapper}>
-                <TextInput
-                  style={styles.taskInput}
-                  placeholder="Ex: Organizar festa surpresa..."
-                  placeholderTextColor={Colors.textSecondary}
-                  value={taskInput}
-                  onChangeText={setTaskInput}
-                  onSubmitEditing={handleSmartTask}
-                />
-                <TouchableOpacity
+              <Box style={styles.taskInputWrapper}>
+                <Input>
+                  <InputField
+                    placeholder="Ex: Organizar festa surpresa..."
+                    value={taskInput}
+                    onChangeText={setTaskInput}
+                    onSubmitEditing={handleSmartTask}
+                  />
+                </Input>
+                <Button
+                  size="sm"
+                  action="primary"
                   onPress={handleSmartTask}
                   disabled={loading || !taskInput.trim()}
                   style={[styles.taskSubmitButton, (!taskInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
                 >
                   {loading ? (
-                    <ActivityIndicator size={20} color={Colors.background} />
+                    <Spinner size="small" color={Colors.background} />
                   ) : (
                     <Sparkles size={20} color={Colors.background} />
                   )}
-                </TouchableOpacity>
-              </View>
+                </Button>
+              </Box>
 
               {aiResponse && (
-                <View style={styles.taskResponseContainer}>
-                  <Text style={styles.taskResponseLabel}>Checklist Sugerido</Text>
-                  <Text style={styles.taskResponseText}>{aiResponse}</Text>
-                </View>
+                <Box style={styles.taskResponseContainer} className="flex-1">
+                  <Text size="xs" className="font-bold text-primary-500 uppercase tracking-wide mb-2">Checklist Sugerido</Text>
+                  <Text size="md" className="text-typography-900 leading-7">{aiResponse}</Text>
+                </Box>
               )}
 
               {aiResponse && (
-                <TouchableOpacity
-                  onPress={closeModal}
-                  style={styles.modalSecondaryButton}
-                >
-                  <Text style={styles.modalSecondaryButtonText}>Adicionar Tarefas</Text>
-                </TouchableOpacity>
+                <Button variant="outline" action="primary" onPress={closeModal} className="w-full">
+                  <ButtonText>Adicionar Tarefas</ButtonText>
+                </Button>
               )}
-            </View>
+            </VStack>
           )}
 
           {/* Daily Briefing Modal */}
           {isBriefing && (
-            <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
+            <VStack space="md" className="flex-1 justify-center">
               {loading ? (
-                <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                  <ActivityIndicator size="large" color={Colors.primary} />
-                  <Text style={{ color: Colors.textSecondary, marginTop: 8 }}>Preparando seu briefing...</Text>
-                </View>
+                <VStack space="sm" className="items-center py-8">
+                  <Spinner size="large" color={Colors.primary} />
+                  <Text size="sm" className="text-typography-500 mt-2">Preparando seu briefing...</Text>
+                </VStack>
               ) : (
                 <>
-                  <View style={styles.briefingContainer}>
+                  <Box style={styles.briefingContainer}>
                     <LinearGradient
                       colors={[Colors.palette.merino, 'transparent']}
                       style={StyleSheet.absoluteFill}
                     />
-                    <Text style={styles.briefingLabel}>EXECUTIVE SUMMARY</Text>
-                    <Text style={styles.briefingText}>"{aiResponse}"</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={closeModal}
-                    style={styles.briefingCloseButton}
-                  >
-                    <Text style={styles.briefingCloseButtonText}>Fechar</Text>
-                  </TouchableOpacity>
+                    <Text size="xs" className="font-bold text-typography-500 uppercase tracking-[2px] mb-4">EXECUTIVE SUMMARY</Text>
+                    <Text size="xl" className="text-typography-900 italic leading-7 font-light">"{aiResponse}"</Text>
+                  </Box>
+                  <Button variant="outline" action="primary" onPress={closeModal} className="w-full bg-primary-500/10">
+                    <ButtonText className="text-primary-500 font-bold">Fechar</ButtonText>
+                  </Button>
                 </>
               )}
-            </View>
+            </VStack>
           )}
 
           {/* Chat Modal */}
@@ -639,244 +805,276 @@ export default function Dashboard() {
             <>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
                 {chatHistory.map((msg, idx) => (
-                  <View key={idx} style={[
-                    styles.chatBubbleContainer,
-                    msg.role === 'user' ? { flexDirection: 'row-reverse' } : { flexDirection: 'row' }
-                  ]}>
+                  <HStack
+                    key={idx}
+                    space="sm"
+                    className={`items-start ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                  >
                     {msg.role === 'model' && (
-                      <View style={styles.chatAvatar}>
+                      <Box style={styles.chatAvatar}>
                         <Sparkles size={16} color={Colors.background} />
-                      </View>
+                      </Box>
                     )}
-                    <View style={[
+                    <Box style={[
                       styles.chatBubble,
                       msg.role === 'user' ? styles.chatUser : styles.chatModel
                     ]}>
-                      <Text style={msg.role === 'user' ? styles.chatTextUser : styles.chatTextModel}>
+                      <Text size="sm" className={msg.role === 'user' ? 'text-background-0 leading-5' : 'text-typography-900 leading-5'}>
                         {msg.text}
                       </Text>
-                    </View>
+                    </Box>
                     {msg.role === 'user' && (
-                      <View style={[styles.chatAvatar, { backgroundColor: Colors.palette.razzmatazz }]}>
+                      <Box style={[styles.chatAvatar, { backgroundColor: Colors.palette.razzmatazz }]}>
                         <User size={16} color="white" />
-                      </View>
+                      </Box>
                     )}
-                  </View>
+                  </HStack>
                 ))}
                 {loading && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={styles.chatAvatar}>
-                      <ActivityIndicator size={16} color={Colors.background} />
-                    </View>
-                    <View style={styles.chatLoadingBubble}>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        <View style={[styles.chatDot, { animationDelay: '0ms' }]} />
-                        <View style={[styles.chatDot, { animationDelay: '150ms' }]} />
-                        <View style={[styles.chatDot, { animationDelay: '300ms' }]} />
-                      </View>
-                    </View>
-                  </View>
+                  <HStack space="sm" className="items-center">
+                    <Box style={styles.chatAvatar}>
+                      <Spinner size="small" color={Colors.background} />
+                    </Box>
+                    <Box style={styles.chatLoadingBubble}>
+                      <HStack space="xs" className="gap-1">
+                        <Box style={[styles.chatDot, { animationDelay: '0ms' }]} />
+                        <Box style={[styles.chatDot, { animationDelay: '150ms' }]} />
+                        <Box style={[styles.chatDot, { animationDelay: '300ms' }]} />
+                      </HStack>
+                    </Box>
+                  </HStack>
                 )}
               </ScrollView>
 
-              <View style={[styles.inputContainer, { marginBottom: 20 }]}>
-                <TextInput
-                  style={styles.chatInput}
-                  placeholder="Pergunte algo à Luma..."
-                  placeholderTextColor={Colors.textSecondary}
-                  value={chatInput}
-                  onChangeText={setChatInput}
-                  onSubmitEditing={handleSendMessage}
-                />
-                <TouchableOpacity
+              <HStack space="md" className="mt-auto mb-5">
+                <Input className="flex-1">
+                  <InputField
+                    placeholder="Pergunte algo à Luma..."
+                    value={chatInput}
+                    onChangeText={setChatInput}
+                    onSubmitEditing={handleSendMessage}
+                  />
+                </Input>
+                <Button
+                  size="sm"
+                  action="primary"
                   onPress={handleSendMessage}
                   disabled={!chatInput.trim() || loading}
                   style={[styles.chatSendButton, (!chatInput.trim() || loading) && styles.chatSendButtonDisabled]}
                 >
                   <Send size={18} color={Colors.background} />
-                </TouchableOpacity>
-              </View>
+                </Button>
+              </HStack>
             </>
           )}
-        </View>
+        </Box>
       </KeyboardAvoidingView>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <Box style={styles.container}>
       {/* Light Theme Background */}
-      <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
+      <Box style={[styles.absoluteFill, { backgroundColor: Colors.background }]} />
 
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {isLoading ? (
+          <DashboardSkeleton />
+        ) : (
+          <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
 
-          {/* New Header */}
-          <View style={styles.headerContainer}>
-            <View style={styles.houseSelector}>
-              <View style={styles.houseIconBg}>
-                <Text style={styles.houseInitial}>{houseName.charAt(0)}</Text>
-              </View>
-              <Text style={styles.houseName}>{houseName}</Text>
-              <ChevronDown size={16} color={Colors.textSecondary} />
-            </View>
-            <TouchableOpacity onPress={() => setModalMode('user_menu')}>
-              <View style={styles.userAvatar}>
-                <User size={20} color={Colors.background} />
-              </View>
-            </TouchableOpacity>
-          </View>
+            {/* New Header */}
+            <HStack space="md" className="justify-between items-center px-5 pt-5 mb-6">
+              <HStack space="md" className="items-center">
+                <Box style={styles.houseIconBg}>
+                  <Text style={styles.houseInitial}>{houseName.charAt(0)}</Text>
+                </Box>
+                <Text size="lg" className="font-semibold text-typography-900">{houseName}</Text>
+                <ChevronDown size={16} color={Colors.textSecondary} />
+              </HStack>
+              <Pressable onPress={() => setModalMode('user_menu')}>
+                <Box style={styles.userAvatar}>
+                  <User size={20} color={Colors.background} />
+                </Box>
+              </Pressable>
+            </HStack>
 
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <StatCard
-              icon={Wallet}
-              label="Finanças"
-              value={`R$ ${financialSummary.spent}`}
-              subtext={`${financialSummary.percent}% do limite`}
-              highlight={financialSummary.percent > 80}
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push('/(tabs)/finances' as any);
-              }}
-            />
-            <StatCard
-              icon={ListTodo}
-              label="Tarefas"
-              value={pendingTasksCount.toString()}
-              subtext="pendentes"
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push('/(tabs)/tasks' as any);
-              }}
-            />
-            <StatCard
-              icon={Users}
-              label="Membros"
-              value={members.length.toString()}
-              subtext="na casa"
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push('/(tabs)/house' as any);
-              }}
-            />
-          </View>
+            {/* Stats Row */}
+            <Animated.View entering={FadeInDown.delay(100).springify()}>
+              <HStack space="md" className="px-5 mb-6">
+                <StatCard
+                  icon={Wallet}
+                  label="Finanças"
+                  value={`R$ ${financialSummary.spent}`}
+                  subtext={`${financialSummary.percent}% do limite`}
+                  highlight={financialSummary.percent > 80}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push('/(tabs)/finances' as any);
+                  }}
+                />
+                <StatCard
+                  icon={ListTodo}
+                  label="Tarefas"
+                  value={pendingTasksCount.toString()}
+                  subtext="pendentes"
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push('/(tabs)/tasks' as any);
+                  }}
+                />
+                <StatCard
+                  icon={Users}
+                  label="Membros"
+                  value={members.length.toString()}
+                  subtext="na casa"
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push('/(tabs)/house' as any);
+                  }}
+                />
+              </HStack>
+            </Animated.View>
 
-          {/* Split Section */}
-          <View style={styles.splitSection}>
-            {/* Left: Tasks */}
-            <GlassCard style={[styles.splitCard, styles.splitCardLeft]} variant="primary">
-              <View style={styles.splitHeader}>
-                <Text style={[styles.splitTitle, { color: Colors.text }]}>Tarefas</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/tasks' as any)}>
-                  <ArrowUpRight size={16} color={Colors.text} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.miniTaskList}>
-                {topPendingTasks.length > 0 ? (
-                  topPendingTasks.map(task => (
-                    <View key={task.id} style={styles.miniTaskItem}>
-                      <View style={styles.miniTaskCheckbox} />
-                      <Text style={styles.miniTaskText} numberOfLines={1}>{task.title}</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={[styles.miniTaskText, { opacity: 0.6 }]}>Tudo feito!</Text>
-                )}
-              </View>
-              <TouchableOpacity
-                style={styles.miniFab}
-                onPress={() => router.push('/(tabs)/tasks?action=create' as any)}
-              >
-                <Plus size={20} color={Colors.background} />
-              </TouchableOpacity>
-            </GlassCard>
+            {/* Split Section */}
+            <Animated.View entering={FadeInDown.delay(200).springify()}>
+              <HStack space="md" className="px-5 h-[220px] mb-8">
+                {/* Left: Tasks */}
+                <GlassCard style={[styles.splitCard, styles.splitCardLeft]} variant="primary" className="flex-1">
+                  <HStack space="md" className="justify-between items-center mb-4">
+                    <Heading size="md" className="text-typography-900">Tarefas</Heading>
+                    <Pressable onPress={() => router.push('/(tabs)/tasks' as any)}>
+                      <ArrowUpRight size={16} color={Colors.text} />
+                    </Pressable>
+                  </HStack>
+                  <VStack space="md" className="flex-1">
+                    {topPendingTasks.length > 0 ? (
+                      topPendingTasks.map(task => (
+                        <HStack key={task.id} space="sm" className="items-center">
+                          <Box style={styles.miniTaskCheckbox} />
+                          <Text size="sm" className="font-medium text-typography-900 flex-1" isTruncated>{task.title}</Text>
+                        </HStack>
+                      ))
+                    ) : (
+                      <Text size="sm" className="font-medium text-typography-900 opacity-60">Tudo feito!</Text>
+                    )}
+                  </VStack>
+                  <Pressable
+                    style={styles.miniFab}
+                    onPress={() => router.push('/(tabs)/tasks?action=create' as any)}
+                  >
+                    <Plus size={20} color={Colors.background} />
+                  </Pressable>
+                </GlassCard>
 
-            {/* Right: Notes/Insight */}
-            <LiquidGlassCard style={[styles.splitCard, styles.splitCardRight]} intensity={40}>
-              <View style={styles.splitHeader}>
-                <Text style={styles.splitTitle}>Luma Insight</Text>
-                <TouchableOpacity onPress={handleDailyBriefing}>
-                  <Sparkles size={16} color={Colors.primary} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.noteContent}>
-                <View style={styles.noteTagsRow}>
-                  <View style={styles.noteTag}>
-                    <Text style={styles.noteTagText}>Finance</Text>
-                  </View>
-                  <View style={styles.noteTag}>
-                    <Text style={styles.noteTagText}>Tips</Text>
-                  </View>
-                </View>
-                <View style={styles.noteLines}>
-                  <View style={styles.noteLine} />
-                  <View style={styles.noteLine} />
-                  <View style={[styles.noteLine, { width: '60%' }]} />
-                </View>
-                <TouchableOpacity
-                  style={[styles.miniFab, { backgroundColor: Colors.primary + '1A' }]}
-                  onPress={handleFinancialInsight}
-                >
-                  <Plus size={20} color={Colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </LiquidGlassCard>
-          </View>
+                {/* Right: Notes/Insight */}
+                <LiquidGlassCard style={StyleSheet.flatten([styles.splitCard, styles.splitCardRight, { flex: 1 }])} intensity={40}>
+                  <HStack space="md" className="justify-between items-center mb-4">
+                    <Heading size="md">Luma Insight</Heading>
+                    <Pressable onPress={handleDailyBriefing}>
+                      <PulsingSparkles />
+                    </Pressable>
+                  </HStack>
+                  <Box style={styles.noteContent} className="flex-1">
+                    <HStack space="sm" className="mb-4">
+                      <Box style={styles.noteTag}>
+                        <Text size="xs" className="font-semibold text-primary-500">Finance</Text>
+                      </Box>
+                      <Box style={styles.noteTag}>
+                        <Text size="xs" className="font-semibold text-primary-500">Tips</Text>
+                      </Box>
+                    </HStack>
+                    <VStack space="md" className="mt-2">
+                      <Box style={styles.noteLine} />
+                      <Box style={styles.noteLine} />
+                      <Box style={[styles.noteLine, { width: '60%' }]} />
+                    </VStack>
+                    <Pressable
+                      style={[styles.miniFab, { backgroundColor: Colors.primary + '1A' }]}
+                      onPress={handleFinancialInsight}
+                    >
+                      <Plus size={20} color={Colors.primary} />
+                    </Pressable>
+                  </Box>
+                </LiquidGlassCard>
+              </HStack>
+            </Animated.View>
 
-          {/* Activity Feed */}
-          <View style={styles.activitySection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MessageCircle size={16} color={Colors.textSecondary} />
-                <Text style={styles.sectionTitle}>Atividade Recente</Text>
-              </View>
-            </View>
-            <View style={styles.activityList}>
-              {recentActivity.length > 0 ? (
-                recentActivity.map((item, index) => (
-                  <ActivityItem
-                    key={`${item.type}-${item.id}-${index}`}
-                    icon={item.type === 'finance' ? Wallet : CheckCircle}
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    time={item.time}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      if (item.type === 'finance') {
-                        router.push({
-                          pathname: '/(tabs)/finances/[id]',
-                          params: { id: item.id },
-                        } as any);
-                      } else {
-                        router.push({
-                          pathname: '/(tabs)/tasks/[id]',
-                          params: { id: item.id },
-                        } as any);
-                      }
-                    }}
-                  />
-                ))
-              ) : (
-                <Text style={styles.emptyStateText}>Nenhuma atividade recente</Text>
-              )}
-            </View>
-          </View>
+            {/* Activity Feed */}
+            <Animated.View entering={FadeInDown.delay(300).springify()}>
+              <VStack space="md" className="px-5 mb-6">
+                <HStack space="sm" className="items-center mb-4">
+                  <MessageCircle size={16} color={Colors.textSecondary} />
+                  <Heading size="sm" className="font-semibold text-typography-900">Atividade Recente</Heading>
+                </HStack>
+                <Box style={styles.activityList}>
+                  {recentActivity.length > 0 ? (
+                    <>
+                      {recentActivity.map((item, index) => (
+                        <Animated.View
+                          key={`${item.type}-${item.id}-${index}`}
+                          entering={FadeInDown.delay(400 + index * 100).springify()}
+                        >
+                          <ActivityItem
+                            icon={item.type === 'finance' ? Wallet : CheckCircle}
+                            title={item.title}
+                            subtitle={item.subtitle}
+                            time={item.time}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              if (item.type === 'finance') {
+                                router.push({
+                                  pathname: '/(tabs)/finances/[id]',
+                                  params: { id: item.id },
+                                } as any);
+                              } else {
+                                router.push({
+                                  pathname: '/(tabs)/tasks/[id]',
+                                  params: { id: item.id },
+                                } as any);
+                              }
+                            }}
+                          />
+                        </Animated.View>
+                      ))}
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          router.push('/activity-history' as any);
+                        }}
+                        style={styles.viewHistoryButton}
+                      >
+                        <Text size="sm" className="text-primary-500 font-semibold text-center">
+                          Ver Histórico Completo
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Text size="sm" className="text-center py-5 text-typography-500">Nenhuma atividade recente</Text>
+                  )}
+                </Box>
+              </VStack>
+            </Animated.View>
 
-        </ScrollView>
+          </ScrollView>
+        )}
       </SafeAreaView>
 
       {/* Full Screen Modal */}
-      <Modal visible={!!modalMode} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContainer}>
-            <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
-            {renderModalContent()}
-          </View>
-        </View>
+      <Modal isOpen={!!modalMode} onClose={closeModal} size="full">
+        <ModalBackdrop />
+        {/* Blur backdrop effect */}
+        <BlurView
+          intensity={80}
+          tint="light"
+          style={StyleSheet.absoluteFill}
+        />
+        <ModalContent style={styles.modalContainer}>
+          <Box style={[styles.absoluteFill, { backgroundColor: Colors.background }]} />
+          {renderModalContent()}
+        </ModalContent>
       </Modal>
-    </View>
+    </Box>
   );
 }
 
@@ -965,17 +1163,20 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   statValue: {
     color: Colors.text,
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   statSubtext: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: '500',
   },
 
   // Split Section
@@ -1004,9 +1205,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   splitTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.text,
+    letterSpacing: -0.3,
   },
 
   // Mini Task List
@@ -1096,27 +1298,28 @@ const styles = StyleSheet.create({
   },
   activityList: {
     backgroundColor: '#FFF',
-    borderRadius: 24,
-    padding: 8,
+    borderRadius: 20,
+    padding: 0,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(0,0,0,0.04)',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    overflow: 'hidden',
   },
   activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.03)',
   },
   activityIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.accent + '20',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.primary + '08', // More subtle background
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1124,7 +1327,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   activitySubtitle: {
     color: Colors.textSecondary,
@@ -1133,9 +1336,15 @@ const styles = StyleSheet.create({
   },
   activityTime: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
-    opacity: 0.6,
+    opacity: 0.5,
+  },
+  viewHistoryButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.03)',
   },
   emptyStateText: {
     padding: 20,
@@ -1190,4 +1399,11 @@ const styles = StyleSheet.create({
   chatLoadingBubble: { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, borderTopLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
   chatDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.textSecondary },
   subText: { color: Colors.textSecondary, fontSize: 14, marginTop: -2 },
+  absoluteFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
 });

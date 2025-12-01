@@ -130,8 +130,8 @@ const DateStrip = ({ compact }: { compact: boolean }) => {
               key={i}
               onPress={() => Haptics.selectionAsync()}
               className={`items-center justify-center border transition-all duration-300 ${compact
-                  ? 'w-12 h-12 rounded-full'
-                  : 'w-[60px] h-[85px] rounded-[24px]'
+                ? 'w-12 h-12 rounded-full'
+                : 'w-[60px] h-[85px] rounded-[24px]'
                 } ${date.active
                   ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
                   : 'bg-white border-slate-200'
@@ -515,8 +515,8 @@ export default function TasksScreen() {
                               setDeadline(opt.value);
                             }}
                             className={`px-4 py-2.5 rounded-xl border ${isSelected
-                                ? 'bg-[#FDE047] border-[#FDE047]'
-                                : 'bg-slate-50 border-slate-100'
+                              ? 'bg-[#FDE047] border-[#FDE047]'
+                              : 'bg-slate-50 border-slate-100'
                               }`}
                           >
                             <Text className={`text-xs font-bold ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>

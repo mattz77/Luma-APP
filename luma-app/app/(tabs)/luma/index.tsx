@@ -21,6 +21,13 @@ import {
   MoreHorizontal,
   ArrowUp
 } from 'lucide-react-native';
+import Animated, {
+  FadeInUp,
+  Layout,
+  FadeIn,
+  ZoomIn
+} from 'react-native-reanimated';
+
 import { Colors } from '@/constants/Colors';
 import { useAuthStore } from '@/stores/auth.store';
 import { useConversations } from '@/hooks/useConversations';
@@ -76,8 +83,9 @@ export default function LumaChatScreen() {
     setErrorMessage(null);
     try {
       await sendMessage(messageToSend);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      await refetch();
+      // Optimistic update or wait for realtime is handled by hooks, 
+      // but we scroll to bottom
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error) {
       setErrorMessage('Não foi possível enviar.');
       setMessage(messageToSend);
@@ -92,25 +100,33 @@ export default function LumaChatScreen() {
     response?: string | null;
     created_at?: string;
   }> = [];
-  
+
   if (conversations) {
+    // Sort conversations by date (oldest first)
+    const sortedConversations = [...conversations].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateA - dateB;
+    });
+
     let lastDateLabel = '';
-    conversations.forEach((conv, index: number) => {
+    sortedConversations.forEach((conv, index: number) => {
       const dateLabel = getMessageDateLabel(conv.createdAt || new Date().toISOString());
       if (dateLabel !== lastDateLabel) {
-        processedConversations.push({ 
-          type: 'date_separator', 
-          label: dateLabel, 
-          id: `date-${dateLabel}-${index}` 
+        processedConversations.push({
+          type: 'date_separator',
+          label: dateLabel,
+          id: `date-${dateLabel}-${index}`
         });
         lastDateLabel = dateLabel;
       }
-      processedConversations.push({ 
-        ...conv, 
+      processedConversations.push({
+        ...conv,
         type: 'message',
         created_at: conv.createdAt
       });
     });
+    console.log('Processed Conversations:', JSON.stringify(processedConversations, null, 2));
   }
 
   return (
@@ -173,66 +189,76 @@ export default function LumaChatScreen() {
             keyExtractor={(item) => item.id}
             refreshing={isRefetching}
             onRefresh={refetch}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
             contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 100 }]}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-            if (item.type === 'date_separator') {
+            renderItem={({ item, index }) => {
+              if (item.type === 'date_separator') {
+                return (
+                  <View style={styles.dateSeparator}>
+                    <View style={styles.datePill}>
+                      <Text style={styles.dateText}>{item.label}</Text>
+                    </View>
+                  </View>
+                );
+              }
+
+              const time = new Date(item.created_at || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
               return (
-                <View style={styles.dateSeparator}>
-                  <BlurView intensity={10} tint="light" style={styles.datePill}>
-                    <Text style={styles.dateText}>{item.label}</Text>
-                  </BlurView>
-                </View>
+                <Animated.View
+                  style={styles.messageRow}
+                  entering={FadeInUp.delay(index * 50).springify()}
+                  layout={Layout.springify()}
+                >
+                  {/* User Message - Rendered FIRST */}
+                  {item.message && (
+                    <View style={styles.userRow}>
+                      <View style={styles.userBubbleWrapper}>
+                        <Text style={styles.userSenderLabel}>{userName}</Text>
+                        <View style={styles.userBubble}>
+                          <Text style={styles.userText}>{item.message}</Text>
+                          <Text style={styles.userTime}>{time}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Luma Response - Rendered SECOND */}
+                  {item.response && (
+                    <View style={styles.lumaRow}>
+                      <View style={styles.lumaAvatarContainer}>
+                        <Sparkles size={12} color={Colors.primary} />
+                      </View>
+                      <View style={styles.lumaBubbleWrapper}>
+                        <Text style={styles.senderLabel}>Luma</Text>
+                        <View style={styles.lumaBubble}>
+                          <Text style={styles.lumaText}>{item.response}</Text>
+                          <Text style={styles.lumaTime}>{time}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </Animated.View>
               );
+            }}
+            ListFooterComponent={
+              isPending ? (
+                <Animated.View
+                  entering={ZoomIn.duration(300)}
+                  layout={Layout.springify()}
+                  style={styles.lumaRow}
+                >
+                  <View style={styles.lumaAvatarContainer}>
+                    <Sparkles size={12} color={Colors.primary} />
+                  </View>
+                  <View style={[styles.lumaBubble, { width: 80, height: 45, justifyContent: 'center', alignItems: 'center', marginLeft: 8 }]}>
+                    <ActivityIndicator size="small" color={Colors.text} />
+                  </View>
+                </Animated.View>
+              ) : null
             }
-
-            const time = new Date(item.created_at || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-            return (
-              <View style={styles.messageRow}>
-                {/* Luma Response */}
-                {item.response && (
-                  <View style={styles.lumaRow}>
-                    <View style={styles.lumaAvatarContainer}>
-                      <Sparkles size={12} color={Colors.primary} />
-                    </View>
-                    <View style={styles.lumaBubbleWrapper}>
-                      <Text style={styles.senderLabel}>Luma</Text>
-                      <View style={styles.lumaBubble}>
-                        <Text style={styles.lumaText}>{item.response}</Text>
-                        <Text style={styles.lumaTime}>{time}</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* User Message */}
-                {item.message && (
-                  <View style={styles.userRow}>
-                    <View style={styles.userBubbleWrapper}>
-                      <Text style={styles.userSenderLabel}>{userName}</Text>
-                      <View style={styles.userBubble}>
-                        <Text style={styles.userText}>{item.message}</Text>
-                        <Text style={styles.userTime}>{time}</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </View>
-            );
-          }}
-          ListFooterComponent={
-            isPending ? (
-              <View style={styles.lumaRow}>
-                <View style={styles.lumaAvatarContainer}>
-                  <Sparkles size={12} color={Colors.primary} />
-                </View>
-                <View style={[styles.lumaBubble, { width: 80, height: 45, justifyContent: 'center', alignItems: 'center', marginLeft: 8 }]}>
-                  <ActivityIndicator size="small" color={Colors.text} />
-                </View>
-              </View>
-            ) : null
-          }
           />
         )}
 
@@ -371,16 +397,17 @@ const styles = StyleSheet.create({
   datePill: {
     borderRadius: 12,
     overflow: 'hidden',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   dateText: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   messageRow: {
     marginBottom: 16,
