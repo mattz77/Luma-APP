@@ -1,1274 +1,594 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
-import { useMemo, useState, useRef } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle2, PlayCircle, XCircle, GripVertical, Plus, ListTodo, ArrowLeft } from 'lucide-react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { StyleSheet, useWindowDimensions, Platform, View, ScrollView as RNScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import Animated, {
-  useAnimatedStyle,
+  FadeIn,
+  FadeInDown,
+  Layout,
+  SlideInDown,
+  SlideOutDown,
   useSharedValue,
+  useAnimatedStyle,
   withSpring,
-  runOnJS,
+  withTiming,
+  interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
+// Gluestack UI imports
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { FlatList } from '@/components/ui/flat-list';
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import { Input, InputField } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Icons
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  Calendar,
+  Home,
+  MessageSquare,
+  Bell,
+  CheckCircle2,
+  Clock,
+  MoreVertical,
+  ChevronLeft,
+  X,
+  User,
+  Zap,
+  LayoutList,
+  AlertCircle
+} from 'lucide-react-native';
+
+// Hooks and services
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
+import { useHouseMembers } from '@/hooks/useHouses';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Task, TaskStatus, TaskPriority } from '@/types/models';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { TagInput } from '@/components/TagInput';
 import { Colors } from '@/constants/Colors';
+import { TagInput } from '@/components/TagInput';
+import { Toast } from '@/components/ui/Toast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-const STATUS_LABELS: Record<TaskStatus, string> = {
-  PENDING: 'Pendentes',
-  IN_PROGRESS: 'Em andamento',
-  COMPLETED: 'Concluídas',
-  CANCELLED: 'Canceladas',
+// --- Constants & Helpers ---
+
+const THEMES = {
+  yellow: { bg: 'bg-[#FDE047]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  lavender: { bg: 'bg-[#DDD6FE]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  dark: { bg: 'bg-[#27272A]', text: 'text-white', badge: 'bg-zinc-800 text-zinc-300', iconBg: 'bg-zinc-700' },
 };
 
-const EMPTY_STATE_LABELS: Record<TaskStatus, string> = {
-  PENDING: 'Nenhuma tarefa pendente.',
-  IN_PROGRESS: 'Nenhuma tarefa em andamento.',
-  COMPLETED: 'Nenhuma tarefa concluída.',
-  CANCELLED: 'Nenhuma tarefa cancelada.',
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  LOW: 'Baixa',
+  MEDIUM: 'Média',
+  HIGH: 'Alta',
+  URGENT: 'Urgente',
 };
 
-type ColumnPosition = { x: number; width: number };
+const formatRelativeDate = (dateString: string | null): string => {
+  if (!dateString) return 'Sem prazo';
+  const date = new Date(dateString);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const taskDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-// --- Light Theme Components ---
-const LightGlassCard = ({ children, style }: any) => (
-  <View style={[styles.glassCard, style]}>
-    <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-    <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', ...StyleSheet.absoluteFillObject }} />
-    <View style={{ zIndex: 10 }}>{children}</View>
-  </View>
-);
+  if (diffDays === 0) return 'Hoje';
+  if (diffDays === 1) return 'Amanhã';
+  if (diffDays === -1) return 'Ontem';
+  if (diffDays > 0 && diffDays <= 7) {
+    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return weekDays[taskDate.getDay()];
+  }
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+};
+
+// --- Components ---
+
+const DateStrip = ({ compact }: { compact: boolean }) => {
+  const dates = useMemo(() => {
+    const arr = [];
+    const today = new Date();
+    for (let i = -1; i < 4; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      arr.push({
+        day: d.getDate(),
+        week: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()],
+        active: i === 0,
+        fullDate: d
+      });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <Animated.View layout={Layout.springify()}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 10 }}>
+        <HStack space="md">
+          {dates.map((date, i) => (
+            <Pressable
+              key={i}
+              onPress={() => Haptics.selectionAsync()}
+              className={`items-center justify-center border transition-all duration-300 ${compact
+                  ? 'w-12 h-12 rounded-full'
+                  : 'w-[60px] h-[85px] rounded-[24px]'
+                } ${date.active
+                  ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
+                  : 'bg-white border-slate-200'
+                }`}
+              style={date.active ? { transform: [{ scale: 1.05 }] } : {}}
+            >
+              <Text className={`font-bold ${compact ? 'text-lg' : 'text-2xl mb-1'
+                } ${date.active ? 'text-black' : 'text-slate-900'}`}>
+                {date.day}
+              </Text>
+              {!compact && (
+                <Text className={`text-xs font-bold uppercase ${date.active ? 'text-black' : 'text-slate-400'}`}>
+                  {date.week}
+                </Text>
+              )}
+            </Pressable>
+          ))}
+        </HStack>
+      </ScrollView>
+    </Animated.View>
+  );
+};
+
+const StatsWidget = ({ totalPoints, completedCount, totalCount }: { totalPoints: number, completedCount: number, totalCount: number }) => {
+  const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  return (
+    <Box className="mx-6 mb-8">
+      <HStack className="justify-between items-end mb-4">
+        <Heading size="lg" className="font-bold text-slate-900">Meu Progresso</Heading>
+        <Text className="text-slate-500 text-sm font-medium">{totalCount - completedCount} restantes</Text>
+      </HStack>
+
+      <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex-row items-center justify-between">
+        <VStack>
+          <Text className="text-4xl font-bold text-slate-900 mb-1">{totalPoints}</Text>
+          <Text className="text-sm text-slate-400 font-medium">Pontos totais</Text>
+        </VStack>
+
+        {/* Simple Circular Progress Simulation */}
+        <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
+          <Box className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45" />
+          <Text className="text-xs font-bold text-slate-900">{percentage}%</Text>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+const BentoTaskCard = ({ task, onPress }: { task: Task, onPress: () => void }) => {
+  // Assign a theme based on priority or random (consistent by ID)
+  const themeKey = useMemo(() => {
+    if (task.priority === 'URGENT') return 'yellow';
+    if (task.priority === 'HIGH') return 'dark';
+    return 'lavender';
+  }, [task.priority]);
+
+  const theme = THEMES[themeKey];
+  const dueDateLabel = formatRelativeDate(task.dueDate);
+
+  return (
+    <Animated.View entering={FadeInDown.springify()} layout={Layout.springify()}>
+      <Pressable
+        onPress={onPress}
+        className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] transition-all ${theme.bg}`}
+      >
+        {/* Header Chips */}
+        <HStack className="justify-between items-start mb-4">
+          <Box className={`px-3 py-1 rounded-full ${theme.badge}`}>
+            <Text className={`text-xs font-bold uppercase tracking-wider ${theme.text} opacity-80`}>
+              {task.tags && task.tags.length > 0 ? task.tags[0] : 'Geral'}
+            </Text>
+          </Box>
+          {task.priority === 'URGENT' && (
+            <HStack space="xs" className="items-center">
+              <Box className="w-2 h-2 rounded-full bg-red-500" />
+              <Text className={`text-xs font-bold ${theme.text}`}>Urgente</Text>
+            </HStack>
+          )}
+        </HStack>
+
+        {/* Content */}
+        <Heading size="xl" className={`font-bold leading-tight mb-2 ${theme.text}`} numberOfLines={2}>
+          {task.title}
+        </Heading>
+
+        <HStack space="xs" className="items-center mb-6 opacity-80">
+          <Clock size={16} color={themeKey === 'dark' ? 'white' : 'black'} />
+          <Text className={`text-sm font-medium ${theme.text}`}>
+            {dueDateLabel}
+          </Text>
+        </HStack>
+
+        {/* Footer info */}
+        <HStack className="items-center justify-between mt-auto">
+          <HStack className="-space-x-2">
+            {task.assignee ? (
+              <Avatar size="sm" className="border-2 border-white">
+                <AvatarFallbackText>{task.assignee.name?.charAt(0) || 'U'}</AvatarFallbackText>
+                {task.assignee.avatarUrl && <AvatarImage source={{ uri: task.assignee.avatarUrl }} />}
+              </Avatar>
+            ) : (
+              <Box className={`w-8 h-8 rounded-full items-center justify-center border-2 border-transparent ${theme.iconBg}`}>
+                <User size={14} color={themeKey === 'dark' ? 'white' : 'black'} />
+              </Box>
+            )}
+            <Box className={`w-8 h-8 rounded-full items-center justify-center ${theme.iconBg}`}>
+              <Plus size={14} color={themeKey === 'dark' ? 'white' : 'black'} />
+            </Box>
+          </HStack>
+
+          <Box className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${themeKey === 'dark' ? 'bg-emerald-500/20' : 'bg-black'}`}>
+            <Zap size={12} color={themeKey === 'dark' ? '#34d399' : '#FDE047'} fill="currentColor" />
+            <Text className={`text-xs font-bold ${themeKey === 'dark' ? 'text-emerald-400' : 'text-[#FDE047]'}`}>
+              +{task.points} pts
+            </Text>
+          </Box>
+        </HStack>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+// --- Main Screen ---
 
 export default function TasksScreen() {
   const router = useRouter();
+  const { action } = useLocalSearchParams<{ action: string }>();
   const houseId = useAuthStore((state) => state.houseId);
   const user = useAuthStore((state) => state.user);
-  const { top } = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-  const isMobile = screenWidth < 768;
-  const { data: tasks, isLoading, isRefetching, refetch } = useTasks(houseId);
-  useRealtimeTasks(houseId);
+  const { top, bottom } = useSafeAreaInsets();
 
-  const columnRefs = useRef<Record<TaskStatus, ColumnPosition>>({
-    PENDING: { x: 0, width: 0 },
-    IN_PROGRESS: { x: 0, width: 0 },
-    COMPLETED: { x: 0, width: 0 },
-    CANCELLED: { x: 0, width: 0 },
-  });
+  const { data: tasks = [], isLoading, isRefetching, refetch } = useTasks(houseId);
+  const { data: members = [] } = useHouseMembers(houseId);
+  useRealtimeTasks(houseId);
 
   const createTaskMutation = useCreateTask();
   const updateTaskMutation = useUpdateTask();
-  const deleteTaskMutation = useDeleteTask();
 
+  // State
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [titleInput, setTitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [priorityInput, setPriorityInput] = useState<TaskPriority>('MEDIUM');
-  const [tagsInput, setTagsInput] = useState<string[]>([]);
-  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
+  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
+
+  // Handle 'create' action from global dock
+  useEffect(() => {
+    if (action === 'create') {
+      setCreateOpen(true);
+    }
+  }, [action]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const completedCount = useMemo(() => tasks.filter(t => t.status === 'COMPLETED').length, [tasks]);
+  const totalPoints = useMemo(() => tasks.reduce((acc, t) => acc + (t.status === 'COMPLETED' ? t.points : 0), 0), [tasks]);
+
+  const displayedTasks = useMemo(() => {
+    if (showCompleted) {
+      return tasks.filter(t => t.status === 'COMPLETED');
+    }
+    return tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'CANCELLED');
+  }, [tasks, showCompleted]);
+
+  const handleSaveTask = async () => {
+    if (!titleInput.trim() || !houseId || !user) {
+      showToast('Preencha o título', 'error');
+      return;
+    }
+
+    try {
+      await createTaskMutation.mutateAsync({
+        house_id: houseId,
+        created_by_id: user.id,
+        assigned_to_id: selectedAssigneeIds[0] || user.id,
+        title: titleInput.trim(),
+        description: descriptionInput.trim() || null,
+        priority: priorityInput,
+        due_date: deadline?.toISOString() || null,
+        tags: [],
+      });
+      showToast('Tarefa criada! 🎉');
+      setCreateOpen(false);
+      setTitleInput('');
+      setDescriptionInput('');
+      setPriorityInput('MEDIUM');
+      setDeadline(null);
+      setSelectedAssigneeIds([]);
+      refetch();
+    } catch (error) {
+      showToast('Erro ao criar tarefa', 'error');
+    }
+  };
+
+  const toggleAssignee = (userId: string) => {
+    Haptics.selectionAsync();
+    setSelectedAssigneeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
   if (!houseId) {
     return (
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
-      >
-        <Text style={styles.emptyTitle}>Selecione uma casa</Text>
-        <Text style={styles.emptySubtitle}>
-          Associe-se a uma casa para acompanhar o Kanban de tarefas colaborativas.
-        </Text>
-      </ScrollView>
+      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+        <AlertCircle size={48} color={Colors.textSecondary} />
+        <Heading size="lg" className="text-slate-900 text-center mt-4">Selecione uma casa</Heading>
+      </Box>
     );
   }
-
-  const pendingTasks = useMemo(() => {
-    return tasks?.filter(task => task.status === 'PENDING').length ?? 0;
-  }, [tasks]);
-
-  const filteredTasks = useMemo(() => {
-    if (!selectedTagFilter || !tasks) return tasks;
-    return tasks.filter((task) => task.tags && task.tags.includes(selectedTagFilter));
-  }, [tasks, selectedTagFilter]);
-
-  const allTags = useMemo(() => {
-    if (!tasks) return [];
-    const tagSet = new Set<string>();
-    tasks.forEach((task) => {
-      if (task.tags) {
-        task.tags.forEach((tag) => tagSet.add(tag));
-      }
-    });
-    return Array.from(tagSet).sort();
-  }, [tasks]);
-
-  const grouped = useMemo(
-    () =>
-      (filteredTasks ?? []).reduce<Record<TaskStatus, typeof filteredTasks>>(
-        (accumulator, task) => {
-          const list = accumulator[task.status] ?? [];
-          return {
-            ...accumulator,
-            [task.status]: [...list, task],
-          };
-        },
-        {
-          PENDING: [],
-          IN_PROGRESS: [],
-          COMPLETED: [],
-          CANCELLED: [],
-        },
-      ),
-    [filteredTasks],
-  );
-
-  const handleColumnLayout = (status: TaskStatus, x: number, width: number) => {
-    columnRefs.current[status] = { x, width };
-  };
 
   return (
     <ErrorBoundary>
-      <View style={styles.container}>
-        {/* Light Background */}
-        <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
+      <Box className="flex-1 bg-[#FDFBF7]">
+        <SafeAreaView className="flex-1" edges={['top']}>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
-          }
-        >
-          <View style={styles.headerSection}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <ArrowLeft size={24} color={Colors.primary} />
-            </TouchableOpacity>
-            <View style={styles.headerIconRow}>
-              <View style={styles.todoIconBg}>
-                <ListTodo size={24} color={Colors.background} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>Tarefas da Casa</Text>
-                <Text style={styles.subtitle}>
-                  {pendingTasks} pendentes
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.subtitleSecondary}>
-              {isMobile
-                ? 'Deslize para ver todas as colunas. Toque para editar.'
-                : 'Arraste tarefas entre colunas ou use os botões de ação.'}
-            </Text>
-
-            {allTags.length > 0 && (
-              <View style={styles.tagsFilterContainer}>
-                <Text style={styles.filterLabel}>Filtrar por tag:</Text>
-                <View style={styles.tagsFilterRow}>
-                  <TouchableOpacity
-                    style={[styles.filterTag, !selectedTagFilter && styles.filterTagActive]}
-                    onPress={() => setSelectedTagFilter(null)}
-                  >
-                    <Text style={[styles.filterTagText, !selectedTagFilter && styles.filterTagTextActive]}>
-                      Todas
-                    </Text>
-                  </TouchableOpacity>
-                  {allTags.map((tag) => (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[styles.filterTag, selectedTagFilter === tag && styles.filterTagActive]}
-                      onPress={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
-                    >
-                      <Text style={[styles.filterTagText, selectedTagFilter === tag && styles.filterTagTextActive]}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={() => {
-                setTitleInput('');
-                setDescriptionInput('');
-                setPriorityInput('MEDIUM');
-                setTagsInput([]);
-                setCreateOpen(true);
-              }}
-            >
-              <Plus size={20} color={Colors.background} />
-              <Text style={styles.primaryActionText}>Nova tarefa</Text>
-            </TouchableOpacity>
-          </View>
-
-          {isMobile ? (
-            <View style={styles.kanbanWrapperMobile}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={true}
-                contentContainerStyle={styles.kanbanScrollContent}
-                style={styles.kanbanScrollView}
-                decelerationRate="normal"
+          {/* Header */}
+          <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
+            <VStack>
+              <Text className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-0.5">
+                Bom dia, {user?.name?.split(' ')[0] || 'Usuário'}!
+              </Text>
+              <HStack space="xs" className="items-center">
+                <Heading size="xl" className="font-bold text-slate-900">Hoje, {new Date().getDate()}</Heading>
+                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+              </HStack>
+            </VStack>
+            <HStack space="sm">
+              <Pressable
+                onPress={() => setCreateOpen(true)}
+                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-95"
               >
-                {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => {
-                  const columnTasks = grouped[status] ?? [];
-                  return (
-                    <LightGlassCard
-                      key={status}
-                      style={styles.columnMobile}
-                    >
-                      <View
-                        onLayout={(e) => {
-                          const { x, width } = e.nativeEvent.layout;
-                          handleColumnLayout(status, x, width);
-                        }}
-                      >
-                        <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
-                        <View style={styles.columnContent}>
-                          {isLoading ? (
-                            <Text style={styles.helperText}>Carregando tarefas...</Text>
-                          ) : columnTasks.length === 0 ? (
-                            <Text style={styles.emptyColumnText}>{EMPTY_STATE_LABELS[status]}</Text>
-                          ) : (
-                            columnTasks.map((task) => (
-                              <DraggableTask
-                                key={task.id}
-                                task={task}
-                                currentStatus={status}
-                                columnRefs={columnRefs.current}
-                                isMobile={true}
-                                onUpdateStatus={(newStatus) =>
-                                  updateTaskMutation
-                                    .mutateAsync({
-                                      id: task.id,
-                                      updates: {
-                                        status: newStatus,
-                                        ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
-                                      },
-                                    })
-                                    .then(() => refetch())
-                                }
-                                onEdit={() => {
-                                  setEditingTaskId(task.id);
-                                  setTitleInput(task.title);
-                                  setDescriptionInput(task.description ?? '');
-                                  setPriorityInput(task.priority);
-                                  setTagsInput(task.tags || []);
-                                  setCreateOpen(true);
-                                }}
-                                onDelete={() =>
-                                  deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(() => refetch())
-                                }
-                                onViewDetails={() => {
-                                  if (task.id) {
-                                    router.push(`/(tabs)/tasks/${task.id}`);
-                                  }
-                                }}
-                              />
-                            ))
-                          )}
-                        </View>
-                      </View>
-                    </LightGlassCard>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          ) : (
-            <View style={styles.kanbanContainer}>
-              {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => {
-                const columnTasks = grouped[status] ?? [];
-                return (
-                  <LightGlassCard
-                    key={status}
-                    style={styles.column}
-                  >
-                    <View
-                      onLayout={(e) => {
-                        const { x, width } = e.nativeEvent.layout;
-                        handleColumnLayout(status, x, width);
-                      }}
-                    >
-                      <Text style={styles.columnTitle}>{STATUS_LABELS[status]}</Text>
-                      <View style={styles.columnContent}>
-                        {isLoading ? (
-                          <Text style={styles.helperText}>Carregando tarefas...</Text>
-                        ) : columnTasks.length === 0 ? (
-                          <Text style={styles.emptyColumnText}>{EMPTY_STATE_LABELS[status]}</Text>
-                        ) : (
-                          columnTasks.map((task) => (
-                            <DraggableTask
-                              key={task.id}
-                              task={task}
-                              currentStatus={status}
-                              columnRefs={columnRefs.current}
-                              isMobile={false}
-                              onUpdateStatus={(newStatus) =>
-                                updateTaskMutation
-                                  .mutateAsync({
-                                    id: task.id,
-                                    updates: {
-                                      status: newStatus,
-                                      ...(newStatus === 'COMPLETED' ? { completed_at: new Date().toISOString() } : {}),
-                                    },
-                                  })
-                                  .then(() => refetch())
-                              }
-                              onEdit={() => {
-                                setEditingTaskId(task.id);
-                                setTitleInput(task.title);
-                                setDescriptionInput(task.description ?? '');
-                                setPriorityInput(task.priority);
-                                setTagsInput(task.tags || []);
-                                setCreateOpen(true);
-                              }}
-                              onDelete={() =>
-                                deleteTaskMutation.mutateAsync({ id: task.id, houseId: task.houseId }).then(() => refetch())
-                              }
-                              onViewDetails={() => {
-                                if (task.id) {
-                                  router.push(`/(tabs)/tasks/${task.id}`);
-                                }
-                              }}
-                            />
-                          ))
-                        )}
-                      </View>
-                    </View>
-                  </LightGlassCard>
-                );
-              })}
-            </View>
-          )}
+                <Plus size={20} className="text-slate-900" />
+              </Pressable>
+              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95">
+                <Search size={18} className="text-slate-900" />
+              </Pressable>
+            </HStack>
+          </Box>
 
+          {/* Date Strip */}
+          <DateStrip compact={isCreateOpen} />
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+            {/* Stats Widget */}
+            <StatsWidget totalPoints={totalPoints} completedCount={completedCount} totalCount={tasks.length} />
+
+            {/* Task List */}
+            <Box className="px-6 space-y-4">
+              <HStack className="justify-between items-center mb-2">
+                <Heading size="xl" className="font-bold text-slate-900">
+                  {showCompleted ? 'Concluídas' : 'Tarefas'}
+                </Heading>
+                <Pressable onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowCompleted(!showCompleted);
+                }}>
+                  <Text className="text-sm text-yellow-600 font-bold">
+                    {showCompleted ? 'Ver pendentes' : 'Ver concluídas'}
+                  </Text>
+                </Pressable>
+              </HStack>
+
+              {isLoading ? (
+                <VStack space="md">
+                  {[1, 2].map((i) => <Skeleton key={i} width="100%" height={160} borderRadius={32} />)}
+                </VStack>
+              ) : (
+                displayedTasks.map((task) => (
+                  <BentoTaskCard
+                    key={task.id}
+                    task={task}
+                    onPress={() => router.push(`/(tabs)/tasks/${task.id}` as any)}
+                  />
+                ))
+              )}
+              {displayedTasks.length === 0 && !isLoading && (
+                <Box className="py-10 items-center opacity-50">
+                  <CheckCircle2 size={48} color="#cbd5e1" />
+                  <Text className="text-slate-400 mt-4 font-medium">
+                    {showCompleted ? 'Nenhuma tarefa concluída ainda.' : 'Tudo feito por hoje!'}
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          </ScrollView>
+
+          {/* New Task Bottom Sheet (Custom Implementation) */}
           {isCreateOpen && (
-            <View style={styles.inlineModalBackdrop}>
-              <LightGlassCard style={styles.inlineModal}>
-                <Text style={styles.modalTitle}>{editingTaskId ? 'Editar tarefa' : 'Nova tarefa'}</Text>
-                <TextInput
-                  value={titleInput}
-                  onChangeText={setTitleInput}
-                  placeholder="Título da tarefa"
-                  placeholderTextColor={Colors.textSecondary}
-                  style={styles.modalInput}
+            <View className="absolute inset-0 z-[2000] justify-end">
+              {/* Backdrop */}
+              <Animated.View
+                entering={FadeIn.duration(300)}
+                className="absolute inset-0 bg-black/30"
+              >
+                <Pressable
+                  className="flex-1"
+                  onPress={() => {
+                    setCreateOpen(false);
+                    router.setParams({ action: '' });
+                  }}
                 />
-                <TextInput
-                  value={descriptionInput}
-                  onChangeText={setDescriptionInput}
-                  placeholder="Descrição (opcional)"
-                  placeholderTextColor={Colors.textSecondary}
-                  style={[styles.modalInput, styles.modalInputMultiline]}
-                  multiline
-                />
+              </Animated.View>
 
-                <Text style={styles.modalLabel}>Tags</Text>
-                <TagInput tags={tagsInput} onChange={setTagsInput} placeholder="Digite e pressione Enter" />
+              {/* Sheet Content */}
+              <Animated.View
+                entering={SlideInDown.springify().damping(15)}
+                exiting={SlideOutDown}
+                className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
+                style={{ backgroundColor: '#FFFFFF' }} // Force white background
+              >
+                <Box className="w-12 h-1 bg-slate-200 rounded-full self-center mb-6" />
 
-                <Text style={styles.modalLabel}>Prioridade</Text>
-                <View style={styles.prioritySelector}>
-                  {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as TaskPriority[]).map((priority) => (
-                    <TouchableOpacity
-                      key={priority}
-                      style={[
-                        styles.priorityChip,
-                        priorityInput === priority && styles.priorityChipSelected,
-                        priority === 'LOW' && priorityInput === priority && styles.priorityChipLow,
-                        priority === 'MEDIUM' && priorityInput === priority && styles.priorityChipMedium,
-                        priority === 'HIGH' && priorityInput === priority && styles.priorityChipHigh,
-                        priority === 'URGENT' && priorityInput === priority && styles.priorityChipUrgent,
-                      ]}
-                      onPress={() => setPriorityInput(priority)}
-                    >
-                      <Text
-                        style={[
-                          styles.priorityChipText,
-                          priorityInput === priority && styles.priorityChipTextSelected,
-                        ]}
-                      >
-                        {priority === 'LOW' ? 'Baixa' : priority === 'MEDIUM' ? 'Média' : priority === 'HIGH' ? 'Alta' : 'Urgente'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={styles.modalSecondary}
+                <HStack className="justify-between items-center mb-6">
+                  <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">Nova Tarefa</Heading>
+                  <Pressable
                     onPress={() => {
                       setCreateOpen(false);
-                      setEditingTaskId(null);
-                      setTitleInput('');
-                      setDescriptionInput('');
-                      setPriorityInput('MEDIUM');
-                      setTagsInput([]);
+                      router.setParams({ action: '' });
                     }}
-                    disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
+                    className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
                   >
-                    <Text style={styles.modalSecondaryText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalPrimary}
-                    disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
-                    onPress={async () => {
-                      if (!titleInput.trim() || !houseId || !user) {
-                        return;
-                      }
-                      if (editingTaskId) {
-                        await updateTaskMutation.mutateAsync({
-                          id: editingTaskId,
-                          updates: {
-                            title: titleInput.trim(),
-                            description: descriptionInput.trim() || null,
-                            priority: priorityInput,
-                            tags: tagsInput,
-                          },
-                        });
-                      } else {
-                        await createTaskMutation.mutateAsync({
-                          house_id: houseId,
-                          created_by_id: user.id,
-                          assigned_to_id: user.id,
-                          title: titleInput.trim(),
-                          description: descriptionInput.trim() || null,
-                          priority: priorityInput,
-                          tags: tagsInput,
-                        });
-                      }
-                      setCreateOpen(false);
-                      setEditingTaskId(null);
-                      setTitleInput('');
-                      setDescriptionInput('');
-                      setPriorityInput('MEDIUM');
-                      setTagsInput([]);
-                      refetch();
-                    }}
+                    <X size={16} className="text-slate-900" />
+                  </Pressable>
+                </HStack>
+
+                <VStack space="lg" className="flex-1">
+                  <VStack space="xs">
+                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
+                    <Input className="h-14 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
+                      <InputField
+                        placeholder="Ex: Comprar leite..."
+                        value={titleInput}
+                        onChangeText={setTitleInput}
+                        className="text-lg font-medium text-slate-900"
+                        placeholderTextColor="#94a3b8"
+                        autoFocus
+                      />
+                    </Input>
+                  </VStack>
+
+                  <VStack space="xs">
+                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Descrição</Text>
+                    <Input className="h-24 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
+                      <InputField
+                        placeholder="Adicione detalhes..."
+                        value={descriptionInput}
+                        onChangeText={setDescriptionInput}
+                        multiline
+                        textAlignVertical="top"
+                        className="py-3 text-sm text-slate-900 leading-5"
+                        placeholderTextColor="#94a3b8"
+                      />
+                    </Input>
+                  </VStack>
+
+                  {/* Deadline Section */}
+                  <VStack space="xs">
+                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prazo</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {[
+                        { label: 'Hoje', value: new Date() },
+                        { label: 'Amanhã', value: new Date(Date.now() + 86400000) },
+                        { label: 'Próx. Semana', value: new Date(Date.now() + 7 * 86400000) },
+                        { label: 'Sem prazo', value: null }
+                      ].map((opt, i) => {
+                        const isSelected = opt.value === null
+                          ? deadline === null
+                          : deadline?.toDateString() === opt.value.toDateString();
+
+                        return (
+                          <Pressable
+                            key={i}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setDeadline(opt.value);
+                            }}
+                            className={`px-4 py-2.5 rounded-xl border ${isSelected
+                                ? 'bg-[#FDE047] border-[#FDE047]'
+                                : 'bg-slate-50 border-slate-100'
+                              }`}
+                          >
+                            <Text className={`text-xs font-bold ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>
+                              {opt.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </VStack>
+
+                  <HStack space="md">
+                    <VStack space="xs" className="flex-1">
+                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prioridade</Text>
+                      <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                        {(['MEDIUM', 'HIGH'] as TaskPriority[]).map(p => (
+                          <Pressable
+                            key={p}
+                            onPress={() => setPriorityInput(p)}
+                            className={`flex-1 py-2.5 rounded-xl items-center ${priorityInput === p ? 'bg-white shadow-sm border border-slate-100' : ''}`}
+                          >
+                            <Text className={`text-xs font-bold ${priorityInput === p ? 'text-slate-900' : 'text-slate-400'}`}>
+                              {PRIORITY_LABELS[p]}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </HStack>
+                    </VStack>
+
+                    <VStack space="xs" className="flex-1">
+                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Atribuir a</Text>
+                      <HStack space="sm" className="items-center h-[50px]">
+                        <Pressable className="w-10 h-10 rounded-full bg-white border border-dashed border-slate-300 items-center justify-center active:border-[#FDE047] active:bg-[#FDE047]/10">
+                          <Plus size={18} className="text-slate-400" />
+                        </Pressable>
+                        {members.slice(0, 2).map(m => (
+                          <Pressable key={m.userId} onPress={() => toggleAssignee(m.userId)}>
+                            <Avatar size="sm" className={`border-2 ${selectedAssigneeIds.includes(m.userId) ? 'border-[#FDE047]' : 'border-white'}`}>
+                              <AvatarFallbackText>{m.user.name?.charAt(0)}</AvatarFallbackText>
+                              {m.user.avatarUrl && <AvatarImage source={{ uri: m.user.avatarUrl }} />}
+                            </Avatar>
+                          </Pressable>
+                        ))}
+                      </HStack>
+                    </VStack>
+                  </HStack>
+
+                  <Box className="flex-1" />
+
+                  <Button
+                    onPress={handleSaveTask}
+                    className="bg-[#FDE047] h-14 rounded-[24px] mb-32 active:scale-[0.98] shadow-lg shadow-yellow-200"
                   >
-                    <Text style={styles.modalPrimaryText}>
-                      {createTaskMutation.isPending || updateTaskMutation.isPending
-                        ? 'Salvando...'
-                        : 'Salvar tarefa'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </LightGlassCard>
+                    <ButtonText className="text-slate-900 font-bold text-md">Salvar Tarefa</ButtonText>
+                  </Button>
+                </VStack>
+              </Animated.View>
             </View>
           )}
-        </ScrollView>
-      </View>
+
+          {/* Toast */}
+          {toast && (
+            <Toast
+              visible={toast.visible}
+              message={toast.message}
+              type={toast.type}
+              onDismiss={() => setToast(null)}
+            />
+          )}
+
+        </SafeAreaView>
+      </Box>
     </ErrorBoundary>
   );
 }
-
-function DraggableTask({
-  task,
-  currentStatus,
-  columnRefs,
-  isMobile,
-  onUpdateStatus,
-  onEdit,
-  onDelete,
-  onViewDetails,
-}: {
-  task: Task;
-  currentStatus: TaskStatus;
-  columnRefs: Record<TaskStatus, ColumnPosition>;
-  isMobile: boolean;
-  onUpdateStatus: (status: TaskStatus) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onViewDetails?: () => void;
-}) {
-  if (Platform.OS === 'web') {
-    if (isMobile) {
-      return (
-        <TaskCardMobile
-          task={task}
-          onUpdateStatus={onUpdateStatus}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onViewDetails={onViewDetails}
-          isDragging={false}
-        />
-      );
-    }
-    return (
-      <View style={styles.taskCard}>
-        <View style={styles.taskDragHandle}>
-          <GripVertical size={16} color={Colors.textSecondary} />
-        </View>
-        <View style={styles.taskHeader}>
-          <Text style={styles.taskTitle}>{task.title}</Text>
-          <View
-            style={[
-              styles.priorityBadge,
-              task.priority === 'LOW' && styles.priorityBadgeLow,
-              task.priority === 'MEDIUM' && styles.priorityBadgeMedium,
-              task.priority === 'HIGH' && styles.priorityBadgeHigh,
-              task.priority === 'URGENT' && styles.priorityBadgeUrgent,
-            ]}
-          >
-            <Text
-              style={[
-                styles.priorityBadgeText,
-                (task.priority === 'HIGH' || task.priority === 'URGENT') && styles.priorityBadgeTextLight,
-              ]}
-            >
-              {task.priority === 'LOW' ? 'Baixa' : task.priority === 'MEDIUM' ? 'Média' : task.priority === 'HIGH' ? 'Alta' : 'Urgente'}
-            </Text>
-          </View>
-        </View>
-        {task.description ? <Text style={styles.taskDescription}>{task.description}</Text> : null}
-        {task.tags && task.tags.length > 0 && (
-          <View style={styles.taskTagsContainer}>
-            {task.tags.map((tag) => (
-              <View key={tag} style={styles.taskTag}>
-                <Text style={styles.taskTagText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        <View style={styles.taskMeta}>
-          {task.assignee?.name ? (
-            <Text style={styles.taskMetaText}>Responsável: {task.assignee?.name}</Text>
-          ) : (
-            <Text style={styles.taskMetaText}>Sem responsável</Text>
-          )}
-          {task.dueDate ? (
-            <Text style={styles.taskMetaText}>
-              Prazo: {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-            </Text>
-          ) : (
-            <Text style={styles.taskMetaText}>Sem prazo</Text>
-          )}
-        </View>
-        {task.status === 'COMPLETED' && task.points > 0 ? (
-          <Text style={styles.pointsText}>+{task.points} pontos para a casa</Text>
-        ) : null}
-        <View style={styles.taskActionsRow}>
-          {(task.status === 'PENDING' || task.status === 'IN_PROGRESS') && (
-            <>
-              {task.status === 'PENDING' && (
-                <TouchableOpacity onPress={() => onUpdateStatus('IN_PROGRESS')}>
-                  <Text style={styles.taskActionLink}>Em andamento</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity onPress={() => onUpdateStatus('COMPLETED')}>
-                <Text style={styles.taskActionLink}>Concluir</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => onUpdateStatus('CANCELLED')}>
-                <Text style={styles.taskActionLink}>Cancelar</Text>
-              </TouchableOpacity>
-            </>
-          )}
-          {onViewDetails && (
-            <TouchableOpacity onPress={onViewDetails}>
-              <Text style={styles.taskActionLink}>Ver detalhes</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={onEdit}>
-            <Text style={styles.taskActionLink}>Editar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete}>
-            <Text style={styles.taskActionDanger}>Excluir</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  if (isMobile) {
-    return (
-      <TaskCardMobile
-        task={task}
-        onUpdateStatus={onUpdateStatus}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        isDragging={false}
-      />
-    );
-  }
-
-  return (
-    <View style={styles.taskCard}>
-      <View style={styles.taskDragHandle}>
-        <GripVertical size={16} color={Colors.textSecondary} />
-      </View>
-      <Text style={styles.taskTitle}>{task.title}</Text>
-      {task.description ? <Text style={styles.taskDescription}>{task.description}</Text> : null}
-      <View style={styles.taskMeta}>
-        {task.assignee?.name ? (
-          <Text style={styles.taskMetaText}>Responsável: {task.assignee?.name}</Text>
-        ) : (
-          <Text style={styles.taskMetaText}>Sem responsável</Text>
-        )}
-        {task.dueDate ? (
-          <Text style={styles.taskMetaText}>
-            Prazo: {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-          </Text>
-        ) : (
-          <Text style={styles.taskMetaText}>Sem prazo</Text>
-        )}
-      </View>
-      {task.status === 'COMPLETED' && task.points > 0 ? (
-        <Text style={styles.pointsText}>+{task.points} pontos para a casa</Text>
-      ) : null}
-      <View style={styles.taskActionsRow}>
-        {(task.status === 'PENDING' || task.status === 'IN_PROGRESS') && (
-          <>
-            {task.status === 'PENDING' && (
-              <TouchableOpacity onPress={() => onUpdateStatus('IN_PROGRESS')}>
-                <Text style={styles.taskActionLink}>Em andamento</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={() => onUpdateStatus('COMPLETED')}>
-              <Text style={styles.taskActionLink}>Concluir</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onUpdateStatus('CANCELLED')}>
-              <Text style={styles.taskActionLink}>Cancelar</Text>
-            </TouchableOpacity>
-          </>
-        )}
-        <TouchableOpacity onPress={onEdit}>
-          <Text style={styles.taskActionLink}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onDelete}>
-          <Text style={styles.taskActionDanger}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-function TaskCardMobile({
-  task,
-  onUpdateStatus,
-  onEdit,
-  onDelete,
-  onViewDetails,
-  isDragging = false,
-}: {
-  task: Task;
-  onUpdateStatus: (status: TaskStatus) => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onViewDetails?: () => void;
-  isDragging?: boolean;
-}) {
-  const getQuickActions = () => {
-    if (task.status === 'PENDING') {
-      return [
-        { label: 'Em andamento', status: 'IN_PROGRESS' as TaskStatus, icon: PlayCircle, color: '#1d4ed8' },
-        { label: 'Concluir', status: 'COMPLETED' as TaskStatus, icon: CheckCircle2, color: '#16a34a' },
-      ];
-    }
-    if (task.status === 'IN_PROGRESS') {
-      return [
-        { label: 'Concluir', status: 'COMPLETED' as TaskStatus, icon: CheckCircle2, color: '#16a34a' },
-        { label: 'Cancelar', status: 'CANCELLED' as TaskStatus, icon: XCircle, color: '#dc2626' },
-      ];
-    }
-    return [];
-  };
-
-  const quickActions = getQuickActions();
-
-  return (
-    <View style={[styles.taskCardMobile, isDragging && styles.taskCardDragging]}>
-      <View style={styles.taskDragHandleMobile}>
-        <GripVertical size={16} color={Colors.textSecondary} />
-      </View>
-      <View style={styles.taskHeaderMobile}>
-        <Text style={styles.taskTitleMobile}>{task.title}</Text>
-        <View
-          style={[
-            styles.priorityBadge,
-            task.priority === 'LOW' && styles.priorityBadgeLow,
-            task.priority === 'MEDIUM' && styles.priorityBadgeMedium,
-            task.priority === 'HIGH' && styles.priorityBadgeHigh,
-            task.priority === 'URGENT' && styles.priorityBadgeUrgent,
-          ]}
-        >
-          <Text
-            style={[
-              styles.priorityBadgeText,
-              (task.priority === 'HIGH' || task.priority === 'URGENT') && styles.priorityBadgeTextLight,
-            ]}
-          >
-            {task.priority === 'LOW' ? 'Baixa' : task.priority === 'MEDIUM' ? 'Média' : task.priority === 'HIGH' ? 'Alta' : 'Urgente'}
-          </Text>
-        </View>
-      </View>
-      {task.description ? <Text style={styles.taskDescriptionMobile}>{task.description}</Text> : null}
-      {task.tags && task.tags.length > 0 && (
-        <View style={styles.taskTagsContainer}>
-          {task.tags.map((tag) => (
-            <View key={tag} style={styles.taskTag}>
-              <Text style={styles.taskTagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <View style={styles.taskMetaMobile}>
-        {task.assignee?.name ? (
-          <Text style={styles.taskMetaTextMobile}>👤 {task.assignee.name}</Text>
-        ) : (
-          <Text style={styles.taskMetaTextMobile}>👤 Sem responsável</Text>
-        )}
-        {task.dueDate ? (
-          <Text style={styles.taskMetaTextMobile}>
-            📅 {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-          </Text>
-        ) : null}
-      </View>
-      {task.status === 'COMPLETED' && task.points > 0 ? (
-        <View style={styles.pointsBadgeMobile}>
-          <Text style={styles.pointsTextMobile}>+{task.points} pontos</Text>
-        </View>
-      ) : null}
-      {quickActions.length > 0 && (
-        <View style={styles.quickActionsMobile}>
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <TouchableOpacity
-                key={action.status}
-                style={[styles.quickActionButton, { borderColor: action.color }]}
-                onPress={() => onUpdateStatus(action.status)}
-              >
-                <Icon size={16} color={action.color} />
-                <Text style={[styles.quickActionText, { color: action.color }]}>{action.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-      <View style={styles.taskActionsMobile}>
-        {onViewDetails && (
-          <TouchableOpacity
-            style={[styles.taskActionButtonMobile, styles.taskActionButtonPrimaryMobile]}
-            onPress={onViewDetails}
-          >
-            <Text style={[styles.taskActionTextMobile, styles.taskActionTextPrimaryMobile]}>Ver detalhes</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.taskActionButtonMobile} onPress={onEdit}>
-          <Text style={styles.taskActionTextMobile}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.taskActionButtonMobile, styles.taskActionDangerMobile]} onPress={onDelete}>
-          <Text style={[styles.taskActionTextMobile, styles.taskActionDangerTextMobile]}>Excluir</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  headerSection: {
-    marginBottom: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + '1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + '4D',
-  },
-  headerIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  todoIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.text,
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  subtitleSecondary: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  tagsFilterContainer: {
-    marginTop: 16,
-  },
-  filterLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  tagsFilterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: Colors.primary + '10',
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  filterTagActive: {
-    backgroundColor: Colors.primary + '33',
-    borderColor: Colors.primary,
-  },
-  filterTagText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  filterTagTextActive: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  primaryAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-    marginTop: 20,
-  },
-  primaryActionText: {
-    color: Colors.background,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  kanbanWrapperMobile: {
-    flex: 1,
-  },
-  kanbanScrollView: {
-    flex: 1,
-  },
-  kanbanScrollContent: {
-    gap: 16,
-    paddingRight: 24,
-  },
-  kanbanContainer: {
-    flexDirection: 'row',
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  column: {
-    flex: 1,
-    minWidth: 300,
-    padding: 16,
-    backgroundColor: '#FFF',
-    borderColor: 'rgba(0,0,0,0.05)',
-    borderWidth: 1,
-  },
-  columnMobile: {
-    width: 300,
-    padding: 16,
-    backgroundColor: '#FFF',
-    borderColor: 'rgba(0,0,0,0.05)',
-    borderWidth: 1,
-  },
-  columnTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  columnContent: {
-    gap: 12,
-  },
-  helperText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    padding: 20,
-  },
-  emptyColumnText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 20,
-    opacity: 0.6,
-  },
-  taskCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  taskCardMobile: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  taskCardDragging: {
-    opacity: 0.5,
-    transform: [{ scale: 1.02 }],
-  },
-  taskDragHandle: {
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  taskDragHandleMobile: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  taskHeaderMobile: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  taskTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  taskTitleMobile: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  taskDescription: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-  },
-  taskDescriptionMobile: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 12,
-  },
-  taskTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginBottom: 8,
-  },
-  taskTag: {
-    backgroundColor: Colors.primary + '10',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  taskTagText: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-  },
-  taskMeta: {
-    gap: 2,
-    marginBottom: 8,
-  },
-  taskMetaMobile: {
-    gap: 4,
-    marginBottom: 12,
-  },
-  taskMetaText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-  },
-  taskMetaTextMobile: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: Colors.primary + '10',
-  },
-  priorityBadgeLow: { backgroundColor: '#16a34a' },
-  priorityBadgeMedium: { backgroundColor: '#ca8a04' },
-  priorityBadgeHigh: { backgroundColor: '#ea580c' },
-  priorityBadgeUrgent: { backgroundColor: '#dc2626' },
-  priorityBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  priorityBadgeTextLight: {
-    color: '#FFF',
-  },
-  pointsText: {
-    fontSize: 11,
-    color: Colors.success,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  pointsBadgeMobile: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  pointsTextMobile: {
-    color: Colors.success,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  taskActionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    paddingTop: 8,
-  },
-  taskActionLink: {
-    fontSize: 11,
-    color: Colors.primary,
-    fontWeight: '500',
-  },
-  taskActionDanger: {
-    fontSize: 11,
-    color: '#ef4444',
-    fontWeight: '500',
-  },
-  quickActionsMobile: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  quickActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    backgroundColor: '#FFF',
-  },
-  quickActionText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  taskActionsMobile: {
-    flexDirection: 'row',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    paddingTop: 12,
-  },
-  taskActionButtonMobile: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: Colors.primary + '0D',
-  },
-  taskActionButtonPrimaryMobile: {
-    backgroundColor: Colors.primary + '1A',
-    borderWidth: 1,
-    borderColor: Colors.primary + '33',
-  },
-  taskActionDangerMobile: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  taskActionTextMobile: {
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: '500',
-  },
-  taskActionTextPrimaryMobile: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  taskActionDangerTextMobile: {
-    color: '#ef4444',
-  },
-
-  // Modal Styles
-  inlineModalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 1000,
-  },
-  inlineModal: {
-    padding: 24,
-    backgroundColor: '#FFF',
-    borderColor: Colors.primary,
-    borderWidth: 1,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginBottom: 20,
-  },
-  modalInput: {
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    padding: 12,
-    color: Colors.text,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  modalInputMultiline: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  modalLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  prioritySelector: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  priorityChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '40',
-    backgroundColor: 'transparent',
-  },
-  priorityChipSelected: {
-    borderColor: 'transparent',
-  },
-  priorityChipLow: { backgroundColor: '#16a34a' },
-  priorityChipMedium: { backgroundColor: '#ca8a04' },
-  priorityChipHigh: { backgroundColor: '#ea580c' },
-  priorityChipUrgent: { backgroundColor: '#dc2626' },
-  priorityChipText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  priorityChipTextSelected: {
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 20,
-  },
-  modalSecondary: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '40',
-  },
-  modalSecondaryText: {
-    color: Colors.text,
-    fontSize: 14,
-  },
-  modalPrimary: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-  },
-  modalPrimaryText: {
-    color: Colors.background,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-});
