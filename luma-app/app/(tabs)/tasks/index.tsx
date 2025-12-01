@@ -441,6 +441,26 @@ export default function TasksScreen() {
                 />
               </Animated.View>
 
+              {/* Vignette Effect - Gradiente radial para foco no centro */}
+              <Animated.View
+                entering={FadeIn.duration(400).delay(50)}
+                className="absolute inset-0"
+                pointerEvents="none"
+              >
+                <LinearGradient
+                  colors={[
+                    'rgba(0,0,0,0)',
+                    'rgba(0,0,0,0.15)',
+                    'rgba(0,0,0,0.25)',
+                    'rgba(0,0,0,0.35)'
+                  ]}
+                  locations={[0, 0.3, 0.7, 1]}
+                  start={{ x: 0.5, y: 0.5 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={{ flex: 1 }}
+                />
+              </Animated.View>
+
               {/* Sheet Content */}
               <Animated.View
                 entering={SlideInDown.springify().damping(15)}
