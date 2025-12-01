@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useState, useEffect, useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import { SpeedDial } from '../SpeedDial';
-import { Home, Wallet, ListTodo, MessageCircle, Plus, Search } from 'lucide-react-native';
+import { Home, Wallet, ListTodo, MessageCircle, Plus, Search, X } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
@@ -236,7 +236,11 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                         </Pressable>
 
                         {/* Right: Speed Dial Trigger */}
-                        <Box className="items-center justify-center w-11 h-11" ref={speedDialButtonRef}>
+                        <Box 
+                            className="items-center justify-center w-11 h-11" 
+                            ref={speedDialButtonRef}
+                            style={{ zIndex: 2000 }} // Garantir que o botão fique acima
+                        >
                             <Pressable
                                 className="w-11 h-11 items-center justify-center"
                                 onPress={() => {
@@ -252,12 +256,13 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                 // Permitir múltiplos toques rápidos no iOS
                                 delayPressIn={0}
                                 delayPressOut={0}
+                                style={{ zIndex: 2001 }}
                             >
                                 <Box className="w-11 h-11 items-center justify-center">
                                     <Plus
                                         size={24}
                                         color={Colors.textSecondary}
-                                        style={{ opacity: isSpeedDialVisible ? 0 : 1 }}
+                                        style={{ opacity: isSpeedDialOpen ? 0 : 1 }} // Esconder o + quando aberto, pois o X do modal vai sobrepor
                                     />
                                 </Box>
                             </Pressable>

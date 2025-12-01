@@ -13,6 +13,7 @@ export interface AuthState {
   user: AuthUser | null;
   houseId: string | null;
   loading: boolean;
+  initialized: boolean;
   setHouseId: (houseId: string | null) => void;
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   houseId: null,
   loading: true,
+  initialized: false,
 
   setHouseId: (houseId) => set({ houseId }),
 
@@ -54,7 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         } else {
           console.log('[AuthStore] Nenhuma sessão encontrada (normal para primeiro acesso)');
         }
-        set({ user: null, loading: false });
+        set({ user: null, loading: false, initialized: true });
         return;
       }
 
@@ -68,10 +70,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         user: mappedUser,
         loading: false,
+        initialized: true,
       });
     } catch (err) {
       console.error('[AuthStore] Exception during initialization:', err);
-      set({ user: null, loading: false });
+      set({ user: null, loading: false, initialized: true });
     }
   },
 
@@ -149,9 +152,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  useAuthStore.setState({
-    user: mapAuthUser(session?.user ?? null),
-    loading: false,
-  });
+  const state = useAuthStore.getState();
+  // Só atualiza via onAuthStateChange se já inicializou, para evitar race condition
+  if (state.initialized) {
+    useAuthStore.setState({
+      user: mapAuthUser(session?.user ?? null),
+      loading: false,
+    });
+  }
 });
 

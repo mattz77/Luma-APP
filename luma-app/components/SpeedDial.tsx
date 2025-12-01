@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dimensions, Platform, StyleSheet } from 'react-native';
-import { LucideIcon, Plus } from 'lucide-react-native';
+import { LucideIcon, Plus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import { Colors } from '@/constants/Colors';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -52,10 +53,11 @@ const SpeedDialItem = ({
   const actionStyle = useAnimatedStyle(() => {
     const currentProgress = progress.value;
 
+    // Animação para aparecer acima do botão (valores negativos = para cima)
     const translateY = interpolate(
       currentProgress,
       [0, 1],
-      [0, -(index + 1) * 60],
+      [0, -(index + 1) * 70], // 70px de espaçamento entre itens
       Extrapolation.CLAMP
     );
 
@@ -89,13 +91,26 @@ const SpeedDialItem = ({
           position: 'absolute',
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'flex-end',
-          right: -22, // Compensar metade da largura do botão (44/2) para centralizar
-          width: 200,
-          transform: [{ translateY: -22 }] // Compensar metade da altura do botão (44/2) para centralizar verticalmente
+          justifyContent: 'center',
+          // O container pai está no centro do botão do dock (0, 0)
+          // Queremos centralizar o botão circular no centro (0)
+          // Layout: [label] [gap 12px] [botão 44px]
+          // O botão circular tem 44px (w-11)
+          // Para centralizar o botão em 0, precisamos que o centro do botão (22px da borda direita) esteja em 0.
+          // O item tem largura variável (width: 'auto').
+          // Se usarmos 'right: -22', a borda direita do item estará em 22px.
+          // O botão (44px) estará de -22 a 22. O centro estará em 0.
+          right: -22,
+          width: 'auto',
+          minWidth: 200, // Mínimo para garantir clique, mas alinhado à direita
+          // Centralizar verticalmente: compensar metade da altura do botão (44/2 = 22)
+          transform: [{ translateY: -22 }],
+          zIndex: 1002,
+          elevation: 1002, // Android
         },
         actionStyle
       ]}
+      pointerEvents="auto"
     >
       <Box className="px-3 py-1.5 bg-black/80 rounded-xl mr-3 border border-white/15">
         <Text className="text-[#FFFBE6] text-sm font-semibold">
@@ -203,34 +218,52 @@ export const SpeedDial = ({
         }
       };
       
-      // No iOS, usar requestAnimationFrame para melhor performance
+      // No iOS, usar múltiplos requestAnimationFrame para garantir que o layout está pronto
       if (Platform.OS === 'ios') {
+        // Primeiro frame: medir
         requestAnimationFrame(() => {
           measureButton();
-          // Iniciar animação suave (sem bounce)
-          progress.value = withTiming(1, {
-            duration: 250,
-            easing: Easing.out(Easing.cubic),
+          // Segundo frame: garantir que a medição foi processada antes de animar
+          requestAnimationFrame(() => {
+            // Timeout de segurança: se após 100ms ainda não mediu, usar fallback
+            setTimeout(() => {
+              setButtonLayout((prev) => {
+                if (!prev) {
+                  return {
+                    x: Dimensions.get('window').width - 80,
+                    y: Dimensions.get('window').height - 120,
+                    width: 64,
+                    height: 64
+                  };
+                }
+                return prev;
+              });
+            }, 100);
+            // Iniciar animação mais suave e um pouco mais longa
+            progress.value = withTiming(1, {
+              duration: 400, // Aumentado de 300 para 400
+              easing: Easing.out(Easing.exp), // Curva mais suave que cubic
+            });
           });
         });
       } else {
         // Web e Android: medir imediatamente
         measureButton();
         progress.value = withTiming(1, {
-          duration: 250,
-          easing: Easing.out(Easing.cubic),
+          duration: 350, // Aumentado de 250 para 350
+          easing: Easing.out(Easing.exp),
         });
       }
     } else {
-      // Close animation - suave
+      // Close animation - suave e responsiva
       setShowModal(false);
       if (onCloseAnimationComplete) {
         onCloseAnimationComplete();
       }
       // Animar em background sem bloquear
       progress.value = withTiming(0, { 
-        duration: 200,
-        easing: Easing.out(Easing.cubic),
+        duration: 300, // Aumentado de 200 para 300
+        easing: Easing.inOut(Easing.cubic), // Curva mais natural para saída
       });
     }
   }, [isOpen, buttonRef, progress, onCloseAnimationComplete]);
@@ -251,13 +284,7 @@ export const SpeedDial = ({
     };
   }, []);
 
-  // Main button rotation - otimizado para iOS
-  const buttonRotationStyle = useAnimatedStyle(() => {
-    'worklet';
-    return {
-      transform: [{ rotate: `${progress.value * 45}deg` }]
-    };
-  }, []);
+  // Removido: buttonRotationStyle - o botão real no dock já alterna entre + e X
 
   if (!showModal) return null;
 
@@ -286,16 +313,22 @@ export const SpeedDial = ({
       </Animated.View>
 
       {/* Container principal */}
-      <Box className="absolute w-full h-full top-0 left-0" pointerEvents="box-none">
+      <Box 
+        className="absolute w-full h-full top-0 left-0" 
+        pointerEvents="box-none"
+        style={{ zIndex: 1000 }}
+      >
         {/* Actions */}
         {buttonLayout && (
           <Box
-            className="absolute items-end justify-center overflow-visible"
+            className="absolute items-center justify-center overflow-visible"
             style={{
               left: buttonLayout.x + (buttonLayout.width / 2),
               top: buttonLayout.y + (buttonLayout.height / 2),
               width: 0,
               height: 0,
+              zIndex: 1001,
+              elevation: 1001,
             }}
             pointerEvents="box-none"
           >
@@ -306,9 +339,36 @@ export const SpeedDial = ({
                 index={index}
                 progress={progress}
                 onPress={() => {
-                  // Executar ação primeiro (sem delay)
                   action.onPress();
-                  // Fechar imediatamente sem esperar animação
+                  handleClose();
+                }}
+              />
+            ))}
+          </Box>
+        )}
+        
+        {/* Fallback: Se não conseguir medir, renderizar na posição padrão (centro do dock) */}
+        {!buttonLayout && isOpen && (
+          <Box
+            className="absolute items-center justify-center overflow-visible"
+            style={{
+              left: Dimensions.get('window').width / 2,
+              bottom: 120,
+              width: 0,
+              height: 0,
+              zIndex: 1001,
+              elevation: 1001,
+            }}
+            pointerEvents="box-none"
+          >
+            {actions.map((action, index) => (
+              <SpeedDialItem
+                key={index}
+                action={action}
+                index={index}
+                progress={progress}
+                onPress={() => {
+                  action.onPress();
                   handleClose();
                 }}
               />
@@ -316,7 +376,7 @@ export const SpeedDial = ({
           </Box>
         )}
 
-        {/* Fake Button to maintain visual continuity */}
+        {/* Botão de Fechar (X) sobreposto ao botão original */}
         {buttonLayout && (
           <Box
             className="absolute items-center justify-center"
@@ -325,29 +385,53 @@ export const SpeedDial = ({
               top: buttonLayout.y,
               width: buttonLayout.width,
               height: buttonLayout.height,
+              zIndex: 1002, // Acima dos itens
+              elevation: 1002,
             }}
-            pointerEvents="none"
+            pointerEvents="box-none"
           >
-            <Box className="w-full h-full items-center justify-center">
-              <Animated.View style={buttonRotationStyle}>
-                <MainIcon size={24} color={mainColor} />
+            <Pressable
+              className="w-11 h-11 items-center justify-center"
+              onPress={() => {
+                // Haptic feedback
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                handleClose();
+              }}
+            >
+              <Animated.View 
+                style={{ 
+                  transform: [{ rotate: '45deg' }] // Rotacionar + para virar X (ou usar ícone X)
+                }}
+              >
+                <MainIcon size={24} color={Colors.textSecondary} />
               </Animated.View>
-            </Box>
+            </Pressable>
           </Box>
         )}
-
-        {/* Invisible touch target for the button to close */}
-        {buttonLayout && (
-          <Pressable
-            className="absolute"
+        
+        {/* Fallback para o botão X se não conseguir medir */}
+        {!buttonLayout && isOpen && (
+          <Box
+            className="absolute items-center justify-center"
             style={{
-              left: buttonLayout.x,
-              top: buttonLayout.y,
-              width: buttonLayout.width,
-              height: buttonLayout.height,
+              left: Dimensions.get('window').width / 2 - 32, // Centralizado (largura 64/2)
+              bottom: 120 - 64, // Posição aproximada do botão original
+              width: 64,
+              height: 64,
+              zIndex: 1002,
+              elevation: 1002,
             }}
-            onPress={handleClose}
-          />
+            pointerEvents="box-none"
+          >
+             <Pressable
+              className="w-11 h-11 items-center justify-center"
+              onPress={handleClose}
+            >
+              <Animated.View style={{ transform: [{ rotate: '45deg' }] }}>
+                <MainIcon size={24} color={Colors.textSecondary} />
+              </Animated.View>
+            </Pressable>
+          </Box>
         )}
       </Box>
     </Modal>

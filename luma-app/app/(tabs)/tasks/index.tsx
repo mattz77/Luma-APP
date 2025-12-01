@@ -441,23 +441,44 @@ export default function TasksScreen() {
                 />
               </Animated.View>
 
-              {/* Vignette Effect - Gradiente radial para foco no centro */}
+              {/* Vignette Effect - Múltiplas camadas para simular gradiente radial */}
               <Animated.View
                 entering={FadeIn.duration(400).delay(50)}
                 className="absolute inset-0"
                 pointerEvents="none"
+                style={{ zIndex: 1 }}
               >
+                {/* Top Vignette */}
                 <LinearGradient
-                  colors={[
-                    'rgba(0,0,0,0)',
-                    'rgba(0,0,0,0.15)',
-                    'rgba(0,0,0,0.25)',
-                    'rgba(0,0,0,0.35)'
-                  ]}
-                  locations={[0, 0.3, 0.7, 1]}
-                  start={{ x: 0.5, y: 0.5 }}
+                  colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
+                  locations={[0, 0.25, 1]}
+                  start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={{ flex: 1 }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%' }}
+                />
+                {/* Bottom Vignette */}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)']}
+                  locations={[0, 0.75, 1]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%' }}
+                />
+                {/* Left Vignette */}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0)']}
+                  locations={[0, 0.35, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '35%' }}
+                />
+                {/* Right Vignette */}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.4)']}
+                  locations={[0, 0.65, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '35%' }}
                 />
               </Animated.View>
 

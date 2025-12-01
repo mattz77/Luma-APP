@@ -32,6 +32,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
+  FadeIn,
+  FadeOut,
   FadeInDown,
   ZoomIn,
   Layout,
@@ -357,6 +359,11 @@ export default function Dashboard() {
       }
     }
   }, [params.action]);
+
+  // Debug: Log quando modalMode muda
+  useEffect(() => {
+    console.log('[Dashboard] modalMode changed:', modalMode);
+  }, [modalMode]);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [taskInput, setTaskInput] = useState("");
@@ -540,6 +547,8 @@ export default function Dashboard() {
     const isFinance = modalMode === 'finance';
     const isMagic = modalMode === 'magic';
     const isUserMenu = modalMode === 'user_menu';
+    
+    console.log('[Dashboard] renderModalContent - modalMode:', modalMode, 'isUserMenu:', isUserMenu);
 
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
@@ -892,7 +901,12 @@ export default function Dashboard() {
                 <Text size="lg" className="font-semibold text-typography-900">{houseName}</Text>
                 <ChevronDown size={16} color={Colors.textSecondary} />
               </HStack>
-              <Pressable onPress={() => setModalMode('user_menu')}>
+              <Pressable 
+                onPress={() => {
+                  console.log('[Dashboard] Opening user menu modal');
+                  setModalMode('user_menu');
+                }}
+              >
                 <Box style={styles.userAvatar}>
                   <User size={20} color={Colors.background} />
                 </Box>
@@ -1062,16 +1076,31 @@ export default function Dashboard() {
 
       {/* Full Screen Modal */}
       <Modal isOpen={!!modalMode} onClose={closeModal} size="full">
-        <ModalBackdrop />
-        {/* Blur backdrop effect */}
-        <BlurView
-          intensity={80}
-          tint="light"
-          style={StyleSheet.absoluteFill}
-        />
-        <ModalContent style={styles.modalContainer}>
-          <Box style={[styles.absoluteFill, { backgroundColor: Colors.background }]} />
-          {renderModalContent()}
+        <ModalBackdrop>
+          {/* Blur backdrop effect com animação */}
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          >
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 60 : 80}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            {/* Overlay sutil para melhorar contraste */}
+            <Box className="absolute inset-0 bg-black/5" />
+          </Animated.View>
+        </ModalBackdrop>
+        <ModalContent 
+          style={[styles.modalContainer, { zIndex: 1000, alignSelf: 'flex-end', marginTop: 'auto' }]}
+          pointerEvents="box-none"
+        >
+          <Box style={{ flex: 1, zIndex: 1001, minHeight: 0 }} pointerEvents="auto">
+            <Box style={[styles.absoluteFill, { backgroundColor: Colors.background }]} />
+            {renderModalContent()}
+          </Box>
         </ModalContent>
       </Modal>
     </Box>
@@ -1354,10 +1383,24 @@ const styles = StyleSheet.create({
 
   // Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalContainer: { height: '85%', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', padding: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', backgroundColor: Colors.background },
+  modalContainer: { 
+    height: '90%',
+    maxHeight: '90%',
+    borderTopLeftRadius: 32, 
+    borderTopRightRadius: 32, 
+    overflow: 'visible', 
+    padding: 24, 
+    paddingTop: 32,
+    borderWidth: 1, 
+    borderColor: 'rgba(0,0,0,0.05)', 
+    backgroundColor: Colors.background,
+    zIndex: 1000,
+    elevation: 1000, // Android
+    marginTop: 'auto', // Empurra para baixo
+  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { color: Colors.primary, fontSize: 20, fontWeight: 'bold' },
-  modalBody: { flex: 1 },
+  modalBody: { flex: 1, zIndex: 1 },
 
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
   menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.primary + '1A', alignItems: 'center', justifyContent: 'center' },
