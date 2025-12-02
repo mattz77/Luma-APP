@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { StyleSheet, useWindowDimensions, Platform, View, ScrollView as RNScrollView } from 'react-native';
+import { StyleSheet, useWindowDimensions, Platform, View, ScrollView as RNScrollView, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +15,9 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolation,
+  runOnJS,
 } from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -130,13 +132,19 @@ const DateStrip = ({ compact }: { compact: boolean }) => {
               key={i}
               onPress={() => Haptics.selectionAsync()}
               className={`items-center justify-center border transition-all duration-300 ${compact
-                ? 'w-12 h-12 rounded-full'
-                : 'w-[60px] h-[85px] rounded-[24px]'
+                ? 'w-12 h-12'
+                : 'w-[60px] h-[85px]'
                 } ${date.active
                   ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
                   : 'bg-white border-slate-200'
                 }`}
-              style={date.active ? { transform: [{ scale: 1.05 }] } : {}}
+              style={[
+                { 
+                  overflow: 'hidden',
+                  borderRadius: compact ? 24 : 24
+                },
+                date.active && { transform: [{ scale: 1.05 }] }
+              ]}
             >
               <Text className={`font-bold ${compact ? 'text-lg' : 'text-2xl mb-1'
                 } ${date.active ? 'text-black' : 'text-slate-900'}`}>
@@ -280,6 +288,11 @@ export default function TasksScreen() {
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
   const [deadline, setDeadline] = useState<Date | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
+  const [isClosingByGesture, setIsClosingByGesture] = useState(false);
+
+  // Gesture values for drag to close
+  const translateY = useSharedValue(0);
+  const { height: screenHeight } = useWindowDimensions();
 
   // Handle 'create' action from global dock
   useEffect(() => {
@@ -287,6 +300,59 @@ export default function TasksScreen() {
       setCreateOpen(true);
     }
   }, [action]);
+
+  // Reset translateY when modal opens/closes
+  useEffect(() => {
+    if (isCreateOpen) {
+      translateY.value = 0;
+      setIsClosingByGesture(false);
+    }
+  }, [isCreateOpen]);
+
+  // Close modal function
+  const closeModal = () => {
+    Keyboard.dismiss();
+    setCreateOpen(false);
+    router.setParams({ action: '' });
+  };
+
+  // Pan gesture for drag to close
+  const panGesture = Gesture.Pan()
+    .activeOffsetY(10) // Require 10px downward movement before activating
+    .onUpdate((event) => {
+      // Only allow downward drag
+      if (event.translationY > 0) {
+        translateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      const shouldClose = event.translationY > 100 || event.velocityY > 500;
+      
+      if (shouldClose) {
+        // Mark as closing by gesture to prevent double animation
+        runOnJS(setIsClosingByGesture)(true);
+        // Animate out and close
+        translateY.value = withTiming(screenHeight, {
+          duration: 300,
+        }, () => {
+          runOnJS(closeModal)();
+          translateY.value = 0; // Reset for next open
+        });
+      } else {
+        // Spring back to original position
+        translateY.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
+        });
+      }
+    });
+
+  // Animated style for modal based on gesture
+  const modalAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, message, type });
@@ -320,7 +386,7 @@ export default function TasksScreen() {
         tags: [],
       });
       showToast('Tarefa criada! 🎉');
-      setCreateOpen(false);
+      closeModal();
       setTitleInput('');
       setDescriptionInput('');
       setPriorityInput('MEDIUM');
@@ -429,19 +495,47 @@ export default function TasksScreen() {
             <View className="absolute inset-0 z-[2000] justify-end">
               {/* Backdrop */}
               <Animated.View
-                entering={FadeIn.duration(300)}
-                className="absolute inset-0 bg-black/30"
+                entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
+                className="absolute inset-0"
               >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 20 : 30}
+                  tint="light"
+                  style={StyleSheet.absoluteFill}
+                />
+                <View className="absolute inset-0 bg-black/15" />
                 <Pressable
                   className="flex-1"
-                  onPress={() => {
-                    setCreateOpen(false);
-                    router.setParams({ action: '' });
-                  }}
+                  onPress={closeModal}
                 />
               </Animated.View>
 
-              {/* Vignette Effect - Múltiplas camadas para simular gradiente radial */}
+              {/* Dock Area Blur - covers dock area without blocking interactions */}
+              <Animated.View
+                entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
+                className="absolute bottom-0 left-0 right-0"
+                style={{ 
+                  height: 120, // Height to cover dock area
+                  zIndex: 1500, // Above backdrop but below modal
+                  pointerEvents: 'none' // Don't block dock interactions
+                }}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 20 : 30}
+                  tint="light"
+                  style={StyleSheet.absoluteFill}
+                />
+                {/* Gradient overlay to blend smoothly */}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+
+              {/* Vignette Effect - reduzido para não competir com o modal */}
               <Animated.View
                 entering={FadeIn.duration(400).delay(50)}
                 className="absolute inset-0"
@@ -450,61 +544,75 @@ export default function TasksScreen() {
               >
                 {/* Top Vignette */}
                 <LinearGradient
-                  colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0)']}
-                  locations={[0, 0.25, 1]}
+                  colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0)']}
+                  locations={[0, 0.3, 1]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%' }}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%' }}
                 />
                 {/* Bottom Vignette */}
                 <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)']}
-                  locations={[0, 0.75, 1]}
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
+                  locations={[0, 0.7, 1]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%' }}
+                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%' }}
                 />
                 {/* Left Vignette */}
                 <LinearGradient
-                  colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0)']}
-                  locations={[0, 0.35, 1]}
+                  colors={['rgba(0,0,0,0.10)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0)']}
+                  locations={[0, 0.4, 1]}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
-                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '35%' }}
+                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '28%' }}
                 />
                 {/* Right Vignette */}
                 <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.4)']}
-                  locations={[0, 0.65, 1]}
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.10)']}
+                  locations={[0, 0.6, 1]}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
-                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '35%' }}
+                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '28%' }}
                 />
               </Animated.View>
 
               {/* Sheet Content */}
-              <Animated.View
-                entering={SlideInDown.springify().damping(15)}
-                exiting={SlideOutDown}
-                className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
-                style={{ backgroundColor: '#FFFFFF' }} // Force white background
-              >
-                <Box className="w-12 h-1 bg-slate-200 rounded-full self-center mb-6" />
+              <GestureHandlerRootView style={{ width: '100%' }}>
+                <GestureDetector gesture={panGesture}>
+                  <Animated.View
+                    entering={SlideInDown.springify()
+                      .damping(Platform.OS === 'ios' ? 18 : 20)
+                      .stiffness(Platform.OS === 'ios' ? 280 : 250)
+                      .mass(Platform.OS === 'ios' ? 0.8 : 1)}
+                    exiting={isClosingByGesture ? undefined : SlideOutDown}
+                    className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
+                    style={[
+                      { backgroundColor: '#FFFFFF' }, // Force white background
+                      modalAnimatedStyle
+                    ]}
+                  >
+                <View className="w-full items-center mb-6" style={{ paddingVertical: 8 }}>
+                  <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                </View>
 
                 <HStack className="justify-between items-center mb-6">
-                  <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">Nova Tarefa</Heading>
+                  <Pressable onPress={Keyboard.dismiss}>
+                    <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">Nova Tarefa</Heading>
+                  </Pressable>
                   <Pressable
-                    onPress={() => {
-                      setCreateOpen(false);
-                      router.setParams({ action: '' });
-                    }}
+                    onPress={closeModal}
                     className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
                   >
                     <X size={16} className="text-slate-900" />
                   </Pressable>
                 </HStack>
 
-                <VStack space="lg" className="flex-1">
+                <ScrollView 
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  onScrollBeginDrag={Keyboard.dismiss}
+                >
+                  <VStack space="lg" className="flex-1">
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
                     <Input className="h-14 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
@@ -514,7 +622,8 @@ export default function TasksScreen() {
                         onChangeText={setTitleInput}
                         className="text-lg font-medium text-slate-900"
                         placeholderTextColor="#94a3b8"
-                        autoFocus
+                        // No iOS, evitamos abrir o teclado junto com a animação do modal
+                        autoFocus={Platform.OS !== 'ios'}
                       />
                     </Input>
                   </VStack>
@@ -552,6 +661,7 @@ export default function TasksScreen() {
                           <Pressable
                             key={i}
                             onPress={() => {
+                              Keyboard.dismiss();
                               Haptics.selectionAsync();
                               setDeadline(opt.value);
                             }}
@@ -576,7 +686,10 @@ export default function TasksScreen() {
                         {(['MEDIUM', 'HIGH'] as TaskPriority[]).map(p => (
                           <Pressable
                             key={p}
-                            onPress={() => setPriorityInput(p)}
+                            onPress={() => {
+                              Keyboard.dismiss();
+                              setPriorityInput(p);
+                            }}
                             className={`flex-1 py-2.5 rounded-xl items-center ${priorityInput === p ? 'bg-white shadow-sm border border-slate-100' : ''}`}
                           >
                             <Text className={`text-xs font-bold ${priorityInput === p ? 'text-slate-900' : 'text-slate-400'}`}>
@@ -594,7 +707,13 @@ export default function TasksScreen() {
                           <Plus size={18} className="text-slate-400" />
                         </Pressable>
                         {members.slice(0, 2).map(m => (
-                          <Pressable key={m.userId} onPress={() => toggleAssignee(m.userId)}>
+                          <Pressable 
+                            key={m.userId} 
+                            onPress={() => {
+                              Keyboard.dismiss();
+                              toggleAssignee(m.userId);
+                            }}
+                          >
                             <Avatar size="sm" className={`border-2 ${selectedAssigneeIds.includes(m.userId) ? 'border-[#FDE047]' : 'border-white'}`}>
                               <AvatarFallbackText>{m.user.name?.charAt(0)}</AvatarFallbackText>
                               {m.user.avatarUrl && <AvatarImage source={{ uri: m.user.avatarUrl }} />}
@@ -614,7 +733,10 @@ export default function TasksScreen() {
                     <ButtonText className="text-slate-900 font-bold text-md">Salvar Tarefa</ButtonText>
                   </Button>
                 </VStack>
-              </Animated.View>
+                </ScrollView>
+                </Animated.View>
+                </GestureDetector>
+              </GestureHandlerRootView>
             </View>
           )}
 

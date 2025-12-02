@@ -22,15 +22,15 @@ luma-app/.env.local
 supabase/.branches/
 supabase/.temp/
 
-# Workflows com possíveis segredos
+# Workflows com possiveis segredos
 Luma-workflows/
 
-# Arquivos de configuração e credenciais
+# Arquivos de configuracao  e credenciais
 *.secrets.json
 *.credentials.json
 .secrets/
 
-# Documentação com dados sensíveis
+# Documentacao com dados sensiveis
 *credentials*.md
 *secret*.md
 *api_key*.md

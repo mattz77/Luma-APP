@@ -4,7 +4,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Gluestack UI v3 imports
 import { Box } from '@/components/ui/box';
@@ -321,6 +321,7 @@ const DashboardSkeleton = () => (
 export default function Dashboard() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
 
   const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
 
@@ -360,10 +361,6 @@ export default function Dashboard() {
     }
   }, [params.action]);
 
-  // Debug: Log quando modalMode muda
-  useEffect(() => {
-    console.log('[Dashboard] modalMode changed:', modalMode);
-  }, [modalMode]);
   const [loading, setLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
   const [taskInput, setTaskInput] = useState("");
@@ -546,17 +543,15 @@ export default function Dashboard() {
     const isBriefing = modalMode === 'briefing';
     const isFinance = modalMode === 'finance';
     const isMagic = modalMode === 'magic';
-    const isUserMenu = modalMode === 'user_menu';
-    
-    console.log('[Dashboard] renderModalContent - modalMode:', modalMode, 'isUserMenu:', isUserMenu);
 
+    // Modais com formulário / conteúdo complexo usam KeyboardAvoidingView
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <HStack space="sm" className="justify-between items-center mb-6">
           <HStack space="sm" className="items-center">
-            {isUserMenu ? <User size={20} color={Colors.primary} /> : <Sparkles size={20} color={Colors.primary} />}
+            <Sparkles size={20} color={Colors.primary} />
             <Heading size="lg" className="text-primary-500 font-bold">
-              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : isUserMenu ? 'Perfil' : 'Análise Financeira'}
+              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : 'Análise Financeira'}
             </Heading>
           </HStack>
           <Pressable onPress={closeModal}>
@@ -565,44 +560,6 @@ export default function Dashboard() {
         </HStack>
 
         <Box style={styles.modalBody} className="flex-1">
-          {/* User Menu Modal */}
-          {isUserMenu && (
-            <VStack space="md">
-              <Pressable style={styles.menuItem} onPress={closeModal}>
-                <HStack space="md" className="items-center">
-                  <Box style={styles.menuIconBg}>
-                    <User size={20} color={Colors.primary} />
-                  </Box>
-                  <Text size="lg" className="font-medium text-typography-900">Meu Perfil</Text>
-                </HStack>
-              </Pressable>
-
-              <Pressable style={styles.menuItem} onPress={() => {
-                closeModal();
-                router.push('/(tabs)/house' as any);
-              }}>
-                <HStack space="md" className="items-center">
-                  <Box style={styles.menuIconBg}>
-                    <Home size={20} color={Colors.primary} />
-                  </Box>
-                  <Text size="lg" className="font-medium text-typography-900">Minha Casa</Text>
-                </HStack>
-              </Pressable>
-
-              <Pressable style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: Colors.palette.merino, paddingTop: 16, marginTop: 8 }]} onPress={async () => {
-                closeModal();
-                await signOut();
-                router.replace('/(auth)/login' as any);
-              }}>
-                <HStack space="md" className="items-center">
-                  <Box style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.1)' }]}>
-                    <LogOut size={20} color="#FF4F4F" />
-                  </Box>
-                  <Text size="lg" className="font-medium" style={{ color: '#FF4F4F' }}>Sair da Conta</Text>
-                </HStack>
-              </Pressable>
-            </VStack>
-          )}
 
           {/* Magic Input Modal */}
           {isMagic && (
@@ -903,7 +860,6 @@ export default function Dashboard() {
               </HStack>
               <Pressable 
                 onPress={() => {
-                  console.log('[Dashboard] Opening user menu modal');
                   setModalMode('user_menu');
                 }}
               >
@@ -1074,35 +1030,171 @@ export default function Dashboard() {
         )}
       </SafeAreaView>
 
-      {/* Full Screen Modal */}
-      <Modal isOpen={!!modalMode} onClose={closeModal} size="full">
-        <ModalBackdrop>
-          {/* Blur backdrop effect com animação */}
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
+      {/* User Menu Overlay (custom para evitar problemas do Modal no iOS) */}
+      {modalMode === 'user_menu' && (
+        <Box
+          style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}
+          pointerEvents="box-none"
+        >
+          {/* Backdrop clicável */}
+          <Pressable
             style={StyleSheet.absoluteFill}
-            pointerEvents="none"
+            onPress={closeModal}
           >
             <BlurView
               intensity={Platform.OS === 'ios' ? 60 : 80}
               tint="light"
               style={StyleSheet.absoluteFill}
             />
-            {/* Overlay sutil para melhorar contraste */}
-            <Box className="absolute inset-0 bg-black/5" />
-          </Animated.View>
-        </ModalBackdrop>
-        <ModalContent 
-          style={[styles.modalContainer, { zIndex: 1000, alignSelf: 'flex-end', marginTop: 'auto' }]}
+            <Box className="absolute inset-0 bg-black/10" />
+          </Pressable>
+
+          {/* Card de menu ancorado no topo (abaixo do header) */}
+          <Box
+            style={{
+              position: 'absolute',
+              top: 100,
+              left: 0,
+              right: 0,
+            }}
+            pointerEvents="box-none"
+          >
+            <Box
+              style={{
+                marginHorizontal: 20,
+                borderRadius: 32,
+                backgroundColor: Colors.background,
+                padding: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.05)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.12,
+                shadowRadius: 24,
+                elevation: 8,
+              }}
+              pointerEvents="auto"
+            >
+              {/* Reutiliza o conteúdo do user menu via helper */}
+              <HStack space="sm" className="justify-between items-center mb-6">
+                <HStack space="sm" className="items-center">
+                  <User size={20} color={Colors.primary} />
+                  <Heading size="lg" className="text-primary-500 font-bold">Perfil</Heading>
+                </HStack>
+                <Pressable onPress={closeModal} hitSlop={20}>
+                  <X size={24} color={Colors.textSecondary} />
+                </Pressable>
+              </HStack>
+
+              <VStack space="md">
+                <Pressable 
+                  style={styles.menuItem} 
+                  onPress={() => {
+                    closeModal();
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <HStack space="md" className="items-center">
+                    <Box style={styles.menuIconBg}>
+                      <User size={20} color={Colors.primary} />
+                    </Box>
+                    <Text size="lg" className="font-medium text-typography-900">Meu Perfil</Text>
+                  </HStack>
+                </Pressable>
+
+                <Pressable 
+                  style={styles.menuItem} 
+                  onPress={() => {
+                    closeModal();
+                    router.push('/(tabs)/house' as any);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <HStack space="md" className="items-center">
+                    <Box style={styles.menuIconBg}>
+                      <Home size={20} color={Colors.primary} />
+                    </Box>
+                    <Text size="lg" className="font-medium text-typography-900">Minha Casa</Text>
+                  </HStack>
+                </Pressable>
+
+                <Pressable 
+                  style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: Colors.palette.merino, paddingTop: 16, marginTop: 8 }]} 
+                  onPress={async () => {
+                    closeModal();
+                    await signOut();
+                    router.replace('/(auth)/login' as any);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <HStack space="md" className="items-center">
+                    <Box style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.1)' }]}>
+                      <LogOut size={20} color="#FF4F4F" />
+                    </Box>
+                    <Text size="lg" className="font-medium" style={{ color: '#FF4F4F' }}>Sair da Conta</Text>
+                  </HStack>
+                </Pressable>
+              </VStack>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* Overlay para outros modais (magic, finance, task, briefing, chat) */}
+      {modalMode && modalMode !== 'user_menu' && (
+        <Box
+          style={[StyleSheet.absoluteFill, { zIndex: 1900 }]}
           pointerEvents="box-none"
         >
-          <Box style={{ flex: 1, zIndex: 1001, minHeight: 0 }} pointerEvents="auto">
-            <Box style={[styles.absoluteFill, { backgroundColor: Colors.background }]} />
-            {renderModalContent()}
+          {/* Backdrop clicável */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeModal}
+          >
+            <BlurView
+              intensity={Platform.OS === 'ios' ? 60 : 80}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            <Box className="absolute inset-0 bg-black/10" />
+          </Pressable>
+
+          {/* Card flutuante centralizado com o conteúdo dos outros modais */}
+          <Box
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              // Deixar espaço para o dock/home indicator
+              paddingBottom: insets.bottom + 48,
+            }}
+            pointerEvents="box-none"
+          >
+            <Box
+              style={[
+                styles.modalContainer,
+                {
+                  // Card flutuante com todas as bordas arredondadas
+                  borderRadius: 32,
+                  marginHorizontal: 0,
+                  zIndex: 1901,
+                  maxHeight: Dimensions.get('window').height * 0.7, // Máx. 70% da tela
+                  // Sombra mais pronunciada para destacar o card
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 24,
+                  elevation: 12,
+                },
+              ]}
+              pointerEvents="auto"
+            >
+              {renderModalContent()}
+            </Box>
           </Box>
-        </ModalContent>
-      </Modal>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -1383,26 +1475,35 @@ const styles = StyleSheet.create({
 
   // Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalContainer: { 
-    height: '90%',
-    maxHeight: '90%',
-    borderTopLeftRadius: 32, 
-    borderTopRightRadius: 32, 
-    overflow: 'visible', 
+  modalContainer: {
+    // Estilos base para o card flutuante
+    borderRadius: 32,
+    overflow: 'hidden', // Mudado de 'visible' para 'hidden' para garantir que o conteúdo respeite as bordas
     padding: 24, 
     paddingTop: 32,
     borderWidth: 1, 
     borderColor: 'rgba(0,0,0,0.05)', 
     backgroundColor: Colors.background,
-    zIndex: 1000,
-    elevation: 1000, // Android
-    marginTop: 'auto', // Empurra para baixo
+    // Sombra padrão (pode ser sobrescrita)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { color: Colors.primary, fontSize: 20, fontWeight: 'bold' },
   modalBody: { flex: 1, zIndex: 1 },
 
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 16 },
+  menuItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 16, 
+    paddingHorizontal: 4,
+    gap: 16,
+    minHeight: 56, // Área mínima de toque para iOS
+    width: '100%',
+  },
   menuIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.primary + '1A', alignItems: 'center', justifyContent: 'center' },
   menuItemText: { color: Colors.text, fontSize: 18, fontWeight: '500' },
 
