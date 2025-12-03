@@ -29,6 +29,11 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 - `expo_doc_guide.md` - Guia de documentação do Expo
 - `como criar efeito liquid glass do ios 26 com expo.md` - Guia de efeitos visuais
 
+### ⚠️ Guias de Segurança Obrigatórios:
+- `security/rls-testing-checklist.md` - Como validar isolamento multi-tenant
+- `security/n8n-webhook-auth.md` - Padrões de autenticação HMAC
+- `security/expo-integrity-setup.md` - Configuração de App Attest
+
 **Processo obrigatório:**
 1. Antes de implementar, ler o guia relevante em `docs/mpc-guides/`
 2. Seguir os padrões, APIs e melhores práticas documentados
@@ -54,11 +59,47 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 - Nunca consulte dados do usuário sem filtrar pela casa ativa
 - **RLS (Row Level Security)**: Sempre assuma que o RLS está ativo no Supabase. Suas queries devem respeitar as políticas de `auth.uid()` e associação em `house_members`
 
+**Checklist de Validação RLS (Obrigatório):**
+
+Antes de finalizar qualquer feature que acessa dados:
+
+1. **Teste Cross-Tenant**: Tente acessar dados de outra casa com credentials válidas → Deve retornar vazio
+2. **Teste sem Session**: Remova auth.uid() do contexto → Deve falhar
+3. **SQL Injection Test**: Use `'; DROP TABLE expenses; --` como house_id → Deve sanitizar
+4. **Verify Policy Exists**: Execute `SELECT * FROM pg_policies WHERE tablename = 'expenses';` para confirmar políticas ativas
+
 ### 2. Performance Mobile-First
 
 - Use **Reanimated v4** para todas as interações gestuais e animações. Evite Animated API do React Native legado
+- **Worklets Obrigatórios**: SEMPRE use a diretiva `'worklet'` em `useAnimatedStyle` para garantir execução na UI thread (60fps)
+
+```typescript
+// ❌ EVITE: Roda na JS thread
+const animatedStyle = useAnimatedStyle(() => {
+  return { opacity: fadeAnim.value };
+});
+
+// ✅ USE: Roda na UI thread (60fps garantido)
+const animatedStyle = useAnimatedStyle(() => {
+  'worklet'; // Diretiva obrigatória
+  return { opacity: withSpring(fadeAnim.value) };
+});
+```
+
 - Use **FlashList** (Shopify) ao invés de FlatList para listas longas (Despesas, Tarefas)
 - Priorize componentes nativos via Expo SDK
+- **Cache Strategy**: Use SWR ou React Query com stale-while-revalidate para reduzir chamadas ao Supabase
+
+```typescript
+// Exemplo de cache com SWR
+import useSWR from 'swr';
+
+const { data: expenses } = useSWR(
+  ['expenses', houseId],
+  () => fetchExpenses(houseId),
+  { revalidateOnFocus: false, dedupingInterval: 30000 } // Cache 30s
+);
+```
 
 ### 3. Tipagem Estrita (TypeScript)
 
@@ -78,6 +119,17 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 ### B. Backend & Dados (Supabase & Prisma)
 
 - **Schema Awareness**: Consulte sempre o arquivo `luma_prisma_schema.txt` antes de gerar queries
+- **Índices Compostos Obrigatórios**: Para queries frequentes multi-tenant, SEMPRE adicione índices compostos no Prisma Schema:
+
+```prisma
+model Expense {
+  // ... campos existentes
+  @@index([house_id, expense_date(sort: Desc)]) // Índice composto
+  @@index([house_id, created_by])
+}
+```
+
+- **Validação de Schema**: Execute `npx prisma generate` antes de commits e adicione `npm run type-check` ao CI/CD
 - **Edge Functions**: Use Edge Functions apenas para lógicas que não podem ser resolvidas via SQL ou n8n (ex: manipulação complexa de imagens)
 - **Realtime**: Implemente `supabase.channel` para atualizações instantâneas no Chat da Luma e Status de Tarefas
 
@@ -88,18 +140,56 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 - O App **nunca** fala diretamente com a LLM
 - O App envia POST para Webhook do n8n
 
-**Payload Padrão:**
+**Autenticação Obrigatória (HMAC + JWT):**
+
+⚠️ **CRÍTICO**: Webhooks n8n DEVEM usar autenticação HMAC e JWT para proteger dados sensíveis.
+
+```typescript
+// Padrão obrigatório para chamadas n8n
+const n8nWebhookCall = async (payload: LumaWebhookPayload) => {
+  // Gerar JWT com claims criptografadas (não enviar user_id/house_id em texto plano)
+  const token = jwt.sign(
+    { user_id: payload.user_id, house_id: payload.house_id, exp: Date.now() + 3600000 },
+    process.env.JWT_SECRET!
+  );
+  
+  // Assinatura HMAC para validação
+  const signature = crypto
+    .createHmac('sha256', process.env.N8N_WEBHOOK_SECRET!)
+    .update(JSON.stringify({ token, message: payload.message }))
+    .digest('hex');
+  
+  const response = await fetch(N8N_WEBHOOK_URL, {
+    headers: {
+      'X-Luma-Signature': signature,
+      'Authorization': `Bearer ${process.env.N8N_API_KEY}`,
+    },
+    body: JSON.stringify({ token, message: payload.message, context: payload.context }),
+  });
+};
+```
+
+**Payload Padrão (Seguro):**
 
 ```json
 {
-  "user_id": "uuid",
-  "house_id": "uuid",
+  "token": "eyJhbGc...", // JWT contendo user_id, house_id, exp
   "message": "string",
   "context": {
     "current_route": "finance",
     "role": "admin"
   }
 }
+```
+
+**Rate Limiting Obrigatório:**
+
+Implemente throttle no frontend para prevenir spam:
+
+```typescript
+import { useThrottle } from '@react-hook/throttle';
+
+const [sendMessage, setSendMessage] = useThrottle('', 2000); // Max 1 req/2s
 ```
 
 **UX de Chat**: O frontend deve tratar a resposta do n8n como streaming ou resposta única, exibindo metadados (ex: "Processando gastos...") se fornecidos.
@@ -109,9 +199,32 @@ Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado n
 Antes de finalizar qualquer código, verifique:
 
 1. **house_id**: A query SQL ou chamada de API inclui o filtro da casa?
-2. **Tratamento de Erro**: O código lida com falha de rede ou timeout do n8n?
-3. **Tipos**: As props dos componentes batem com o Schema do Prisma?
+2. **Tratamento de Erro Específico**: Use padrão obrigatório para chamadas n8n com retry logic e UX clara:
+
+```typescript
+// Pattern obrigatório para chamadas n8n
+try {
+  const response = await fetchWithTimeout(N8N_WEBHOOK_URL, payload, 10000);
+} catch (error) {
+  if (error.name === 'AbortError') {
+    // Timeout: mostrar "A Luma está pensando... tente novamente"
+    showRetryableError();
+  } else if (error.status === 429) {
+    // Rate limit: "Muitas mensagens. Aguarde 30s"
+    showRateLimitError();
+  } else {
+    // Erro desconhecido: log para Sentry + fallback
+    Sentry.captureException(error);
+    showGenericError();
+  }
+}
+```
+
+3. **Tipos**: As props dos componentes batem com o Schema do Prisma? Execute `npx prisma generate` e `npm run type-check`
 4. **Dependências**: Estou usando uma lib compatível com Expo SDK 54? (Evite libs que exigem eject)
+5. **Índices**: Queries com filtros por house_id têm índices compostos no Prisma Schema?
+6. **Worklets**: Animações Reanimated v4 usam a diretiva `'worklet'`?
+7. **Autenticação**: Webhooks n8n têm HMAC signature e JWT no payload?
 
 ## Comandos Específicos para o Cursor
 
@@ -128,12 +241,36 @@ Ao gerar código, use a seguinte estrutura:
 3. **Código**: Blocos de código TypeScript completos e tipados
 4. **Check de Segurança**: "Nota: Esta query garante isolamento via house_id."
 
+## Segurança de App (SDK 54+)
+
+⚠️ **Obrigatório para Features Críticas:**
+
+- Configure `expo-app-integrity` para validar requests críticos (pagamentos, webhooks)
+- No backend, valide tokens do Google Play Integrity / App Attest antes de processar
+- Endpoint exemplo: POST /api/verify-device
+- Previne chamadas de apps modificados/clonados
+
 ## Roadmap Awareness
 
 Esteja ciente que estamos na **Fase 1 (MVP)**.
 
 - **Foque em**: CRUD Finanças, Tarefas, Chat Básico
 - **Deixe preparado (stubs)**: IoT Devices, Automações complexas
+
+## ✅ Checklist de Pull Request (Obrigatório)
+
+Antes de mergear qualquer código, verifique:
+
+- [ ] RLS testado com credenciais de outra casa (teste cross-tenant)
+- [ ] Webhook n8n tem autenticação HMAC/JWT implementada
+- [ ] Queries têm índices compostos por house_id no Prisma Schema
+- [ ] Animações usam worklets do Reanimated v4 (diretiva `'worklet'`)
+- [ ] Erros de rede têm retry logic e UX clara (timeout, rate limit, genérico)
+- [ ] Cache implementado para queries frequentes (SWR/React Query)
+- [ ] Tipos TypeScript gerados do Prisma estão atualizados (`npx prisma generate`)
+- [ ] Rate limiting aplicado em endpoints sensíveis (throttle no frontend)
+- [ ] Expo App Integrity configurado para features críticas (se aplicável)
+- [ ] Testes de SQL Injection realizados (sanitização de inputs)
 
 ## Exemplo de Implementação Segura (Pattern)
 

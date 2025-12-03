@@ -36,3 +36,6 @@ Luma-workflows/
 *api_key*.md
 analise-completa-fluxos-n8n.md
 test-results-luma-n8n.md
+.cursor/rules/dev.mdc
+luma-app/docs/melhorias regras cursor.md
+
