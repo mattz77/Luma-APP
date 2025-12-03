@@ -201,18 +201,65 @@ export const SpeedDial = ({
             });
           }
         } else {
-          // Native: usar measureInWindow
+          // Native: Tentar measureInWindow primeiro (mais confiável para coordenadas absolutas)
           if (typeof buttonRef.current.measureInWindow === 'function') {
+            // measureInWindow retorna coordenadas absolutas na janela
             buttonRef.current.measureInWindow((x, y, width, height) => {
-              setButtonLayout({ x, y, width, height });
+              const windowWidth = Dimensions.get('window').width;
+              const windowHeight = Dimensions.get('window').height;
+              
+              // No iOS, measureInWindow pode retornar coordenadas incorretas se o componente
+              // estiver dentro de containers com transformações. Vamos usar as coordenadas
+              // mas validar se fazem sentido considerando a posição esperada do dock
+              const expectedY = windowHeight - 120 + 30 + 32 - 22; // container height - marginBottom - half mainPill - half button
+              const yDiff = Math.abs(y - expectedY);
+              
+              // Se a diferença for muito grande (> 50px), usar cálculo manual
+              if (yDiff > 50) {
+                // Calcular posição manualmente baseado no layout do dock
+                // mainPill está centralizado verticalmente no dockWrapper
+                // dockWrapper tem marginBottom: 30
+                // container tem height: 120
+                // mainPill tem height: 64, então centro está em 32px do topo do mainPill
+                // botão tem height: 44, então centro está em 22px do topo do botão
+                const calculatedY = windowHeight - 120 + 30 + 32 - 22;
+                setButtonLayout({ 
+                  x: windowWidth / 2 - 22, // Centro horizontal (botão está no centro do mainPill)
+                  y: calculatedY, 
+                  width: 44, 
+                  height: 44 
+                });
+              } else {
+                // Usar coordenadas medidas, mas ajustar X para o centro se necessário
+                setButtonLayout({ 
+                  x: x, 
+                  y: y, 
+                  width: width || 44, 
+                  height: height || 44 
+                });
+              }
+            });
+          } else if (Platform.OS === 'ios' && typeof buttonRef.current.measure === 'function') {
+            // iOS fallback: measure retorna coordenadas relativas ao container pai
+            // Para coordenadas absolutas, melhor usar cálculo manual baseado no layout
+            const windowWidth = Dimensions.get('window').width;
+            const windowHeight = Dimensions.get('window').height;
+            // Calcular posição manualmente baseado no layout do dock
+            setButtonLayout({
+              x: windowWidth / 2 - 22, // Centro horizontal
+              y: windowHeight - 120 + 30 + 32 - 22, // Calculado baseado no layout
+              width: 44,
+              height: 44
             });
           } else {
-            // Fallback se measureInWindow não estiver disponível
+            // Fallback se nenhum método estiver disponível
+            const windowWidth = Dimensions.get('window').width;
+            const windowHeight = Dimensions.get('window').height;
             setButtonLayout({
-              x: Dimensions.get('window').width - 80,
-              y: Dimensions.get('window').height - 100,
-              width: 64,
-              height: 64
+              x: windowWidth / 2 - 22, // Centro menos metade da largura do botão
+              y: windowHeight - 120, // Altura da tela menos altura do dock
+              width: 44,
+              height: 44
             });
           }
         }
@@ -229,11 +276,13 @@ export const SpeedDial = ({
             setTimeout(() => {
               setButtonLayout((prev) => {
                 if (!prev) {
+                  const windowWidth = Dimensions.get('window').width;
+                  const windowHeight = Dimensions.get('window').height;
                   return {
-                    x: Dimensions.get('window').width - 80,
-                    y: Dimensions.get('window').height - 120,
-                    width: 64,
-                    height: 64
+                    x: windowWidth / 2 - 22, // Centro menos metade da largura do botão
+                    y: windowHeight - 120, // Altura da tela menos altura do dock
+                    width: 44,
+                    height: 44
                   };
                 }
                 return prev;
@@ -323,8 +372,8 @@ export const SpeedDial = ({
           <Box
             className="absolute items-center justify-center overflow-visible"
             style={{
-              left: buttonLayout.x + (buttonLayout.width / 2),
-              top: buttonLayout.y + (buttonLayout.height / 2),
+              left: buttonLayout.x + (buttonLayout.width / 2), // Centro X do botão
+              top: buttonLayout.y + (buttonLayout.height / 2), // Centro Y do botão
               width: 0,
               height: 0,
               zIndex: 1001,
@@ -353,7 +402,7 @@ export const SpeedDial = ({
             className="absolute items-center justify-center overflow-visible"
             style={{
               left: Dimensions.get('window').width / 2,
-              bottom: 120,
+              top: Dimensions.get('window').height - 120 - 22, // Altura da tela - dock - metade do botão
               width: 0,
               height: 0,
               zIndex: 1001,
@@ -376,19 +425,19 @@ export const SpeedDial = ({
           </Box>
         )}
 
-        {/* Botão de Fechar (X) sobreposto ao botão original */}
+        {/* Botão de Fechar (X) sobreposto ao botão original - agora invisível pois o dock faz a transição */}
         {buttonLayout && (
           <Box
             className="absolute items-center justify-center"
             style={{
-              left: buttonLayout.x,
-              top: buttonLayout.y,
+              left: buttonLayout.x, // Usar coordenada X exata do botão
+              top: buttonLayout.y, // Usar coordenada Y exata do botão
               width: buttonLayout.width,
               height: buttonLayout.height,
               zIndex: 1002, // Acima dos itens
               elevation: 1002,
             }}
-            pointerEvents="box-none"
+            pointerEvents="auto"
           >
             <Pressable
               className="w-11 h-11 items-center justify-center"
@@ -398,13 +447,8 @@ export const SpeedDial = ({
                 handleClose();
               }}
             >
-              <Animated.View 
-                style={{ 
-                  transform: [{ rotate: '45deg' }] // Rotacionar + para virar X (ou usar ícone X)
-                }}
-              >
-                <MainIcon size={24} color={Colors.textSecondary} />
-              </Animated.View>
+              {/* Botão invisível mas clicável - o visual está no dock */}
+              <Box className="w-11 h-11" />
             </Pressable>
           </Box>
         )}
@@ -414,10 +458,10 @@ export const SpeedDial = ({
           <Box
             className="absolute items-center justify-center"
             style={{
-              left: Dimensions.get('window').width / 2 - 32, // Centralizado (largura 64/2)
-              bottom: 120 - 64, // Posição aproximada do botão original
-              width: 64,
-              height: 64,
+              left: Dimensions.get('window').width / 2 - 22, // Centralizado (largura 44/2)
+              top: Dimensions.get('window').height - 120 - 22, // Altura da tela - dock - metade do botão
+              width: 44,
+              height: 44,
               zIndex: 1002,
               elevation: 1002,
             }}

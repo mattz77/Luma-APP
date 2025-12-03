@@ -1,6 +1,6 @@
 import { LayoutChangeEvent, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useState, useEffect, useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import { SpeedDial } from '../SpeedDial';
@@ -73,11 +73,23 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     // Animation values
     const mainDockOpacity = useSharedValue(1);
     const mainDockTranslateY = useSharedValue(0);
+    const plusRotation = useSharedValue(0);
 
     // Use animated style para shared values (corrige warning do Reanimated)
     const dockAnimatedStyle = useAnimatedStyle(() => ({
         opacity: mainDockOpacity.value,
         transform: [{ translateY: mainDockTranslateY.value }]
+    }));
+
+    // Animação de rotação do botão + para X
+    useEffect(() => {
+        plusRotation.value = withTiming(isSpeedDialOpen ? 45 : 0, {
+            duration: 200,
+        });
+    }, [isSpeedDialOpen]);
+
+    const plusIconStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${plusRotation.value}deg` }],
     }));
 
     const onDockLayout = (event: LayoutChangeEvent) => {
@@ -240,6 +252,12 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                             className="items-center justify-center w-11 h-11" 
                             ref={speedDialButtonRef}
                             style={{ zIndex: 2000 }} // Garantir que o botão fique acima
+                            onLayout={(event) => {
+                                // Armazenar layout para uso no SpeedDial
+                                if (speedDialButtonRef.current) {
+                                    (speedDialButtonRef.current as any)._layout = event.nativeEvent.layout;
+                                }
+                            }}
                         >
                             <Pressable
                                 className="w-11 h-11 items-center justify-center"
@@ -259,11 +277,12 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                 style={{ zIndex: 2001 }}
                             >
                                 <Box className="w-11 h-11 items-center justify-center">
-                                    <Plus
-                                        size={24}
-                                        color={Colors.textSecondary}
-                                        style={{ opacity: isSpeedDialOpen ? 0 : 1 }} // Esconder o + quando aberto, pois o X do modal vai sobrepor
-                                    />
+                                    <Animated.View style={plusIconStyle}>
+                                        <Plus
+                                            size={24}
+                                            color={Colors.textSecondary}
+                                        />
+                                    </Animated.View>
                                 </Box>
                             </Pressable>
                         </Box>
