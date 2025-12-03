@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeIn,
+  FadeOut,
   FadeInDown,
   Layout,
   SlideInDown,
@@ -288,7 +289,6 @@ export default function TasksScreen() {
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
   const [deadline, setDeadline] = useState<Date | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
-  const [isClosingByGesture, setIsClosingByGesture] = useState(false);
 
   // Gesture values for drag to close
   const translateY = useSharedValue(0);
@@ -297,31 +297,47 @@ export default function TasksScreen() {
   // Handle 'create' action from global dock
   useEffect(() => {
     if (action === 'create') {
-      setCreateOpen(true);
+      // Reset translateY immediately before opening
+      translateY.value = 0;
+      // Use requestAnimationFrame to ensure reset happens before render
+      requestAnimationFrame(() => {
+        setCreateOpen(true);
+      });
     }
   }, [action]);
 
-  // Reset translateY when modal opens/closes
+  // Reset translateY when modal opens
   useEffect(() => {
     if (isCreateOpen) {
+      // Immediately reset to 0 when opening
       translateY.value = 0;
-      setIsClosingByGesture(false);
+    } else {
+      // Reset when closed
+      translateY.value = 0;
     }
   }, [isCreateOpen]);
 
-  // Close modal function
+  // Close modal function - close immediately (animation handled by gesture)
   const closeModal = () => {
     Keyboard.dismiss();
+    // Close immediately without animation (for button/backdrop clicks)
+    // Animation is handled by gesture when dragging
+    handleCloseState();
+  };
+
+  const handleCloseState = () => {
     setCreateOpen(false);
     router.setParams({ action: '' });
+    translateY.value = 0; // Reset for next open
   };
 
   // Pan gesture for drag to close
   const panGesture = Gesture.Pan()
     .activeOffsetY(10) // Require 10px downward movement before activating
     .onUpdate((event) => {
-      // Only allow downward drag
+      // Only allow downward drag with smooth interpolation
       if (event.translationY > 0) {
+        // Use smooth interpolation for better feel
         translateY.value = event.translationY;
       }
     })
@@ -329,28 +345,46 @@ export default function TasksScreen() {
       const shouldClose = event.translationY > 100 || event.velocityY > 500;
       
       if (shouldClose) {
-        // Mark as closing by gesture to prevent double animation
-        runOnJS(setIsClosingByGesture)(true);
-        // Animate out and close
-        translateY.value = withTiming(screenHeight, {
-          duration: 300,
+        // Animate out and close with smooth spring animation
+        translateY.value = withSpring(screenHeight, {
+          damping: 25,
+          stiffness: 200,
+          mass: 0.8,
+          velocity: event.velocityY / 1000, // Use gesture velocity for natural feel
         }, () => {
-          runOnJS(closeModal)();
-          translateY.value = 0; // Reset for next open
+          runOnJS(handleCloseState)();
         });
       } else {
-        // Spring back to original position
+        // Spring back to original position with smooth animation
         translateY.value = withSpring(0, {
-          damping: 20,
-          stiffness: 300,
+          damping: 25,
+          stiffness: 200,
+          mass: 0.8,
+          velocity: event.velocityY / 1000, // Use gesture velocity
         });
       }
     });
 
-  // Animated style for modal based on gesture
+  // Animated style for modal based on gesture with smooth interpolation
   const modalAnimatedStyle = useAnimatedStyle(() => {
+    // Only apply translation when dragging (value > 0)
+    // When modal opens, translateY is 0, so no translation is applied
+    const clampedY = Math.max(0, translateY.value);
+    
+    // Add slight opacity fade when dragging down for better visual feedback
+    // Only fade when actually dragging (clampedY > 0)
+    const opacity = clampedY > 0 
+      ? interpolate(
+          clampedY,
+          [0, 100, screenHeight],
+          [1, 0.95, 0.8],
+          Extrapolation.CLAMP
+        )
+      : 1;
+    
     return {
-      transform: [{ translateY: translateY.value }],
+      transform: [{ translateY: clampedY }],
+      opacity: opacity,
     };
   });
 
@@ -496,6 +530,7 @@ export default function TasksScreen() {
               {/* Backdrop */}
               <Animated.View
                 entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
+                exiting={FadeOut.duration(150)}
                 className="absolute inset-0"
               >
                 <BlurView
@@ -513,6 +548,7 @@ export default function TasksScreen() {
               {/* Dock Area Blur - covers dock area without blocking interactions */}
               <Animated.View
                 entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
+                exiting={FadeOut.duration(150)}
                 className="absolute bottom-0 left-0 right-0"
                 style={{ 
                   height: 120, // Height to cover dock area
@@ -584,7 +620,7 @@ export default function TasksScreen() {
                       .damping(Platform.OS === 'ios' ? 18 : 20)
                       .stiffness(Platform.OS === 'ios' ? 280 : 250)
                       .mass(Platform.OS === 'ios' ? 0.8 : 1)}
-                    exiting={isClosingByGesture ? undefined : SlideOutDown}
+                    // exiting removed to prevent conflict with manual animation
                     className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
                     style={[
                       { backgroundColor: '#FFFFFF' }, // Force white background
