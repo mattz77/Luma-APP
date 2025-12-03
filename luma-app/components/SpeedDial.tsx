@@ -342,24 +342,8 @@ export const SpeedDial = ({
       {/* ModalBackdrop do gluestack-ui */}
       <ModalBackdrop onPress={handleClose} />
       
-      {/* Blur effect customizado sobre o backdrop */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          backdropStyle
-        ]}
-        pointerEvents="none"
-      >
-        <BlurView 
-          intensity={80} 
-          tint="light" 
-          style={StyleSheet.absoluteFill} 
-        />
-        {/* Overlay sutil para melhorar contraste */}
-        <Box 
-          className="absolute left-0 top-0 right-0 bottom-0 bg-black/10"
-        />
-      </Animated.View>
+      {/* Blur removido para garantir que o dock fique visível */}
+      {/* O ModalBackdrop já fornece um overlay escuro */}
 
       {/* Container principal */}
       <Box 
@@ -459,7 +443,7 @@ export const SpeedDial = ({
             className="absolute items-center justify-center"
             style={{
               left: Dimensions.get('window').width / 2 - 22, // Centralizado (largura 44/2)
-              top: Dimensions.get('window').height - 120 - 22, // Altura da tela - dock - metade do botão
+              top: Dimensions.get('window').height - 120 + 30 + 32 - 22, // Calculado baseado no layout
               width: 44,
               height: 44,
               zIndex: 1002,
@@ -467,13 +451,12 @@ export const SpeedDial = ({
             }}
             pointerEvents="box-none"
           >
-             <Pressable
+            <Pressable
               className="w-11 h-11 items-center justify-center"
               onPress={handleClose}
             >
-              <Animated.View style={{ transform: [{ rotate: '45deg' }] }}>
-                <MainIcon size={24} color={Colors.textSecondary} />
-              </Animated.View>
+              {/* Botão invisível mas clicável - o visual está no dock */}
+              <Box className="w-11 h-11" />
             </Pressable>
           </Box>
         )}

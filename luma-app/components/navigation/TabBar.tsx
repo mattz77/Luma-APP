@@ -251,7 +251,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                         <Box 
                             className="items-center justify-center w-11 h-11" 
                             ref={speedDialButtonRef}
-                            style={{ zIndex: 2000 }} // Garantir que o botão fique acima
+                            style={{ zIndex: 9999, elevation: 9999 }} // z-index muito alto para ficar acima do blur do modal
                             onLayout={(event) => {
                                 // Armazenar layout para uso no SpeedDial
                                 if (speedDialButtonRef.current) {
