@@ -135,6 +135,8 @@ model Expense {
   splits     ExpenseSplit[]
 
   @@index([house_id])
+  @@index([house_id, expense_date(sort: Desc)])
+  @@index([house_id, created_by_id])
   @@index([expense_date])
   @@index([category_id])
   @@map("expenses")
@@ -199,6 +201,8 @@ model Task {
   comments    TaskComment[]
 
   @@index([house_id])
+  @@index([house_id, status])
+  @@index([house_id, created_by_id])
   @@index([assigned_to_id])
   @@index([due_date])
   @@index([status])

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -33,6 +33,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useConversations } from '@/hooks/useConversations';
 import { useLumaChat } from '@/hooks/useLumaChat';
 import { useRealtimeConversations } from '@/hooks/useRealtimeConversations';
+import { useRAGSync } from '@/hooks/useRAGSync';
 
 const getMessageDateLabel = (date: string) => {
   const msgDate = new Date(date);
@@ -54,12 +55,17 @@ export default function LumaChatScreen() {
   const userId = useAuthStore((state: any) => state.user?.id ?? null);
   const userName = useAuthStore((state: any) => state.user?.name ?? 'Você');
   const flatListRef = useRef<FlatList>(null);
+  const isSendingRef = useRef(false); // Proteção contra múltiplas execuções
+  const lastSentMessageRef = useRef<string>(''); // Rastrear última mensagem enviada
+  const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout para reset
+  const lastSentTimestampRef = useRef<number>(0); // Timestamp da última mensagem enviada
   const { top, bottom } = useSafeAreaInsets();
   const { preset } = useLocalSearchParams<{ preset?: string }>();
 
   const { data: conversations, isLoading: isLoadingConversations, refetch, isRefetching } = useConversations(houseId);
   const { mutateAsync: sendMessage, isPending } = useLumaChat(houseId, userId);
   useRealtimeConversations(houseId);
+  useRAGSync();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -76,21 +82,88 @@ export default function LumaChatScreen() {
     }
   }, [conversations]);
 
-  const handleSend = async () => {
-    if (!message.trim()) return;
+  // Cleanup timeout ao desmontar componente
+  useEffect(() => {
+    return () => {
+      if (sendTimeoutRef.current) {
+        clearTimeout(sendTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleSend = useCallback(async () => {
     const messageToSend = message.trim();
+    const now = Date.now();
+    
+    // Proteção contra múltiplas execuções
+    if (isSendingRef.current || isPending || !messageToSend) {
+      console.log('[handleSend] Bloqueado:', { 
+        isSending: isSendingRef.current, 
+        isPending, 
+        hasMessage: !!messageToSend,
+        lastSent: lastSentMessageRef.current
+      });
+      return;
+    }
+    
+    // Verificar se é a mesma mensagem que acabou de ser enviada (dentro de 10 segundos)
+    if (lastSentMessageRef.current === messageToSend && (now - lastSentTimestampRef.current) < 10000) {
+      console.warn('[handleSend] Mensagem duplicada detectada, ignorando:', { 
+        message: messageToSend, 
+        timeSinceLastSend: now - lastSentTimestampRef.current 
+      });
+      return;
+    }
+    
+    // Proteção adicional: se enviou há menos de 2 segundos, bloquear (React StrictMode protection)
+    if ((now - lastSentTimestampRef.current) < 2000) {
+      console.warn('[handleSend] Rate limit muito agressivo (possível StrictMode), bloqueando:', {
+        timeSinceLastSend: now - lastSentTimestampRef.current
+      });
+      return;
+    }
+    
+    // Limpar timeout anterior se existir
+    if (sendTimeoutRef.current) {
+      clearTimeout(sendTimeoutRef.current);
+      sendTimeoutRef.current = null;
+    }
+    
+    isSendingRef.current = true;
+    lastSentMessageRef.current = messageToSend;
+    lastSentTimestampRef.current = now;
+    const sendTimestamp = now;
     setMessage('');
     setErrorMessage(null);
+    
+    console.log('[handleSend] Enviando mensagem:', { message: messageToSend, timestamp: sendTimestamp });
+    
     try {
       await sendMessage(messageToSend);
       // Optimistic update or wait for realtime is handled by hooks, 
       // but we scroll to bottom
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[handleSend] Erro ao enviar:', error);
+      
+      // Se for erro de duplicata ou rate limit, não mostrar erro ao usuário
+      if (error?.message === 'DUPLICATE_MESSAGE' || error?.message === 'RATE_LIMIT_LOCAL') {
+        console.log('[handleSend] Erro esperado (duplicata/rate limit), ignorando');
+        return;
+      }
+      
       setErrorMessage('Não foi possível enviar.');
       setMessage(messageToSend);
+      lastSentMessageRef.current = ''; // Reset para permitir retry
+    } finally {
+      // Reset após um delay maior para garantir que a requisição terminou
+      sendTimeoutRef.current = setTimeout(() => {
+        isSendingRef.current = false;
+        lastSentMessageRef.current = ''; // Limpar após 8 segundos
+        console.log('[handleSend] Reset isSendingRef após', Date.now() - sendTimestamp, 'ms');
+      }, 8000); // Aumentado para 8 segundos para garantir que não há duplicação
     }
-  };
+  }, [message, sendMessage, isPending]);
 
   const processedConversations: Array<{
     type: 'date_separator' | 'message';
@@ -102,8 +175,28 @@ export default function LumaChatScreen() {
   }> = [];
 
   if (conversations) {
+    // Deduplicar conversas: remover duplicatas baseadas em message + timestamp (dentro de 10 segundos)
+    const deduplicated = conversations.reduce((acc, conv) => {
+      const existing = acc.find((c) => {
+        const timeDiff = Math.abs(
+          new Date(c.createdAt || 0).getTime() - new Date(conv.createdAt || 0).getTime()
+        );
+        return c.message === conv.message && timeDiff < 10000; // 10 segundos
+      });
+      if (!existing) {
+        acc.push(conv);
+      } else {
+        // Se já existe, manter o mais recente
+        const existingIndex = acc.indexOf(existing);
+        if (new Date(conv.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime()) {
+          acc[existingIndex] = conv;
+        }
+      }
+      return acc;
+    }, [] as typeof conversations);
+
     // Sort conversations by date (oldest first)
-    const sortedConversations = [...conversations].sort((a, b) => {
+    const sortedConversations = [...deduplicated].sort((a, b) => {
       const dateA = new Date(a.createdAt || 0).getTime();
       const dateB = new Date(b.createdAt || 0).getTime();
       return dateA - dateB;
@@ -126,7 +219,6 @@ export default function LumaChatScreen() {
         created_at: conv.createdAt
       });
     });
-    console.log('Processed Conversations:', JSON.stringify(processedConversations, null, 2));
   }
 
   return (
@@ -274,16 +366,51 @@ export default function LumaChatScreen() {
                 placeholderTextColor={Colors.textSecondary}
                 style={styles.inputField}
                 multiline
+                onSubmitEditing={() => {
+                  // Prevenir submit duplo - apenas o botão deve enviar
+                  // onSubmitEditing pode ser chamado junto com onPress
+                  // Não fazer nada aqui para evitar duplicação
+                }}
+                blurOnSubmit={false}
+                editable={!isPending && !isSendingRef.current}
               />
             </View>
 
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                { backgroundColor: message.trim() ? Colors.primary : Colors.textSecondary + '20' }
+                { backgroundColor: message.trim() && !isPending && !isSendingRef.current ? Colors.primary : Colors.textSecondary + '20' }
               ]}
-              onPress={handleSend}
-              disabled={!message.trim()}
+              onPress={(e) => {
+                // Prevenir múltiplos eventos de forma mais agressiva
+                if (e) {
+                  e.preventDefault?.();
+                  e.stopPropagation?.();
+                }
+                
+                // Verificação adicional antes de chamar
+                if (isSendingRef.current || isPending || !message.trim()) {
+                  console.log('[TouchableOpacity] Bloqueado:', { 
+                    isSending: isSendingRef.current, 
+                    isPending, 
+                    hasMessage: !!message.trim(),
+                    lastSent: lastSentMessageRef.current
+                  });
+                  return;
+                }
+                
+                // Verificar se é a mesma mensagem
+                if (lastSentMessageRef.current === message.trim()) {
+                  console.warn('[TouchableOpacity] Mensagem duplicada, ignorando');
+                  return;
+                }
+                
+                handleSend();
+              }}
+              disabled={!message.trim() || isPending || isSendingRef.current}
+              activeOpacity={0.7}
+              delayPressIn={0}
+              delayPressOut={0}
             >
               {isPending ? (
                 <ActivityIndicator size="small" color="#FFF" />

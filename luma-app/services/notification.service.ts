@@ -30,11 +30,16 @@ const mapNotification = (notification: NotificationRow): Notification => ({
 });
 
 export const notificationService = {
-  async getAll(userId: string, options?: { isRead?: boolean; limit?: number }): Promise<Notification[]> {
+  async getAll(
+    userId: string,
+    houseId: string,
+    options?: { isRead?: boolean; limit?: number },
+  ): Promise<Notification[]> {
     let query = supabase
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
+      .eq('house_id', houseId)
       .order('created_at', { ascending: false });
 
     if (options?.isRead !== undefined) {
@@ -54,11 +59,12 @@ export const notificationService = {
     return (data ?? []).map((notification) => mapNotification(notification));
   },
 
-  async getUnreadCount(userId: string): Promise<number> {
+  async getUnreadCount(userId: string, houseId: string): Promise<number> {
     const { count, error } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
+      .eq('house_id', houseId)
       .eq('is_read', false);
 
     if (error) {
@@ -82,11 +88,12 @@ export const notificationService = {
     return mapNotification(data);
   },
 
-  async markAsRead(id: string): Promise<Notification> {
+  async markAsRead(id: string, houseId: string): Promise<Notification> {
     const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('id', id)
+      .eq('house_id', houseId)
       .select()
       .single();
 
@@ -97,11 +104,12 @@ export const notificationService = {
     return mapNotification(data);
   },
 
-  async markAllAsRead(userId: string): Promise<void> {
+  async markAllAsRead(userId: string, houseId: string): Promise<void> {
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', userId)
+      .eq('house_id', houseId)
       .eq('is_read', false);
 
     if (error) {
@@ -109,8 +117,8 @@ export const notificationService = {
     }
   },
 
-  async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('notifications').delete().eq('id', id);
+  async remove(id: string, houseId: string): Promise<void> {
+    const { error } = await supabase.from('notifications').delete().eq('id', id).eq('house_id', houseId);
 
     if (error) {
       throw error;

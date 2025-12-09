@@ -57,6 +57,7 @@ export default function TaskDetailsScreen() {
       await updateTaskMutation.mutateAsync({
         id: task.id,
         updates: {
+          house_id: task.houseId,
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
         },

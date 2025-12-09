@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/supabase';
 import type { Task, TaskPriority, TaskStatus, User } from '@/types/models';
+import { RAGService } from '@/services/rag.service';
 
 type TaskRow = Database['public']['Tables']['tasks']['Row'];
 type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
@@ -53,11 +54,12 @@ const mapTask = (task: TaskRowWithRelations): Task => ({
 export type { TaskInsert, TaskUpdate };
 
 export const taskService = {
-  async getById(id: string): Promise<Task | null> {
+  async getById(id: string, houseId: string): Promise<Task | null> {
     const { data, error } = await supabase
       .from('tasks')
       .select('*, assignee:users!tasks_assigned_to_id_fkey(*), creator:users!tasks_created_by_id_fkey(*)')
       .eq('id', id)
+      .eq('house_id', houseId)
       .single();
 
     if (error) {
@@ -100,14 +102,31 @@ export const taskService = {
       throw error ?? new Error('Falha ao criar tarefa');
     }
 
-    return mapTask(data as TaskRowWithRelations);
+    const created = mapTask(data as TaskRowWithRelations);
+
+    // Indexar tarefa no RAG (async)
+    RAGService.addDocument({
+      house_id: created.houseId,
+      content: `Tarefa: ${created.title}. ${created.description ?? 'Sem descrição'}. Status: ${created.status}. Prioridade: ${created.priority}. Responsável: ${created.assignee?.name ?? 'Ninguém'}.`,
+      doc_type: 'task',
+      metadata: {
+        id: created.id,
+        status: created.status,
+        priority: created.priority,
+      },
+    }).catch((err) => console.warn('[Task] Falha ao indexar no RAG', err));
+
+    return created;
   },
 
-  async update(id: string, updates: TaskUpdate): Promise<Task> {
-    const { data, error } = await supabase
-      .from('tasks')
-      .update(updates)
-      .eq('id', id)
+  async update(id: string, updates: TaskUpdate & { house_id?: string; houseId?: string }): Promise<Task> {
+    const houseId = updates.house_id ?? (updates as { houseId?: string }).houseId;
+    let query = supabase.from('tasks').update(updates).eq('id', id);
+    if (houseId) {
+      query = query.eq('house_id', houseId);
+    }
+
+    const { data, error } = await query
       .select('*, assignee:users!tasks_assigned_to_id_fkey(*), creator:users!tasks_created_by_id_fkey(*)')
       .single();
 
@@ -118,8 +137,8 @@ export const taskService = {
     return mapTask(data as TaskRowWithRelations);
   },
 
-  async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
+  async remove(id: string, houseId: string): Promise<void> {
+    const { error } = await supabase.from('tasks').delete().eq('id', id).eq('house_id', houseId);
 
     if (error) {
       throw error;

@@ -51,6 +51,7 @@ const SpeedDialItem = ({
   onPress: () => void;
 }) => {
   const actionStyle = useAnimatedStyle(() => {
+    'worklet';
     const currentProgress = progress.value;
 
     // Animação para aparecer acima do botão (valores negativos = para cima)

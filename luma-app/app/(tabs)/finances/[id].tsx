@@ -43,7 +43,7 @@ export default function ExpenseDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const expenseId = params.id ? String(params.id) : null;
   const { houseId } = useAuthStore();
-  const { data: expense, isLoading, error } = useExpense(expenseId);
+  const { data: expense, isLoading, error } = useExpense(expenseId, houseId);
 
   const isAuthorized = useMemo(() => {
     if (!expense || !houseId) return true;

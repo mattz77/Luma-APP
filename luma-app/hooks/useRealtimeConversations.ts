@@ -24,10 +24,9 @@ export function useRealtimeConversations(houseId: string | null | undefined) {
         },
         (payload) => {
           console.log('Mudança detectada em conversations:', payload.eventType);
-          // Invalidar a query para forçar refetch
+          // Apenas invalidar - o React Query fará refetch automaticamente quando necessário
+          // Não fazer refetch imediato para evitar múltiplas atualizações
           queryClient.invalidateQueries({ queryKey: ['conversations', houseId] });
-          // Forçar refetch imediato
-          queryClient.refetchQueries({ queryKey: ['conversations', houseId] });
         },
       )
       .subscribe();

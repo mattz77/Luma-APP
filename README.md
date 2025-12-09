@@ -14,7 +14,7 @@ Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gere
 - **AI Layer**: n8n para orquestração de workflows AI
 - **Estado**: Zustand + React Query (TanStack Query)
 - **Animações**: React Native Reanimated v4
-- **UI**: Lucide React Native Icons
+- **Gluestack UI V3**: and Lucide React Native Icons
 
 ## 📋 Pré-requisitos
 

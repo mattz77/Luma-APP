@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/supabase';
 import type { Expense, ExpenseCategory, ExpenseSplit, User } from '@/types/models';
+import { RAGService } from '@/services/rag.service';
 
 type ExpenseRow = Database['public']['Tables']['expenses']['Row'];
 type ExpenseInsert = Database['public']['Tables']['expenses']['Insert'];
@@ -128,13 +129,14 @@ const buildSplitInserts = (expenseId: string, splits: ExpenseSplitInput[]): Expe
 export type { ExpenseInsert, ExpenseUpdate };
 
 export const expenseService = {
-  async getById(id: string): Promise<Expense> {
+  async getById(id: string, houseId: string): Promise<Expense> {
     const { data, error } = await supabase
       .from('expenses')
       .select(
         '*, category:expense_categories(*), splits:expense_splits(*, user:users(id,email,name,avatar_url,phone,created_at,updated_at,last_login_at)), created_by:users!expenses_created_by_id_fkey(id,email,name,avatar_url,phone,created_at,updated_at,last_login_at)',
       )
       .eq('id', id)
+      .eq('house_id', houseId)
       .single();
 
     if (error || !data) {
@@ -184,7 +186,21 @@ export const expenseService = {
       }
     }
 
-    return expenseService.getById(expenseRow.id);
+    const expense = await expenseService.getById(expenseRow.id, input.houseId);
+
+    // Indexar despesa no RAG (async, não bloqueia)
+    RAGService.addDocument({
+      house_id: input.houseId,
+      content: `Despesa: ${expense.description}. Valor: R$ ${expense.amount}. Data: ${new Date(expense.expenseDate).toLocaleDateString('pt-BR')}.`,
+      doc_type: 'expense',
+      metadata: {
+        id: expense.id,
+        amount: expense.amount,
+        category: expense.category?.name ?? undefined,
+      },
+    }).catch((err) => console.warn('[Expense] Falha ao indexar no RAG', err));
+
+    return expense;
   },
 
   async update(id: string, input: SaveExpenseInput): Promise<Expense> {
@@ -218,11 +234,11 @@ export const expenseService = {
       }
     }
 
-    return expenseService.getById(expenseRow.id);
+    return expenseService.getById(expenseRow.id, input.houseId);
   },
 
-  async remove(id: string): Promise<void> {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
+  async remove(id: string, houseId: string): Promise<void> {
+    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('house_id', houseId);
 
     if (error) {
       throw error;
@@ -231,7 +247,7 @@ export const expenseService = {
     await supabase.from('expense_splits').delete().eq('expense_id', id);
   },
 
-  async togglePaid(id: string, isPaid: boolean): Promise<Expense> {
+  async togglePaid(id: string, isPaid: boolean, houseId: string): Promise<Expense> {
     const { data, error } = await supabase
       .from('expenses')
       .update({
@@ -239,6 +255,7 @@ export const expenseService = {
         paid_at: isPaid ? new Date().toISOString() : null,
       })
       .eq('id', id)
+      .eq('house_id', houseId)
       .select(
         '*, category:expense_categories(*), splits:expense_splits(*, user:users(id,email,name,avatar_url,phone,created_at,updated_at,last_login_at)), created_by:users!expenses_created_by_id_fkey(id,email,name,avatar_url,phone,created_at,updated_at,last_login_at)',
       )
@@ -248,7 +265,7 @@ export const expenseService = {
       throw error ?? new Error('Falha ao atualizar status de pagamento');
     }
 
-    return expenseService.getById((data as ExpenseRowWithRelations).id);
+    return expenseService.getById((data as ExpenseRowWithRelations).id, houseId);
   },
 };
 

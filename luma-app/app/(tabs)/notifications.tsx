@@ -33,11 +33,13 @@ const formatDate = (dateString: string) => {
 
 export default function NotificationsScreen() {
   const user = useAuthStore((state) => state.user);
+  const houseId = useAuthStore((state) => state.houseId);
   const { top } = useSafeAreaInsets();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const { data: notifications, isLoading, isRefetching, refetch } = useNotifications(
     user?.id,
+    houseId,
     filter === 'unread' ? { isRead: false } : undefined,
   );
   const markAsReadMutation = useMarkNotificationAsRead();
@@ -46,25 +48,27 @@ export default function NotificationsScreen() {
 
   const handleMarkAsRead = async (notification: Notification) => {
     if (notification.isRead) return;
+    if (!houseId) return;
     try {
-      await markAsReadMutation.mutateAsync(notification.id);
+      await markAsReadMutation.mutateAsync({ id: notification.id, houseId });
     } catch (error) {
       console.error('Erro ao marcar como lida:', error);
     }
   };
 
   const handleMarkAllAsRead = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !houseId) return;
     try {
-      await markAllAsReadMutation.mutateAsync(user.id);
+      await markAllAsReadMutation.mutateAsync({ userId: user.id, houseId });
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!houseId) return;
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id, houseId });
     } catch (error) {
       console.error('Erro ao deletar notificação:', error);
     }

@@ -20,16 +20,16 @@ export const useExpenses = (houseId: string | null | undefined) => {
   });
 };
 
-export const useExpense = (expenseId: string | null | undefined) => {
+export const useExpense = (expenseId: string | null | undefined, houseId: string | null | undefined) => {
   return useQuery({
-    queryKey: ['expense', expenseId],
+    queryKey: ['expense', expenseId, houseId],
     queryFn: () => {
-      if (!expenseId) {
+      if (!expenseId || !houseId) {
         return Promise.resolve(null);
       }
-      return expenseService.getById(expenseId);
+      return expenseService.getById(expenseId, houseId);
     },
-    enabled: Boolean(expenseId),
+    enabled: Boolean(expenseId && houseId),
   });
 };
 
@@ -60,7 +60,7 @@ export const useDeleteExpense = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, houseId }: { id: string; houseId: string }) => expenseService.remove(id),
+    mutationFn: ({ id, houseId }: { id: string; houseId: string }) => expenseService.remove(id, houseId),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['expenses', variables.houseId] });
     },
@@ -71,8 +71,12 @@ export const useToggleExpensePaid = (houseId: string | null | undefined) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, isPaid }: { id: string; isPaid: boolean }) =>
-      expenseService.togglePaid(id, isPaid),
+    mutationFn: ({ id, isPaid }: { id: string; isPaid: boolean }) => {
+      if (!houseId) {
+        throw new Error('houseId é obrigatório para atualizar despesa');
+      }
+      return expenseService.togglePaid(id, isPaid, houseId);
+    },
     onSuccess: () => {
       if (houseId) {
         queryClient.invalidateQueries({ queryKey: ['expenses', houseId] });

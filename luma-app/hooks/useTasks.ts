@@ -15,16 +15,16 @@ export const useTasks = (houseId: string | null | undefined) => {
   });
 };
 
-export const useTask = (taskId: string | null | undefined) => {
+export const useTask = (taskId: string | null | undefined, houseId: string | null | undefined) => {
   return useQuery({
-    queryKey: ['task', taskId],
+    queryKey: ['task', taskId, houseId],
     queryFn: () => {
-      if (!taskId) {
+      if (!taskId || !houseId) {
         return Promise.resolve(null);
       }
-      return taskService.getById(taskId);
+      return taskService.getById(taskId, houseId);
     },
-    enabled: Boolean(taskId),
+    enabled: Boolean(taskId && houseId),
   });
 };
 
@@ -49,7 +49,13 @@ export const useUpdateTask = () => {
     }: {
       id: string;
       updates: Parameters<typeof taskService.update>[1];
-    }) => taskService.update(id, updates),
+    }) => {
+      const houseScopedUpdates = updates as Parameters<typeof taskService.update>[1] & { house_id?: string };
+      if (!houseScopedUpdates.house_id && !(houseScopedUpdates as { houseId?: string }).houseId) {
+        throw new Error('house_id é obrigatório para atualizar tarefa');
+      }
+      return taskService.update(id, houseScopedUpdates);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', data.houseId] });
     },
@@ -60,7 +66,7 @@ export const useDeleteTask = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, houseId }: { id: string; houseId: string }) => taskService.remove(id),
+    mutationFn: ({ id, houseId }: { id: string; houseId: string }) => taskService.remove(id, houseId),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.houseId] });
     },
