@@ -478,9 +478,10 @@ export default function Dashboard() {
         time: new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }));
 
-    // 3. Merge and sort by date desc
+    // 3. Merge and sort by date desc, then limit to top 4 for dashboard preview
     return [...recentExpenses, ...recentTasks]
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 4);
   }, [expenses, tasks]);
 
   // --- Handlers (Mantidos) ---

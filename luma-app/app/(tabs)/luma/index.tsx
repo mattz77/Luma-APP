@@ -140,6 +140,10 @@ export default function LumaChatScreen() {
     
     console.log('[handleSend] Enviando mensagem:', { message: messageToSend, timestamp: sendTimestamp });
     
+    // Flag para controlar se devemos criar o timeout de 10 segundos no finally
+    // Para erros não esperados (rede/servidor), não criamos o timeout e resetamos imediatamente
+    let shouldCreateTimeout = true;
+    
     try {
       await sendMessage(messageToSend);
       // Optimistic update or wait for realtime is handled by hooks, 
@@ -149,25 +153,38 @@ export default function LumaChatScreen() {
       console.error('[handleSend] Erro ao enviar:', error);
       
       // Se for erro de duplicata ou rate limit, não mostrar erro ao usuário
-      // MAS NÃO retornar aqui - o finally DEVE executar para resetar isSendingRef
+      // Deixar o finally executar para manter o bloqueio por 10 segundos
       if (error?.message === 'DUPLICATE_MESSAGE' || error?.message === 'RATE_LIMIT_LOCAL') {
         console.log('[handleSend] Erro esperado (duplicata/rate limit), ignorando');
-        // Não fazer return aqui - deixar o finally executar
+        // Manter shouldCreateTimeout = true para criar o timeout no finally
       } else {
-        // Apenas mostrar erro ao usuário para erros não esperados
+        // Para erros não esperados (rede, servidor, etc), permitir retry imediato
         setErrorMessage('Não foi possível enviar.');
         setMessage(messageToSend);
         lastSentMessageRef.current = ''; // Reset para permitir retry
+        // CRÍTICO: Resetar isSendingRef imediatamente para permitir retry
+        // Não esperar 10 segundos para erros de rede/servidor
+        isSendingRef.current = false;
+        // Limpar timeout anterior se existir (não precisamos mais do delay de 10s)
+        if (sendTimeoutRef.current) {
+          clearTimeout(sendTimeoutRef.current);
+          sendTimeoutRef.current = null;
+        }
+        shouldCreateTimeout = false; // Não criar timeout no finally
+        console.log('[handleSend] Reset isSendingRef imediatamente após erro não esperado');
       }
     } finally {
       // CRÍTICO: Este bloco SEMPRE deve executar para resetar isSendingRef
       // Reset após um delay maior para garantir que a requisição terminou
       // IMPORTANTE: Deve ser >= 10 segundos para corresponder à verificação de duplicata na linha 110
-      sendTimeoutRef.current = setTimeout(() => {
-        isSendingRef.current = false;
-        lastSentMessageRef.current = ''; // Limpar após 10 segundos (corresponde à verificação de duplicata)
-        console.log('[handleSend] Reset isSendingRef após', Date.now() - sendTimestamp, 'ms');
-      }, 10000); // 10 segundos para corresponder à janela de verificação de duplicata
+      // Só criar timeout para sucesso ou erros esperados (duplicata/rate limit)
+      if (shouldCreateTimeout) {
+        sendTimeoutRef.current = setTimeout(() => {
+          isSendingRef.current = false;
+          lastSentMessageRef.current = ''; // Limpar após 10 segundos (corresponde à verificação de duplicata)
+          console.log('[handleSend] Reset isSendingRef após', Date.now() - sendTimestamp, 'ms');
+        }, 10000); // 10 segundos para corresponder à janela de verificação de duplicata
+      }
     }
   }, [message, sendMessage, isPending]);
 
