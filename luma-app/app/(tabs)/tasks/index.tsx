@@ -367,6 +367,7 @@ export default function TasksScreen() {
 
   // Animated style for modal based on gesture with smooth interpolation
   const modalAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
     // Only apply translation when dragging (value > 0)
     // When modal opens, translateY is 0, so no translation is applied
     const clampedY = Math.max(0, translateY.value);

@@ -131,9 +131,12 @@ const formatTaskDate = (dateValue: string | null): string => {
 const BouncyPressable = ({ children, onPress, style, className, disabled, ...props }: any) => {
   const scale = useSharedValue(1);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: scale.value }]
+    };
+  });
 
   if (disabled) {
     return (
@@ -253,9 +256,12 @@ const PulsingSparkles = () => {
     );
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ scale: scale.value }]
+    };
+  });
 
   return (
     <Animated.View style={animatedStyle}>

@@ -17,6 +17,26 @@ build/
 .env.*.local
 .env.local
 luma-app/.env.local
+# Arquivos de backup/cópia com credenciais (qualquer variação de .env com espaços, .tmp, - Copia, etc)
+*.env*.tmp
+*.env*-Copia*
+*.env*.backup
+*.env*.bak
+*.env*.copy
+# Padrões com espaços (Windows cria arquivos como ".env.local - Copia.tmp")
+# Gitignore trata espaços como literais em glob patterns
+.env* - Copia*
+.env* - Copia.tmp
+.env* - Copia.*
+luma-app/.env*.tmp
+luma-app/.env*-Copia*
+luma-app/.env*.backup
+luma-app/.env*.bak
+luma-app/.env*.copy
+# Padrões com espaços para luma-app (Windows)
+luma-app/.env* - Copia*
+luma-app/.env* - Copia.tmp
+luma-app/.env* - Copia.*
 
 # Supabase
 supabase/.branches/
@@ -36,7 +56,6 @@ Luma-workflows/
 *api_key*.md
 analise-completa-fluxos-n8n.md
 test-results-luma-n8n.md
-.cursor/rules/dev.mdc
 luma-app/docs/
 
 # Scripts e configuracoes locais

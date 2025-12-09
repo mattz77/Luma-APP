@@ -57,7 +57,7 @@ export default function LumaChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const isSendingRef = useRef(false); // Proteção contra múltiplas execuções
   const lastSentMessageRef = useRef<string>(''); // Rastrear última mensagem enviada
-  const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout para reset
+  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Timeout para reset
   const lastSentTimestampRef = useRef<number>(0); // Timestamp da última mensagem enviada
   const { top, bottom } = useSafeAreaInsets();
   const { preset } = useLocalSearchParams<{ preset?: string }>();
@@ -115,9 +115,11 @@ export default function LumaChatScreen() {
       return;
     }
     
-    // Proteção adicional: se enviou há menos de 2 segundos, bloquear (React StrictMode protection)
+    // Proteção adicional: rate limit geral de 2 segundos para QUALQUER mensagem (React StrictMode protection)
+    // Isso previne envios muito rápidos mesmo de mensagens diferentes
     if ((now - lastSentTimestampRef.current) < 2000) {
       console.warn('[handleSend] Rate limit muito agressivo (possível StrictMode), bloqueando:', {
+        message: messageToSend,
         timeSinceLastSend: now - lastSentTimestampRef.current
       });
       return;
@@ -147,21 +149,25 @@ export default function LumaChatScreen() {
       console.error('[handleSend] Erro ao enviar:', error);
       
       // Se for erro de duplicata ou rate limit, não mostrar erro ao usuário
+      // MAS NÃO retornar aqui - o finally DEVE executar para resetar isSendingRef
       if (error?.message === 'DUPLICATE_MESSAGE' || error?.message === 'RATE_LIMIT_LOCAL') {
         console.log('[handleSend] Erro esperado (duplicata/rate limit), ignorando');
-        return;
+        // Não fazer return aqui - deixar o finally executar
+      } else {
+        // Apenas mostrar erro ao usuário para erros não esperados
+        setErrorMessage('Não foi possível enviar.');
+        setMessage(messageToSend);
+        lastSentMessageRef.current = ''; // Reset para permitir retry
       }
-      
-      setErrorMessage('Não foi possível enviar.');
-      setMessage(messageToSend);
-      lastSentMessageRef.current = ''; // Reset para permitir retry
     } finally {
+      // CRÍTICO: Este bloco SEMPRE deve executar para resetar isSendingRef
       // Reset após um delay maior para garantir que a requisição terminou
+      // IMPORTANTE: Deve ser >= 10 segundos para corresponder à verificação de duplicata na linha 110
       sendTimeoutRef.current = setTimeout(() => {
         isSendingRef.current = false;
-        lastSentMessageRef.current = ''; // Limpar após 8 segundos
+        lastSentMessageRef.current = ''; // Limpar após 10 segundos (corresponde à verificação de duplicata)
         console.log('[handleSend] Reset isSendingRef após', Date.now() - sendTimestamp, 'ms');
-      }, 8000); // Aumentado para 8 segundos para garantir que não há duplicação
+      }, 10000); // 10 segundos para corresponder à janela de verificação de duplicata
     }
   }, [message, sendMessage, isPending]);
 
