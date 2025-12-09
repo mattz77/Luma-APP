@@ -65,3 +65,4 @@ luma-app/.cursor/
 # Supabase (pode conter configs locais e secrets)
 luma-app/supabase/
 
+luma-app/gluestack-mcp
