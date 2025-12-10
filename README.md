@@ -8,13 +8,16 @@ Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gere
 
 ## 🚀 Stack Tecnológica
 
-- **Frontend**: Expo SDK 54 + Expo Router v6 + React Native 0.81 + TypeScript
+- **Frontend**: Expo SDK 54 + Expo Router v6 + React Native 0.81.5 + TypeScript
+- **React**: 19.1.0 (New Architecture habilitada)
 - **Backend**: Supabase (Auth, Database, Storage, Realtime)
-- **Database**: PostgreSQL com Row Level Security (RLS)
-- **AI Layer**: n8n para orquestração de workflows AI
-- **Estado**: Zustand + React Query (TanStack Query)
-- **Animações**: React Native Reanimated v4
-- **Gluestack UI V3**: and Lucide React Native Icons
+- **Database**: PostgreSQL com Row Level Security (RLS) + PostGIS
+- **AI Layer**: n8n para orquestração de workflows AI com RAG (Retrieval Augmented Generation)
+- **Estado**: Zustand + React Query (TanStack Query v5)
+- **Animações**: React Native Reanimated v4 + Moti + @legendapp/motion
+- **UI**: Gluestack UI V3 + Lucide React Native Icons
+- **Notificações**: Expo Notifications
+- **Integridade**: Expo App Integrity (App Attest / Play Integrity)
 
 ## 📋 Pré-requisitos
 
@@ -22,6 +25,7 @@ Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gere
 - Expo CLI (`npm install -g expo-cli`)
 - Conta Supabase (já configurada)
 - Conta n8n (para integração com Luma AI)
+- Expo Go app (para desenvolvimento) ou EAS Build (para produção)
 
 ## 🔧 Configuração Inicial
 
@@ -34,35 +38,46 @@ npm install
 
 ### 2. Configurar Variáveis de Ambiente
 
-O arquivo `.env.local` já foi criado com as credenciais do Supabase:
+Crie um arquivo `.env.local` na pasta `luma-app/` com as seguintes variáveis:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
-EXPO_PUBLIC_N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook
+EXPO_PUBLIC_N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook/luma-chat-enhanced
 ```
 
-**Importante**: Atualize `EXPO_PUBLIC_N8N_WEBHOOK_URL` com a URL real do seu webhook n8n.
+**Importante**: 
+- Atualize `EXPO_PUBLIC_N8N_WEBHOOK_URL` com a URL real do seu webhook n8n
+- O endpoint do webhook deve ser `/webhook/luma-chat-enhanced` (conforme implementação atual)
+- As variáveis devem começar com `EXPO_PUBLIC_` para serem acessíveis no cliente
 
 ### 3. Banco de Dados
 
-O banco de dados Supabase já está configurado com:
+O banco de dados Supabase está configurado com:
 
-✅ 13 tabelas criadas (users, houses, expenses, tasks, etc.)
-✅ Row Level Security (RLS) ativado em todas as tabelas
-✅ Políticas de segurança configuradas
-✅ Triggers e funções auxiliares
-✅ Tipos TypeScript gerados
-
-**Tabelas principais:**
+✅ **Tabelas principais** (13+ tabelas):
 - `users` - Usuários do sistema
 - `houses` - Casas/residências
-- `house_members` - Membros de cada casa
+- `house_members` - Membros de cada casa (com roles)
 - `expenses` - Despesas financeiras
 - `expense_categories` - Categorias de despesas
 - `tasks` - Tarefas domésticas
+- `task_comments` - Comentários em tarefas
 - `conversations` - Histórico com Luma AI
-- `devices` - Dispositivos IoT (futuro)
+- `notifications` - Notificações do sistema
+- `monthly_budgets` - Orçamentos mensais
+- `devices` - Dispositivos IoT (preparado para futuro)
+
+✅ **Segurança e Performance**:
+- Row Level Security (RLS) ativado em todas as tabelas
+- Políticas de segurança configuradas (multi-tenant)
+- Índices compostos para queries otimizadas
+- Triggers e funções auxiliares (RPC)
+- PostGIS habilitado para queries geoespaciais
+
+✅ **Tipos TypeScript**:
+- Tipos gerados automaticamente do Supabase
+- Schema Prisma como referência (`prisma/schema.prisma`)
 
 ## 🏃 Executar o Projeto
 
@@ -80,6 +95,9 @@ npm run ios
 
 # Executar no navegador
 npm run web
+
+# Executar servidor MCP n8n (para integração com workflows)
+npm run mcp:n8n
 ```
 
 ### Escanear QR Code
@@ -118,16 +136,32 @@ luma-app/
 │   ├── query-client.ts      # Configuração React Query
 │   └── utils.ts             # Funções auxiliares
 ├── hooks/                   # Custom hooks
-│   ├── useExpenses.ts
-│   ├── useTasks.ts
-│   ├── useConversations.ts
-│   └── useLumaChat.ts
+│   ├── useExpenses.ts       # Hook para despesas
+│   ├── useTasks.ts          # Hook para tarefas
+│   ├── useConversations.ts  # Hook para conversas
+│   ├── useLumaChat.ts       # Hook para chat com Luma
+│   ├── useRAGSync.ts        # Hook para sincronização RAG
+│   ├── useRealtimeConversations.ts  # Realtime para conversas
+│   ├── useRealtimeExpenses.ts       # Realtime para despesas
+│   ├── useRealtimeTasks.ts         # Realtime para tarefas
+│   ├── useExpenseCategories.ts     # Categorias de despesas
+│   ├── useMonthlyBudget.ts         # Orçamento mensal
+│   ├── useNotifications.ts         # Notificações
+│   ├── useTaskComments.ts          # Comentários de tarefas
+│   ├── useHouses.ts                 # Gestão de casas
+│   └── useUserRole.ts               # Papéis de usuário
 ├── stores/                  # Zustand stores
 │   └── auth.store.ts        # Estado de autenticação
 ├── services/                # Camada de serviços (API calls)
 │   ├── expense.service.ts
 │   ├── task.service.ts
-│   └── conversation.service.ts
+│   ├── conversation.service.ts
+│   ├── budget.service.ts
+│   ├── expense-category.service.ts
+│   ├── house.service.ts
+│   ├── notification.service.ts
+│   ├── rag.service.ts
+│   └── taskComment.service.ts
 ├── types/                   # TypeScript types
 │   ├── supabase.ts          # Tipos gerados do Supabase
 │   ├── models.ts            # Tipos de domínio
@@ -179,13 +213,21 @@ Ao criar uma casa:
 
 1. Crie um workflow no n8n
 2. Adicione um **Webhook Trigger**
-3. Configure endpoint: `/webhook/luma/chat`
+3. Configure endpoint: `/webhook/luma-chat-enhanced`
 4. Adicione nós para:
-   - Extrair contexto da casa
+   - Extrair contexto da casa (RAG - Retrieval Augmented Generation)
    - Consultar banco de dados (via Supabase API)
-   - Enviar prompt para LLM (OpenAI/Anthropic)
-   - Processar resposta
+   - Enviar prompt para LLM (OpenAI/Anthropic/Groq)
+   - Processar resposta com idempotência
    - Retornar JSON ao app
+
+### Características da Integração
+
+- ✅ **Idempotência**: Prevenção de processamento duplicado via `message_id`
+- ✅ **Timeout Estendido**: 60 segundos para workflows complexos
+- ✅ **RAG (Retrieval Augmented Generation)**: Contexto da casa sincronizado
+- ✅ **Tratamento de Erros**: Timeout, rate limit e erros genéricos
+- ✅ **Rastreamento**: Header `X-Request-ID` para debugging
 
 ### Exemplo de Payload
 
@@ -196,7 +238,8 @@ Ao criar uma casa:
   "message": "Como está a situação financeira?",
   "context": {
     "current_month": "2025-11",
-    "user_role": "admin"
+    "user_role": "admin",
+    "message_id": "timestamp-random"
   }
 }
 ```
@@ -205,29 +248,48 @@ Ao criar uma casa:
 
 ```json
 {
+  "success": true,
   "response": "Olá! 💰 Até agora vocês gastaram R$ 3.450...",
   "metadata": {
+    "session_id": "uuid",
     "processing_time_ms": 850,
-    "sources_used": ["expenses", "budgets"]
+    "tools_used": ["financial_summary", "get_tasks"],
+    "model": "gpt-4",
+    "parsed": {}
   }
 }
 ```
+
+### MCP n8n Tools
+
+O projeto inclui suporte para **n8n MCP (Model Context Protocol)** via `n8n-mcp`:
+
+```bash
+# Executar servidor MCP n8n
+npm run mcp:n8n
+```
+
+Isso permite integração direta com workflows n8n via ferramentas MCP.
 
 ## 📊 Funcionalidades Implementadas
 
 ### ✅ Fase 1 (MVP)
 
 #### 🎯 Core Features
-- [x] Setup projeto Expo + TypeScript
-- [x] Configuração Supabase + RLS
+- [x] Setup projeto Expo SDK 54 + TypeScript
+- [x] Configuração Supabase + RLS + PostGIS
 - [x] Autenticação (login, registro, recuperação de senha)
-- [x] Navegação com Expo Router (tabs + modals)
-- [x] Gestão de casas (criar, entrar via código)
-- [x] Gestão financeira (CRUD despesas, categorias, relatórios)
-- [x] Gestão de tarefas (CRUD, status, prioridades, comentários)
-- [x] Chat com Luma AI (integração n8n)
-- [x] Dashboard com resumos inteligentes
+- [x] Navegação com Expo Router v6 (tabs + modals)
+- [x] Gestão de casas (criar, entrar via código, membros)
+- [x] Gestão financeira (CRUD despesas, categorias, orçamentos, relatórios)
+- [x] Gestão de tarefas (CRUD, status, prioridades, comentários, atribuição)
+- [x] Chat com Luma AI (integração n8n com RAG)
+- [x] Dashboard com resumos inteligentes e briefing diário
 - [x] Stores Zustand + React Query hooks
+- [x] Realtime subscriptions (conversas, despesas, tarefas)
+- [x] Sistema de notificações (Expo Notifications)
+- [x] RAG Sync (sincronização de contexto para IA)
+- [x] App Integrity (App Attest / Play Integrity)
 
 #### ✨ Interações Mágicas (Magic UI)
 - [x] **Magic Input Popup**: Criação assistida por IA de tarefas e despesas
@@ -256,19 +318,28 @@ Ao criar uma casa:
   - Navegação otimizada sem tabbar tradicional
   - Botões de ação centralizados com feedback háptico
 
+#### 🔄 Features Avançadas Implementadas
+- [x] **Realtime Subscriptions**: Atualizações em tempo real para conversas, despesas e tarefas
+- [x] **RAG (Retrieval Augmented Generation)**: Sincronização de contexto da casa para melhorias na IA
+- [x] **Sistema de Notificações**: Expo Notifications integrado
+- [x] **App Integrity**: Validação de integridade do app (App Attest / Play Integrity)
+- [x] **Magic Input**: Criação assistida por IA de tarefas e despesas
+- [x] **Speed Dial**: Menu radial para ações rápidas
+- [x] **Briefing Diário**: Resumo executivo inteligente gerado por IA
+
 ### 🔄 Próximas Fases
 
 - [ ] Upload de foto de perfil do usuário (Supabase Storage)
-- [ ] Notificações push (Expo Notifications)
-- [ ] Realtime subscriptions completas (Supabase Realtime)
 - [ ] Upload de comprovantes de despesas (Supabase Storage)
-- [ ] Relatórios financeiros avançados com gráficos
-- [ ] Gamificação de tarefas
+- [ ] Relatórios financeiros avançados com gráficos interativos
+- [ ] Gamificação de tarefas (pontos, conquistas)
 - [ ] Integração IoT (dispositivos inteligentes)
-- [ ] Modo offline com sincronização
+- [ ] Modo offline com sincronização automática
 - [ ] Temas personalizáveis (dark/light/auto)
+- [ ] Exportação de dados (PDF, CSV)
+- [ ] Integração com bancos (Open Banking)
 
-## 🧪 Testes
+## 🧪 Testes e Validação
 
 ```bash
 # Verificar tipos TypeScript
@@ -279,6 +350,9 @@ npm test
 
 # Cobertura de testes
 npm run test:coverage
+
+# Gerar tipos do Prisma (referência)
+npx prisma generate
 ```
 
 ## 📦 Build para Produção
@@ -342,9 +416,11 @@ Desenvolvido com ❤️ pela equipe Luma.
 
 ---
 
-**Status do Projeto**: 🟢 MVP Implementado
+**Status do Projeto**: 🟢 MVP Completo + Features Avançadas
 
 **Última Atualização**: Janeiro 2025
+
+**Versão**: 1.0.0
 
 ## 🎨 Destaques de Design
 
