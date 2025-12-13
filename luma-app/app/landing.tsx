@@ -9,6 +9,7 @@ import {
   Platform,
   Linking,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sparkles, DollarSign, CheckSquare, Users, ShieldCheck, Lock, Bot, Lightbulb, Key } from 'lucide-react-native';
@@ -120,7 +121,11 @@ export default function LandingPage() {
               <View style={styles.phoneScreen}>
                 <View style={styles.phoneHeader}>
                   <View style={styles.phoneAvatar}>
-                    <Sparkles size={20} color={colors.primary[700]} />
+                    <Image
+                      source={require('@/assets/illustrations/luma.png')}
+                      style={styles.phoneAvatarImage}
+                      resizeMode="cover"
+                    />
                   </View>
                   <View>
                     <Text style={styles.phoneHeaderName}>Luma</Text>
@@ -591,6 +596,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  phoneAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   phoneHeaderName: {
     fontSize: 16,

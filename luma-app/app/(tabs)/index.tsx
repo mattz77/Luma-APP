@@ -785,7 +785,11 @@ export default function Dashboard() {
                   >
                     {msg.role === 'model' && (
                       <Box style={styles.chatAvatar}>
-                        <Sparkles size={16} color={Colors.background} />
+                        <Image
+                          source={require('@/assets/illustrations/luma.png')}
+                          style={styles.chatAvatarImage}
+                          alt="Luma"
+                        />
                       </Box>
                     )}
                     <Box style={[
@@ -1550,7 +1554,8 @@ const styles = StyleSheet.create({
   chatSendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   chatSendButtonDisabled: { opacity: 0.5, backgroundColor: Colors.textSecondary },
   chatBubbleContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  chatAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  chatAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4, overflow: 'hidden' },
+  chatAvatarImage: { width: '100%', height: '100%' },
   chatBubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
   chatUser: { backgroundColor: Colors.primary, borderTopRightRadius: 4 },
   chatModel: { backgroundColor: '#FFF', borderTopLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },

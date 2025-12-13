@@ -9,7 +9,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar
+  StatusBar,
+  Image
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -271,7 +272,11 @@ export default function LumaChatScreen() {
 
             <View style={styles.headerTitleContainer}>
               <View style={styles.headerAvatarContainer}>
-                <Sparkles size={14} color="#FFF" />
+                <Image
+                  source={require('@/assets/illustrations/luma.png')}
+                  style={styles.headerAvatarImage}
+                  resizeMode="cover"
+                />
               </View>
               <View>
                 <Text style={styles.headerTitle}>Luma AI</Text>
@@ -344,7 +349,11 @@ export default function LumaChatScreen() {
                   {item.response && (
                     <View style={styles.lumaRow}>
                       <View style={styles.lumaAvatarContainer}>
-                        <Sparkles size={12} color={Colors.primary} />
+                        <Image
+                          source={require('@/assets/illustrations/luma.png')}
+                          style={styles.lumaAvatarImage}
+                          resizeMode="cover"
+                        />
                       </View>
                       <View style={styles.lumaBubbleWrapper}>
                         <Text style={styles.senderLabel}>Luma</Text>
@@ -366,7 +375,11 @@ export default function LumaChatScreen() {
                   style={styles.lumaRow}
                 >
                   <View style={styles.lumaAvatarContainer}>
-                    <Sparkles size={12} color={Colors.primary} />
+                    <Image
+                      source={require('@/assets/illustrations/luma.png')}
+                      style={styles.lumaAvatarImage}
+                      resizeMode="cover"
+                    />
                   </View>
                   <View style={[styles.lumaBubble, { width: 80, height: 45, justifyContent: 'center', alignItems: 'center', marginLeft: 8 }]}>
                     <ActivityIndicator size="small" color={Colors.text} />
@@ -496,6 +509,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    overflow: 'hidden',
+  },
+  headerAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   headerTitle: {
     color: Colors.text,
@@ -581,6 +599,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 2,
     flexShrink: 0,
+    overflow: 'hidden',
+  },
+  lumaAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   lumaBubbleWrapper: {
     flex: 1,
