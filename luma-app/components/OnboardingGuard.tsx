@@ -24,6 +24,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const isCheckingRef = useRef(false);
   const lastCheckedPathnameRef = useRef<string | null>(null);
   const lastCheckedHousesCountRef = useRef<number>(-1);
+  const redirectingRef = useRef(false); // Previne múltiplos redirecionamentos
 
   useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -111,11 +112,27 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         }
 
         // 4. Se estiver na landing page ou rota root e tudo estiver ok, redirecionar para tabs
-        if ((pathname === '/' || pathname === '/landing') && !pathname.startsWith('/(tabs)')) {
-          router.replace('/(tabs)/index');
+        // Também verifica se está em +not-found (que pode acontecer se a rota não for encontrada)
+        const isRootOrLanding = pathname === '/' || pathname === '/landing';
+        const isNotFound = pathname === null || pathname === undefined || pathname === '';
+        const needsRedirect = (isRootOrLanding || isNotFound) && !pathname?.startsWith('/(tabs)') && !redirectingRef.current;
+        
+        if (needsRedirect) {
+          redirectingRef.current = true;
+          // Usar apenas '/(tabs)' - o Expo Router automaticamente vai para o index
+          router.replace('/(tabs)');
           setIsChecking(false);
           isCheckingRef.current = false;
+          // Reset redirecting flag após um delay para permitir nova verificação se necessário
+          setTimeout(() => {
+            redirectingRef.current = false;
+          }, 1000);
           return;
+        }
+        
+        // Reset redirecting flag se já estamos em tabs
+        if (pathname?.startsWith('/(tabs)')) {
+          redirectingRef.current = false;
         }
 
         // Tudo ok, pode continuar

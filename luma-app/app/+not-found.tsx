@@ -1,16 +1,27 @@
-import { Link, Stack } from 'expo-router';
+import React from 'react';
+import { Link, Stack, useRouter, usePathname } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/Themed';
 
 export default function NotFoundScreen() {
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Auto-redirect para tabs se estiver na rota root
+  React.useEffect(() => {
+    if (pathname === '/' || pathname === '/landing') {
+      router.replace('/(tabs)');
+    }
+  }, [pathname, router]);
+  
   return (
     <>
       <Stack.Screen options={{ title: 'Oops!' }} />
       <View style={styles.container}>
         <Text style={styles.title}>This screen doesn't exist.</Text>
 
-        <Link href="/" style={styles.link}>
+        <Link href="/(tabs)" style={styles.link}>
           <Text style={styles.linkText}>Go to home screen!</Text>
         </Link>
       </View>
