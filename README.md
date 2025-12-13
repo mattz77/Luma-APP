@@ -457,17 +457,13 @@ chore: migra projeto para Bun runtime
 
 Este projeto é privado e proprietário.
 
-## 👥 Equipe
-
-Desenvolvido com ❤️ pela equipe Luma.
-
 ---
 
 **Status do Projeto**: 🟢 MVP Completo + Features Avançadas
 
-**Última Atualização**: Janeiro 2025
+**Última Atualização**: Dezembro 2025
 
-**Versão**: 1.0.0
+**Versão**: 1.1.0
 
 ## 🎨 Destaques de Design
 
@@ -484,7 +480,7 @@ O Luma implementa um design system moderno e sofisticado:
 ### Magic Input (Criação Assistida por IA)
 Descreva o que precisa e a Luma cria automaticamente:
 ```
-"Comprar pizza R$ 80 hoje" → Despesa criada com valor e data
+"pizza R$ 80 hoje" → Despesa criada com valor e data
 "Limpar a sala amanhã" → Tarefa criada com data limite
 ```
 
