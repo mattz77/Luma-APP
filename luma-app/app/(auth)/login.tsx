@@ -8,7 +8,7 @@ import {
 
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
-import { SocialLoginButton } from '@/components/auth/SocialLoginButton';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AuthInput } from '@/components/auth/AuthInput';
 import { AuthIllustration } from '@/components/auth/AuthIllustration';
 import { VStack } from '@/components/ui/vstack';
@@ -199,18 +199,10 @@ export default function LoginScreen() {
                 <Text size="sm" className="text-gray-500 text-center">
                   Or Continue with
                 </Text>
-                <HStack space="sm">
-                  <SocialLoginButton
-                    provider="google"
-                    onPress={handleGoogleLogin}
-                    loading={loading}
-                  />
-                  <SocialLoginButton
-                    provider="facebook"
-                    onPress={() => {}}
-                    loading={false}
-                  />
-                </HStack>
+                <GoogleSignInButton
+                  onPress={handleGoogleLogin}
+                  loading={loading}
+                />
               </VStack>
             </VStack>
           </Box>
