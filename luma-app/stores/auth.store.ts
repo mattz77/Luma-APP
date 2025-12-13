@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { getEnvVar } from '@/lib/utils';
 
 export interface AuthUser {
   id: string;
@@ -18,6 +21,8 @@ export interface AuthState {
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -123,6 +128,75 @@ export const useAuthStore = create<AuthState>((set) => ({
         user: mapAuthUser(data.user),
         loading: false,
       });
+    } catch (authError) {
+      set({ loading: false });
+      throw authError;
+    }
+  },
+
+  signInWithGoogle: async () => {
+    set({ loading: true });
+
+    try {
+      const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
+      
+      // URL de callback - usar scheme do app para mobile
+      const redirectUrl = Platform.select({
+        web: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : `${supabaseUrl}/auth/v1/callback`,
+        default: `lumaapp://auth/callback`,
+      });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // No mobile, o Supabase abre o browser automaticamente
+      // No web, redireciona automaticamente
+      // O callback será tratado pelo onAuthStateChange
+      // Não resetar loading aqui - será resetado quando a sessão for criada
+    } catch (authError) {
+      set({ loading: false });
+      throw authError;
+    }
+  },
+
+  signInWithApple: async () => {
+    if (Platform.OS !== 'ios') {
+      throw new Error('Apple Sign In está disponível apenas no iOS');
+    }
+
+    set({ loading: true });
+
+    try {
+      const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
+      
+      // URL de callback - usar scheme do app para mobile
+      const redirectUrl = Platform.select({
+        web: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : `${supabaseUrl}/auth/v1/callback`,
+        default: `lumaapp://auth/callback`,
+      });
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // No mobile, o Supabase abre o browser automaticamente
+      // O callback será tratado pelo onAuthStateChange
+      // Não resetar loading aqui - será resetado quando a sessão for criada
     } catch (authError) {
       set({ loading: false });
       throw authError;

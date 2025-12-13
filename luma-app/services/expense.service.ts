@@ -200,6 +200,18 @@ export const expenseService = {
       },
     }).catch((err) => console.warn('[Expense] Falha ao indexar no RAG', err));
 
+    // Enviar notificação para outros membros da casa (async)
+    if (input.splits && input.splits.length > 0) {
+      const { notifyNewExpense } = await import('@/hooks/useNotifications');
+      // Notificar apenas membros que não são o criador
+      const otherMembers = input.splits.filter((split) => split.userId !== input.created_by_id);
+      otherMembers.forEach((split) => {
+        notifyNewExpense(expense.id, expense.description, Number(expense.amount), split.userId).catch((err) =>
+          console.warn('[Expense] Falha ao enviar notificação', err)
+        );
+      });
+    }
+
     return expense;
   },
 

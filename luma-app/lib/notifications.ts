@@ -53,6 +53,7 @@ export async function scheduleLocalNotification(
   title: string,
   body: string,
   trigger?: Notifications.NotificationTriggerInput,
+  data?: Record<string, unknown>,
 ): Promise<string> {
   const hasPermission = await requestNotificationPermission();
   if (!hasPermission) {
@@ -65,6 +66,7 @@ export async function scheduleLocalNotification(
       body,
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
+      data: data || {},
     },
     trigger: trigger || null, // Se null, notifica imediatamente
   });

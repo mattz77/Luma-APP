@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -28,6 +29,8 @@ import {
 import { useAuthStore } from '@/stores/auth.store';
 import type { HouseMemberRole, HouseMemberWithUser } from '@/types/models';
 import { Colors } from '@/constants/Colors';
+import { pickImageFromGallery, takePhoto, uploadImageToStorage } from '@/lib/storage';
+import { Camera, X } from 'lucide-react-native';
 
 const ROLE_LABELS: Record<HouseMemberRole, string> = {
   ADMIN: 'Admin',
@@ -68,6 +71,8 @@ export default function HouseScreen() {
   const [houseNameInput, setHouseNameInput] = useState('');
   const [houseAddressInput, setHouseAddressInput] = useState('');
   const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [housePhotoUri, setHousePhotoUri] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const currentHouse = useMemo(
     () => houses.find((item) => item.house.id === houseId) ?? null,
@@ -401,6 +406,54 @@ export default function HouseScreen() {
                 placeholderTextColor={Colors.textSecondary}
                 style={styles.modalInput}
               />
+              
+              {/* Photo Upload */}
+              <View style={styles.photoUploadContainer}>
+                {housePhotoUri ? (
+                  <View style={styles.photoPreviewContainer}>
+                    <Image source={{ uri: housePhotoUri }} style={styles.photoPreview} />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => setHousePhotoUri(null)}
+                    >
+                      <X size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.photoUploadButton}
+                    onPress={async () => {
+                      try {
+                        Alert.alert(
+                          'Selecionar foto',
+                          'Escolha uma opção',
+                          [
+                            { text: 'Galeria', onPress: async () => {
+                              const result = await pickImageFromGallery();
+                              if (!result.canceled && result.assets[0]) {
+                                setHousePhotoUri(result.assets[0].uri);
+                              }
+                            }},
+                            ...(Platform.OS !== 'web' ? [{ text: 'Câmera', onPress: async () => {
+                              const result = await takePhoto();
+                              if (!result.canceled && result.assets[0]) {
+                                setHousePhotoUri(result.assets[0].uri);
+                              }
+                            }}] : []),
+                            { text: 'Cancelar', style: 'cancel' },
+                          ]
+                        );
+                      } catch (error) {
+                        Alert.alert('Erro', 'Não foi possível selecionar a imagem.');
+                      }
+                    }}
+                  >
+                    <Camera size={24} color={Colors.primary} />
+                    <Text style={styles.photoUploadText}>Adicionar foto (opcional)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.modalSecondary}
@@ -418,10 +471,30 @@ export default function HouseScreen() {
                     }
 
                     try {
+                      let photoUrl: string | null = null;
+                      
+                      // Upload foto se houver
+                      if (housePhotoUri) {
+                        setIsUploadingPhoto(true);
+                        try {
+                          const uploadResult = await uploadImageToStorage(housePhotoUri, 'houses', 'photos');
+                          if (uploadResult.url) {
+                            photoUrl = uploadResult.url;
+                          } else {
+                            console.warn('Erro ao fazer upload da foto:', uploadResult.error);
+                          }
+                        } catch (uploadError) {
+                          console.error('Erro ao fazer upload da foto:', uploadError);
+                        } finally {
+                          setIsUploadingPhoto(false);
+                        }
+                      }
+
                       const house = await createHouseMutation.mutateAsync({
                         creatorUserId: user!.id,
                         name: houseNameInput,
                         address: houseAddressInput ? houseAddressInput : null,
+                        photoUrl,
                       });
 
                       await new Promise(resolve => setTimeout(resolve, 500));
@@ -429,6 +502,7 @@ export default function HouseScreen() {
                       setCreateModalVisible(false);
                       setHouseNameInput('');
                       setHouseAddressInput('');
+                      setHousePhotoUri(null);
 
                       setHouseId(house.id);
 
@@ -445,7 +519,11 @@ export default function HouseScreen() {
                   }}
                 >
                   <Text style={styles.modalPrimaryText}>
-                    {createHouseMutation.isPending ? 'Salvando...' : 'Criar casa'}
+                    {createHouseMutation.isPending || isUploadingPhoto
+                      ? isUploadingPhoto
+                        ? 'Enviando foto...'
+                        : 'Salvando...'
+                      : 'Criar casa'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -876,5 +954,48 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
     marginBottom: 24,
+  },
+  photoUploadContainer: {
+    marginVertical: 12,
+  },
+  photoUploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.primary + '40',
+    borderStyle: 'dashed',
+    backgroundColor: Colors.primary + '05',
+  },
+  photoUploadText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

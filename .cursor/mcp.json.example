@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "figma-desktop": {
+      "url": "http://127.0.0.1:3845/mcp",
+      "transport": "http"
+    },
+    "figma-remote": {
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "gluestack-ui": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\olive\\Documents\\Luma-APP\\luma-app\\gluestack-mcp\\index.js"
+      ]
+    }
+  }
+}
+

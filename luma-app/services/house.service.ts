@@ -107,7 +107,9 @@ export const houseService = {
   async createHouse(input: CreateHouseInput): Promise<House> {
     const name = input.name.trim();
     const address = input.address?.trim() || null;
+    const photoUrl = input.photoUrl || null;
 
+    // Criar casa primeiro
     const { data, error } = await supabase.rpc('create_house_with_membership', {
       p_name: name,
       p_address: address,
@@ -118,6 +120,24 @@ export const houseService = {
     }
 
     const house = data as HouseRow;
+
+    // Se tiver foto, atualizar a casa com a URL da foto
+    if (photoUrl) {
+      const { data: updatedHouse, error: updateError } = await supabase
+        .from('houses')
+        .update({ photo_url: photoUrl })
+        .eq('id', house.id)
+        .select('*')
+        .single();
+
+      if (updateError) {
+        console.warn('[HouseService] Erro ao atualizar foto da casa:', updateError);
+        // Não falhar a criação se o upload da foto falhar
+      } else if (updatedHouse) {
+        return mapHouse(updatedHouse as HouseRow);
+      }
+    }
+
     return mapHouse(house);
   },
 

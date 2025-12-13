@@ -58,6 +58,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <HouseIcon size={28} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="profile/index"
+        options={{
+          href: null, // Ocultar da tab bar
+        }}
+      />
     </Tabs>
   );
 }

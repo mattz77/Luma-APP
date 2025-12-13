@@ -11,6 +11,8 @@ import '@/global.css';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth.store';
 import { HouseInitializer } from '@/components/HouseInitializer';
+import { OnboardingGuard } from '@/components/OnboardingGuard';
+import { useNotifications } from '@/hooks/useNotifications';
 // Use platform-specific import for GluestackUIProvider
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
@@ -92,27 +94,32 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  // Inicializar notificações
+  useNotifications();
+
   return (
     <GluestackUIProvider mode="light">
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <ThemeProvider value={DefaultTheme}>
             <HouseInitializer />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-              }}
-            >
-              <Stack.Screen name="landing" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="(modals)"
-                options={{
-                  presentation: 'modal',
+            <OnboardingGuard>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
                 }}
-              />
-            </Stack>
+              >
+                <Stack.Screen name="landing" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="(modals)"
+                  options={{
+                    presentation: 'modal',
+                  }}
+                />
+              </Stack>
+            </OnboardingGuard>
           </ThemeProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

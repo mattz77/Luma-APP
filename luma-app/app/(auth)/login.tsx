@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { Link, Redirect, useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  ScrollView,
 } from 'react-native';
 
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
+import { supabase } from '@/lib/supabase';
+import { SocialLoginButton } from '@/components/auth/SocialLoginButton';
+import { AuthInput } from '@/components/auth/AuthInput';
+import { AuthIllustration } from '@/components/auth/AuthIllustration';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
+import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
+import { Box } from '@/components/ui/box';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,6 +24,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const signIn = useAuthStore((state) => state.signIn);
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
+  const signInWithApple = useAuthStore((state) => state.signInWithApple);
   const loading = useAuthStore((state) => state.loading);
   const user = useAuthStore((state) => state.user);
 
@@ -50,6 +56,18 @@ export default function LoginScreen() {
     try {
       setErrorMessage(null);
       await signIn(trimmedEmail, password);
+      
+      // Verificar se o email foi confirmado
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user && !userData.user.email_confirmed_at) {
+        // Email não confirmado, redirecionar para verificação
+        router.replace({
+          pathname: '/(auth)/verify-email',
+          params: { email: trimmedEmail },
+        } as any);
+        return;
+      }
+      
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
@@ -57,169 +75,161 @@ export default function LoginScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      setErrorMessage(null);
+      await signInWithGoogle();
+      
+      // Verificar se o email foi confirmado (social login geralmente já confirma)
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user && !userData.user.email_confirmed_at) {
+        router.replace({
+          pathname: '/(auth)/verify-email',
+          params: { email: userData.user.email || '' },
+        } as any);
+        return;
+      }
+      
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error(error);
+      setErrorMessage((error as Error).message || 'Erro ao fazer login com Google');
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      setErrorMessage(null);
+      await signInWithApple();
+      
+      // Verificar se o email foi confirmado (social login geralmente já confirma)
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user && !userData.user.email_confirmed_at) {
+        router.replace({
+          pathname: '/(auth)/verify-email',
+          params: { email: userData.user.email || '' },
+        } as any);
+        return;
+      }
+      
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error(error);
+      setErrorMessage((error as Error).message || 'Erro ao fazer login com Apple');
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      className="flex-1 bg-gray-100"
     >
-      <View style={styles.header}>
-        <Text style={styles.brand}>Luma</Text>
-        <Text style={styles.headerTitle}>Sua casa, finalmente organizada.</Text>
-        <Text style={styles.headerSubtitle}>Entre para acompanhar finanças, tarefas e a rotina da família.</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <VStack space="lg" className="flex-1">
+          {/* Illustration */}
+          <AuthIllustration type="sign-in" />
 
-      <View style={[styles.form, cardShadowStyle]}>
-        <Text style={styles.title}>Bem-vindo(a) de volta</Text>
-        <Text style={styles.subtitle}>Faça login para continuar</Text>
+          {/* Title */}
+          <VStack space="xs" className="items-center">
+            <Heading size="3xl" bold className="text-gray-900">
+              Sign In
+            </Heading>
+            <Text size="sm" className="text-gray-500 text-center px-5">
+              Enter valid user name & password to continue
+            </Text>
+          </VStack>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>E-mail</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="voce@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.input}
-          />
-        </View>
+          {/* Form */}
+          <Box className="bg-white rounded-3xl p-6 shadow-sm">
+            <VStack space="md">
+              <AuthInput
+                label="User name"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="User name"
+                type="email"
+                keyboardType="email-address"
+                error={!!errorMessage}
+              />
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Senha</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Digite sua senha"
-            secureTextEntry
-            style={styles.input}
-          />
-        </View>
+              <AuthInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                type="password"
+                error={!!errorMessage}
+              />
 
-        {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+              {errorMessage ? (
+                <Text size="sm" className="text-error-500 text-center">
+                  {errorMessage}
+                </Text>
+              ) : null}
 
-        <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Entrar</Text>}
-        </TouchableOpacity>
+              <Link href="/(auth)/forgot-password">
+                <Text size="sm" className="text-blue-600 font-medium text-right mb-2">
+                  Forget password
+                </Text>
+              </Link>
 
-        <Link href="/(auth)/forgot-password" style={styles.link}>
-          Esqueci minha senha
-        </Link>
-      </View>
+              <Button
+                size="xl"
+                variant="solid"
+                action="primary"
+                onPress={handleLogin}
+                isDisabled={loading}
+                className="bg-blue-600 h-14 rounded-xl"
+              >
+                {loading ? (
+                  <ButtonSpinner />
+                ) : (
+                  <ButtonText className="text-white text-base font-semibold">
+                    Login
+                  </ButtonText>
+                )}
+              </Button>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Ainda não tem conta?</Text>
-        <Link href="/(auth)/register" style={styles.footerLink}>
-          Criar conta
-        </Link>
-      </View>
+              {/* Social Login Section */}
+              <VStack space="md" className="mt-2">
+                <Text size="sm" className="text-gray-500 text-center">
+                  Or Continue with
+                </Text>
+                <HStack space="sm">
+                  <SocialLoginButton
+                    provider="google"
+                    onPress={handleGoogleLogin}
+                    loading={loading}
+                  />
+                  <SocialLoginButton
+                    provider="facebook"
+                    onPress={() => {}}
+                    loading={false}
+                  />
+                </HStack>
+              </VStack>
+            </VStack>
+          </Box>
+
+          {/* Footer */}
+          <HStack space="xs" className="justify-center items-center mt-6">
+            <Text size="sm" className="text-gray-500">
+              Haven't any account?
+            </Text>
+            <Link href="/(auth)/register">
+              <Text size="sm" className="text-blue-600 font-semibold">
+                Sign up
+              </Text>
+            </Link>
+          </HStack>
+        </VStack>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  header: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  brand: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0f172a',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  headerTitle: {
-    marginTop: 8,
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  form: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    color: '#0f172a',
-    fontWeight: '500',
-  },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
-    fontSize: 16,
-    color: '#0f172a',
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#1d4ed8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  link: {
-    marginTop: 8,
-    textAlign: 'center',
-    color: '#1d4ed8',
-    fontSize: 13,
-  },
-  errorMessage: {
-    fontSize: 13,
-    color: '#dc2626',
-    textAlign: 'center',
-  },
-  footer: {
-    marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  footerText: {
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  footerLink: {
-    color: '#1d4ed8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
 

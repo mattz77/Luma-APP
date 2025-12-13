@@ -3,15 +3,18 @@ import { Link, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  ScrollView,
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { cardShadowStyle } from '@/lib/styles';
+import { AuthInput } from '@/components/auth/AuthInput';
+import { AuthIllustration } from '@/components/auth/AuthIllustration';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
+import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
+import { Box } from '@/components/ui/box';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -58,108 +61,84 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      className="flex-1 bg-gray-100"
     >
-      <View style={[styles.form, cardShadowStyle]}>
-        <Text style={styles.title}>Recuperar senha</Text>
-        <Text style={styles.subtitle}>
-          Informe seu e-mail para receber instruções de redefinição de senha.
-        </Text>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <VStack space="lg" className="flex-1">
+          {/* Illustration */}
+          <AuthIllustration type="forgot-password" />
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="E-mail"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={styles.input}
-        />
+          {/* Title */}
+          <VStack space="xs" className="items-center">
+            <Heading size="3xl" bold className="text-gray-900">
+              Forget Password
+            </Heading>
+            <Text size="sm" className="text-gray-500 text-center px-5 leading-5">
+              Don't worry it happens. Please enter the address associate with your account
+            </Text>
+          </VStack>
 
-        {feedbackMessage ? (
-          <Text style={[styles.feedbackMessage, isSuccess && styles.feedbackMessageSuccess]}>
-            {feedbackMessage}
-          </Text>
-        ) : null}
+          {/* Form */}
+          <Box className="bg-white rounded-3xl p-6 shadow-sm">
+            <VStack space="md">
+              <AuthInput
+                label="Email address"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email address"
+                type="email"
+                keyboardType="email-address"
+                error={!!feedbackMessage && !isSuccess}
+              />
 
-        <TouchableOpacity
-          style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
-          onPress={handleResetPassword}
-          disabled={submitting}
-        >
-          <Text style={styles.primaryButtonText}>
-            {submitting ? 'Enviando...' : 'Enviar e-mail'}
-          </Text>
-        </TouchableOpacity>
+              {feedbackMessage ? (
+                <Text
+                  size="sm"
+                  className={`text-center ${
+                    isSuccess ? 'text-success-600' : 'text-error-500'
+                  }`}
+                >
+                  {feedbackMessage}
+                </Text>
+              ) : null}
 
-        <Link href="/(auth)/login" style={styles.link}>
-          Voltar ao login
-        </Link>
-      </View>
+              <Button
+                size="xl"
+                variant="solid"
+                action="primary"
+                onPress={handleResetPassword}
+                isDisabled={submitting}
+                className="bg-blue-600 h-14 rounded-xl"
+              >
+                {submitting ? (
+                  <ButtonSpinner />
+                ) : (
+                  <ButtonText className="text-white text-base font-semibold">
+                    Send OTP
+                  </ButtonText>
+                )}
+              </Button>
+
+              <HStack space="xs" className="justify-center items-center mt-2">
+                <Text size="sm" className="text-gray-500">
+                  You remember you password?
+                </Text>
+                <Link href="/(auth)/login">
+                  <Text size="sm" className="text-blue-600 font-semibold">
+                    Sign in
+                  </Text>
+                </Link>
+              </HStack>
+            </VStack>
+          </Box>
+        </VStack>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  form: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
-    fontSize: 16,
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: '#1d4ed8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonDisabled: {
-    opacity: 0.7,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  feedbackMessage: {
-    fontSize: 13,
-    color: '#dc2626',
-    textAlign: 'center',
-  },
-  feedbackMessageSuccess: {
-    color: '#15803d',
-  },
-  link: {
-    marginTop: 8,
-    textAlign: 'center',
-    color: '#1d4ed8',
-    fontSize: 14,
-  },
-});
 

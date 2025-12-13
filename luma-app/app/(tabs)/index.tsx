@@ -870,9 +870,17 @@ export default function Dashboard() {
                   setModalMode('user_menu');
                 }}
               >
-                <Box style={styles.userAvatar}>
-                  <User size={20} color={Colors.background} />
-                </Box>
+                {user?.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.userAvatar}
+                    alt="Avatar"
+                  />
+                ) : (
+                  <Box style={styles.userAvatar}>
+                    <User size={20} color={Colors.background} />
+                  </Box>
+                )}
               </Pressable>
             </HStack>
 
@@ -1098,6 +1106,7 @@ export default function Dashboard() {
                   style={styles.menuItem} 
                   onPress={() => {
                     closeModal();
+                    router.push('/(tabs)/profile' as any);
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >

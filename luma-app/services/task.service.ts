@@ -116,6 +116,14 @@ export const taskService = {
       },
     }).catch((err) => console.warn('[Task] Falha ao indexar no RAG', err));
 
+    // Agendar notificação se tiver prazo e responsável
+    if (created.dueDate && created.assignedToId) {
+      const { scheduleTaskReminder } = await import('@/hooks/useNotifications');
+      scheduleTaskReminder(created.id, created.title, new Date(created.dueDate), 24).catch((err) =>
+        console.warn('[Task] Falha ao agendar notificação', err)
+      );
+    }
+
     return created;
   },
 
