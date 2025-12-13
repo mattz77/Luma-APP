@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { HouseInitializer } from '@/components/HouseInitializer';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { useNotifications } from '@/hooks/useNotifications';
+import { initializeI18n } from '@/lib/i18n';
 // Use platform-specific import for GluestackUIProvider
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
@@ -77,6 +78,12 @@ export default function RootLayout() {
   }, [loaded]);
 
   useEffect(() => {
+    // Inicializar i18n primeiro
+    initializeI18n().catch((i18nError) => {
+      console.error('[RootLayout] Falha ao inicializar i18n:', i18nError);
+    });
+    
+    // Depois inicializar auth
     initializeAuth().catch((authError) => {
       console.error('[RootLayout] Falha ao inicializar autenticação:', authError);
     });

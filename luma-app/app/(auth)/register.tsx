@@ -17,9 +17,11 @@ import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
 import { Box } from '@/components/ui/box';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,18 +34,18 @@ export default function RegisterScreen() {
 
   const translateErrorMessage = (message: string) => {
     if (message.includes('invalid')) {
-      return 'E-mail inválido. Utilize um endereço válido.';
+      return t('errors.invalidEmail');
     }
 
     if (message.includes('Password should be at least')) {
-      return 'A senha deve conter pelo menos 6 caracteres.';
+      return t('errors.passwordTooShort');
     }
 
     if (message.includes('User already registered')) {
-      return 'Este e-mail já está registrado. Faça login ou use outro endereço.';
+      return t('errors.userAlreadyRegistered');
     }
 
-    return message || 'Não foi possível concluir o cadastro.';
+    return message || t('errors.generic');
   };
 
   if (user) {
@@ -55,7 +57,7 @@ export default function RegisterScreen() {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedName || !trimmedEmail || !password) {
-      setErrorMessage('Informe nome, e-mail e uma senha segura.');
+      setErrorMessage(t('auth.register.fieldsRequired'));
       return;
     }
 
@@ -91,7 +93,7 @@ export default function RegisterScreen() {
       router.replace('/(auth)/onboarding');
     } catch (error) {
       console.error(error);
-      setErrorMessage((error as Error).message || 'Erro ao fazer login com Google');
+      setErrorMessage((error as Error).message || t('errors.generic'));
     }
   };
 
@@ -113,7 +115,7 @@ export default function RegisterScreen() {
       router.replace('/(auth)/onboarding');
     } catch (error) {
       console.error(error);
-      setErrorMessage((error as Error).message || 'Erro ao fazer login com Apple');
+      setErrorMessage((error as Error).message || t('errors.generic'));
     }
   };
 
@@ -134,10 +136,10 @@ export default function RegisterScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Cadastrar
+              {t('auth.register.title')}
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5">
-              Use informações válidas para continuar
+              {t('auth.register.subtitle')}
             </Text>
           </VStack>
 
@@ -145,30 +147,30 @@ export default function RegisterScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="Nome completo"
+                label={t('auth.register.fullName')}
                 value={name}
                 onChangeText={setName}
-                placeholder="Nome completo"
+                placeholder={t('auth.register.fullName')}
                 type="text"
                 autoCapitalize="words"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="E-mail"
+                label={t('auth.register.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="E-mail"
+                placeholder={t('auth.register.email')}
                 type="email"
                 keyboardType="email-address"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="Senha"
+                label={t('auth.register.password')}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Senha"
+                placeholder={t('auth.register.password')}
                 type="password"
                 error={!!errorMessage}
               />
@@ -180,13 +182,13 @@ export default function RegisterScreen() {
               ) : null}
 
               <Text size="sm" className="text-gray-500 text-center px-2 leading-5">
-                Ao se cadastrar, você concorda com nossos{' '}
+                {t('auth.register.terms')}{' '}
                 <Text size="sm" className="text-blue-600 font-medium">
-                  Termos e Condições
+                  {t('auth.register.termsLink')}
                 </Text>{' '}
-                e{' '}
+                {t('auth.register.and')}{' '}
                 <Text size="sm" className="text-blue-600 font-medium">
-                  Política de Privacidade
+                  {t('auth.register.privacyLink')}
                 </Text>
               </Text>
 
@@ -202,7 +204,7 @@ export default function RegisterScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Criar Conta
+                    {t('auth.register.button')}
                   </ButtonText>
                 )}
               </Button>
@@ -210,7 +212,7 @@ export default function RegisterScreen() {
               {/* Social Login Section */}
               <VStack space="md" className="mt-2">
                 <Text size="sm" className="text-gray-500 text-center">
-                  Ou continue com
+                  {t('auth.register.continueWith')}
                 </Text>
                 <GoogleSignInButton
                   onPress={handleGoogleLogin}
@@ -223,11 +225,11 @@ export default function RegisterScreen() {
           {/* Footer */}
           <HStack space="xs" className="justify-center items-center mt-6">
             <Text size="sm" className="text-gray-500">
-              Já tem uma conta?
+              {t('auth.register.alreadyHaveAccount')}
             </Text>
             <Link href="/(auth)/login">
               <Text size="sm" className="text-blue-600 font-semibold">
-                Entrar
+                {t('auth.register.signIn')}
               </Text>
             </Link>
           </HStack>

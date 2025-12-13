@@ -17,9 +17,11 @@ import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
 import { Box } from '@/components/ui/box';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,14 +33,14 @@ export default function LoginScreen() {
 
   const translateErrorMessage = (message: string) => {
     if (message === 'Invalid login credentials') {
-      return 'Credenciais inválidas. Verifique e-mail e senha.';
+      return t('errors.invalidCredentials');
     }
 
     if (message === 'Email not confirmed') {
-      return 'E-mail ainda não confirmado. Verifique sua caixa de entrada.';
+      return t('errors.emailNotConfirmed');
     }
 
-    return message || 'Não foi possível iniciar a sessão.';
+    return message || t('errors.generic');
   };
 
   if (user) {
@@ -49,7 +51,7 @@ export default function LoginScreen() {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail || !password) {
-      setErrorMessage('Preencha e-mail e senha para entrar.');
+      setErrorMessage(t('errors.invalidCredentials'));
       return;
     }
 
@@ -93,7 +95,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
-      setErrorMessage((error as Error).message || 'Erro ao fazer login com Google');
+      setErrorMessage((error as Error).message || t('errors.generic'));
     }
   };
 
@@ -115,7 +117,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
-      setErrorMessage((error as Error).message || 'Erro ao fazer login com Apple');
+      setErrorMessage((error as Error).message || t('errors.generic'));
     }
   };
 
@@ -136,10 +138,10 @@ export default function LoginScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Entrar
+              {t('auth.login.title')}
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5">
-              Digite seu e-mail e senha para continuar
+              {t('auth.login.subtitle')}
             </Text>
           </VStack>
 
@@ -147,20 +149,20 @@ export default function LoginScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="E-mail"
+                label={t('auth.login.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="E-mail"
+                placeholder={t('auth.login.email')}
                 type="email"
                 keyboardType="email-address"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="Senha"
+                label={t('auth.login.password')}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Senha"
+                placeholder={t('auth.login.password')}
                 type="password"
                 error={!!errorMessage}
               />
@@ -173,7 +175,7 @@ export default function LoginScreen() {
 
               <Link href="/(auth)/forgot-password">
                 <Text size="sm" className="text-blue-600 font-medium text-right mb-2">
-                  Esqueci a senha
+                  {t('auth.login.forgotPassword')}
                 </Text>
               </Link>
 
@@ -189,7 +191,7 @@ export default function LoginScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Entrar
+                    {t('auth.login.button')}
                   </ButtonText>
                 )}
               </Button>
@@ -197,7 +199,7 @@ export default function LoginScreen() {
               {/* Social Login Section */}
               <VStack space="md" className="mt-2">
                 <Text size="sm" className="text-gray-500 text-center">
-                  Ou continue com
+                  {t('auth.login.continueWith')}
                 </Text>
                 <GoogleSignInButton
                   onPress={handleGoogleLogin}
@@ -210,11 +212,11 @@ export default function LoginScreen() {
           {/* Footer */}
           <HStack space="xs" className="justify-center items-center mt-6">
             <Text size="sm" className="text-gray-500">
-              Não tem uma conta?
+              {t('auth.login.noAccount')}
             </Text>
             <Link href="/(auth)/register">
               <Text size="sm" className="text-blue-600 font-semibold">
-                Cadastrar
+                {t('auth.login.signUp')}
               </Text>
             </Link>
           </HStack>

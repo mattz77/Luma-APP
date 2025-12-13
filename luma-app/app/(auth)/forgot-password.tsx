@@ -15,9 +15,11 @@ import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
 import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
 import { Box } from '@/components/ui/box';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function ForgotPasswordScreen() {
   const handleResetPassword = async () => {
     if (!email) {
       setIsSuccess(false);
-      setFeedbackMessage('Digite o e-mail cadastrado para receber o link.');
+      setFeedbackMessage(t('auth.forgotPassword.emailRequired'));
       return;
     }
 
@@ -45,14 +47,14 @@ export default function ForgotPasswordScreen() {
       }
 
       setIsSuccess(true);
-      setFeedbackMessage('E-mail enviado! Verifique sua caixa de entrada para redefinir a senha.');
+      setFeedbackMessage(t('auth.forgotPassword.emailSent'));
       setTimeout(() => {
         router.replace('/(auth)/login');
       }, 1500);
     } catch (error) {
       console.error(error);
       setIsSuccess(false);
-      setFeedbackMessage((error as Error).message || 'Não foi possível enviar o e-mail.');
+      setFeedbackMessage((error as Error).message || t('auth.forgotPassword.emailError'));
     } finally {
       setSubmitting(false);
     }
@@ -75,10 +77,10 @@ export default function ForgotPasswordScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Esqueci a Senha
+              {t('auth.forgotPassword.title')}
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5 leading-5">
-              Não se preocupe, isso acontece. Digite o e-mail associado à sua conta
+              {t('auth.forgotPassword.subtitle')}
             </Text>
           </VStack>
 
@@ -86,10 +88,10 @@ export default function ForgotPasswordScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="E-mail"
+                label={t('auth.forgotPassword.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="E-mail"
+                placeholder={t('auth.forgotPassword.email')}
                 type="email"
                 keyboardType="email-address"
                 error={!!feedbackMessage && !isSuccess}
@@ -118,18 +120,18 @@ export default function ForgotPasswordScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Enviar Link
+                    {t('auth.forgotPassword.button')}
                   </ButtonText>
                 )}
               </Button>
 
               <HStack space="xs" className="justify-center items-center mt-2">
                 <Text size="sm" className="text-gray-500">
-                  Lembrou sua senha?
+                  {t('auth.forgotPassword.rememberPassword')}
                 </Text>
                 <Link href="/(auth)/login">
                   <Text size="sm" className="text-blue-600 font-semibold">
-                    Entrar
+                    {t('auth.forgotPassword.signIn')}
                   </Text>
                 </Link>
               </HStack>
