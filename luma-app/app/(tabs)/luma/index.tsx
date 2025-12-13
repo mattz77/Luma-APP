@@ -281,11 +281,7 @@ export default function LumaChatScreen() {
                 />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Luma AI</Text>
-                <View style={styles.statusContainer}>
-                  <View style={styles.statusDot} />
-                  <Text style={styles.headerSubtitle}>Online</Text>
-                </View>
+                <Text style={styles.headerTitle}>Luma</Text>
               </View>
             </View>
           </View>
@@ -537,21 +533,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.2,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  headerSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
   },
   headerRight: {
     flexDirection: 'row',
