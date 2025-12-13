@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   Mic,
   MoreHorizontal,
-  ArrowUp
+  ArrowUp,
+  User
 } from 'lucide-react-native';
 import Animated, {
   FadeInUp,
@@ -55,6 +56,7 @@ export default function LumaChatScreen() {
   const houseId = useAuthStore((state: any) => state.houseId);
   const userId = useAuthStore((state: any) => state.user?.id ?? null);
   const userName = useAuthStore((state: any) => state.user?.name ?? 'Você');
+  const userAvatarUrl = useAuthStore((state: any) => state.user?.avatarUrl ?? null);
   const flatListRef = useRef<FlatList>(null);
   const isSendingRef = useRef(false); // Proteção contra múltiplas execuções
   const lastSentMessageRef = useRef<string>(''); // Rastrear última mensagem enviada
@@ -336,7 +338,22 @@ export default function LumaChatScreen() {
                   {item.message && (
                     <View style={styles.userRow}>
                       <View style={styles.userBubbleWrapper}>
-                        <Text style={styles.userSenderLabel}>{userName}</Text>
+                        <View style={styles.userLabelRow}>
+                          <Text style={styles.userSenderLabel}>{userName}</Text>
+                          <View style={styles.userAvatarContainer}>
+                            {userAvatarUrl ? (
+                              <Image
+                                source={{ uri: userAvatarUrl }}
+                                style={styles.userAvatarImage}
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <View style={styles.userAvatarPlaceholder}>
+                                <User size={14} color={Colors.primary} strokeWidth={2} />
+                              </View>
+                            )}
+                          </View>
+                        </View>
                         <View style={styles.userBubble}>
                           <Text style={styles.userText}>{item.message}</Text>
                           <Text style={styles.userTime}>{time}</Text>
@@ -659,13 +676,38 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     minWidth: 0,
   },
+  userLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+    alignSelf: 'flex-end',
+  },
   userSenderLabel: {
     color: Colors.textSecondary,
     fontSize: 11,
-    marginBottom: 3,
-    marginRight: 2,
     fontWeight: '500',
-    alignSelf: 'flex-end',
+  },
+  userAvatarContainer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  userAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  userAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary + '10',
   },
   userBubble: {
     backgroundColor: Colors.primary,
