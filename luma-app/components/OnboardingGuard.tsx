@@ -90,7 +90,14 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // 2. Verificar se tem casa
+        // 2. Verificar se tem casa - AGUARDAR carregamento antes de redirecionar
+        // Se ainda está carregando, aguardar antes de tomar decisão
+        if (housesLoading) {
+          setIsChecking(false);
+          isCheckingRef.current = false;
+          return; // Retornar e aguardar próximo ciclo quando housesLoading mudar
+        }
+        
         if (houses.length === 0) {
           // Não tem casa, verificar se está na tela de criação
           if (!pathname?.includes('/house')) {
