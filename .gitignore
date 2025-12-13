@@ -1,7 +1,10 @@
-# Node / Expo
+# Node / Expo / Bun
 node_modules/
 npm-debug.log*
 yarn.lock
+package-lock.json
+bun.lockb
+bun.lock
 .expo/
 .expo-shared/
 dist/
@@ -66,3 +69,5 @@ luma-app/.cursor/
 luma-app/supabase/
 
 luma-app/gluestack-mcp
+.wslconfig
+

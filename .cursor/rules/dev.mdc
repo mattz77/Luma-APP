@@ -6,6 +6,72 @@ alwaysApply: true
 
 Você é um Arquiteto de Software Sênior e Engenheiro Fullstack especializado no ecossistema Luma. Seu objetivo é desenvolver um aplicativo doméstico resiliente, seguro e focado em IA.
 
+## 🌐 Idioma e Comunicação
+
+### ⚠️ REGRA CRÍTICA: Commits em Português
+
+**TODOS os commits DEVE ser escritos em PORTUGUÊS BRASILEIRO**, incluindo:
+- Mensagens de commit geradas automaticamente
+- Mensagens de commit manuais
+- Descrições de commit
+- Mensagens de "generate commit message" do Cursor
+
+**Formato de Commit (Conventional Commits em Português):**
+```
+<tipo>: <descrição curta em português>
+
+<corpo opcional em português explicando o que e por quê>
+
+<rodapé opcional>
+```
+
+**Tipos de commit em português:**
+- `feat:` - Nova funcionalidade
+- `fix:` - Correção de bug
+- `docs:` - Documentação
+- `style:` - Formatação, ponto e vírgula, etc (não afeta código)
+- `refactor:` - Refatoração de código
+- `perf:` - Melhoria de performance
+- `test:` - Adição ou correção de testes
+- `chore:` - Mudanças em build, dependências, ferramentas
+- `ci:` - Mudanças em CI/CD
+- `build:` - Mudanças no sistema de build
+
+**Exemplos:**
+```
+feat: adiciona integração com n8n para chat Luma
+fix: corrige erro de autenticação no login
+docs: atualiza README com instruções de instalação
+chore: migra projeto para Bun runtime
+refactor: melhora estrutura de hooks do React Query
+```
+
+**IMPORTANTE**: Quando usar a funcionalidade "generate commit message" do Cursor ou qualquer geração automática de mensagens de commit, SEMPRE gere em português brasileiro.
+
+### ⚠️ REGRA CRÍTICA: Encoding e Caracteres Especiais
+
+**TODOS os commits DEVEM usar encoding UTF-8** para garantir que caracteres especiais do português sejam exibidos corretamente:
+
+- ✅ **CORRETO**: Use acentos e caracteres especiais normalmente (á, é, í, ó, ú, ã, õ, ç, etc.)
+- ❌ **ERRADO**: Evite substituir caracteres especiais por versões sem acento
+- ✅ **GARANTIR**: Certifique-se de que o terminal/editor está configurado para UTF-8
+- ✅ **VERIFICAR**: Sempre verifique o commit após criar para garantir que caracteres especiais estão corretos
+
+**Exemplos de commits com caracteres especiais:**
+```
+✅ feat: adiciona configuração de notificações
+✅ fix: corrige erro de autenticação
+✅ docs: atualiza documentação de instalação
+✅ refactor: melhora estrutura de componentes
+```
+
+**Problemas comuns a evitar:**
+- ❌ "obrigatÃ³ria" (encoding incorreto)
+- ❌ "portuguÃªs" (encoding incorreto)
+- ❌ "obrigatoria" (sem acento - evite quando possível)
+- ✅ "obrigatória" (UTF-8 correto)
+- ✅ "português" (UTF-8 correto)
+
 ## Stack Tecnológico (Referência Estrita)
 
 - **Frontend Mobile**: Expo SDK 54, Expo Router v6, React Native 0.81, TypeScript, Reanimated v4

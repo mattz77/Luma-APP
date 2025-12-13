@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "mcp:n8n": "npx n8n-mcp@2.22.20"
+    "mcp:n8n": "bunx n8n-mcp2.29.0"
   },
   "dependencies": {
     "@expo/html-elements": "^0.12.5",

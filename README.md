@@ -21,8 +21,9 @@ Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gere
 
 ## 📋 Pré-requisitos
 
-- Node.js 18+ e npm
-- Expo CLI (`npm install -g expo-cli`)
+- **Bun** 1.0+ ([Instalar Bun](https://bun.sh))
+- Node.js 18+ (requerido pelo Expo, mas Bun será usado como runtime)
+- Expo CLI (`bun install -g expo-cli` ou `npm install -g expo-cli`)
 - Conta Supabase (já configurada)
 - Conta n8n (para integração com Luma AI)
 - Expo Go app (para desenvolvimento) ou EAS Build (para produção)
@@ -32,9 +33,16 @@ Aplicativo mobile-first de gestão doméstica com assistente AI (Luma) para gere
 ### 1. Instalar Dependências
 
 ```bash
+# Instalar Bun (se ainda não tiver)
+curl -fsSL https://bun.sh/install | bash
+# Windows: powershell -c "irm bun.sh/install.ps1 | iex"
+
+# Instalar dependências com Bun
 cd luma-app
-npm install
+bun install
 ```
+
+**Nota**: Este projeto usa **Bun** como runtime e gerenciador de pacotes para melhor performance. O arquivo de lock (`bun.lock` ou `bun.lockb`) será gerado automaticamente.
 
 ### 2. Configurar Variáveis de Ambiente
 
@@ -85,20 +93,23 @@ O banco de dados Supabase está configurado com:
 
 ```bash
 # Iniciar servidor Expo
-npm start
+bun start
+# ou: bun run start
 
 # Executar no Android
-npm run android
+bun run android
 
 # Executar no iOS (apenas macOS)
-npm run ios
+bun run ios
 
 # Executar no navegador
-npm run web
+bun run web
 
 # Executar servidor MCP n8n (para integração com workflows)
-npm run mcp:n8n
+bun run mcp:n8n
 ```
+
+**Nota**: Todos os comandos podem ser executados com `bun` ao invés de `npm`. Bun é mais rápido para instalação e execução de scripts.
 
 ### Escanear QR Code
 
@@ -343,17 +354,20 @@ Isso permite integração direta com workflows n8n via ferramentas MCP.
 
 ```bash
 # Verificar tipos TypeScript
-npx tsc --noEmit
+bunx tsc --noEmit
+# ou: bun run tsc --noEmit
 
 # Executar testes (quando implementados)
-npm test
+bun test
 
 # Cobertura de testes
-npm run test:coverage
+bun run test:coverage
 
 # Gerar tipos do Prisma (referência)
-npx prisma generate
+bunx prisma generate
 ```
+
+**Nota**: Use `bunx` ao invés de `npx` para executar pacotes binários. Bun é compatível com pacotes npm.
 
 ## 📦 Build para Produção
 
@@ -401,8 +415,41 @@ Certifique-se de que o usuário está autenticado e pertence à casa que está t
 
 ## 🤝 Contribuindo
 
+### Padrão de Commits
+
+**⚠️ IMPORTANTE**: Todos os commits devem ser escritos em **Português Brasileiro**.
+
+**Formato (Conventional Commits em Português):**
+```
+<tipo>: <descrição curta em português>
+
+<corpo opcional explicando o que e por quê>
+```
+
+**Tipos de commit:**
+- `feat:` - Nova funcionalidade
+- `fix:` - Correção de bug
+- `docs:` - Documentação
+- `style:` - Formatação (não afeta código)
+- `refactor:` - Refatoração
+- `perf:` - Melhoria de performance
+- `test:` - Testes
+- `chore:` - Build, dependências, ferramentas
+- `ci:` - CI/CD
+- `build:` - Sistema de build
+
+**Exemplos:**
+```bash
+feat: adiciona integração com n8n para chat Luma
+fix: corrige erro de autenticação no login
+docs: atualiza README com instruções de instalação
+chore: migra projeto para Bun runtime
+```
+
+### Processo de Contribuição
+
 1. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-2. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+2. Commit suas mudanças em português (`git commit -m 'feat: adiciona nova feature'`)
 3. Push para a branch (`git push origin feature/nova-feature`)
 4. Abra um Pull Request
 
