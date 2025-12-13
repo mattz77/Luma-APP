@@ -136,10 +136,10 @@ export default function LoginScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Sign In
+              Entrar
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5">
-              Enter valid user name & password to continue
+              Digite seu e-mail e senha para continuar
             </Text>
           </VStack>
 
@@ -147,20 +147,20 @@ export default function LoginScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="User name"
+                label="E-mail"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="User name"
+                placeholder="E-mail"
                 type="email"
                 keyboardType="email-address"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="Password"
+                label="Senha"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Password"
+                placeholder="Senha"
                 type="password"
                 error={!!errorMessage}
               />
@@ -173,7 +173,7 @@ export default function LoginScreen() {
 
               <Link href="/(auth)/forgot-password">
                 <Text size="sm" className="text-blue-600 font-medium text-right mb-2">
-                  Forget password
+                  Esqueci a senha
                 </Text>
               </Link>
 
@@ -189,7 +189,7 @@ export default function LoginScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Login
+                    Entrar
                   </ButtonText>
                 )}
               </Button>
@@ -197,7 +197,7 @@ export default function LoginScreen() {
               {/* Social Login Section */}
               <VStack space="md" className="mt-2">
                 <Text size="sm" className="text-gray-500 text-center">
-                  Or Continue with
+                  Ou continue com
                 </Text>
                 <GoogleSignInButton
                   onPress={handleGoogleLogin}
@@ -210,11 +210,11 @@ export default function LoginScreen() {
           {/* Footer */}
           <HStack space="xs" className="justify-center items-center mt-6">
             <Text size="sm" className="text-gray-500">
-              Haven't any account?
+              Não tem uma conta?
             </Text>
             <Link href="/(auth)/register">
               <Text size="sm" className="text-blue-600 font-semibold">
-                Sign up
+                Cadastrar
               </Text>
             </Link>
           </HStack>

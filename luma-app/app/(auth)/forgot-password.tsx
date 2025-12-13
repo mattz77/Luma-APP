@@ -75,10 +75,10 @@ export default function ForgotPasswordScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Forget Password
+              Esqueci a Senha
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5 leading-5">
-              Don't worry it happens. Please enter the address associate with your account
+              Não se preocupe, isso acontece. Digite o e-mail associado à sua conta
             </Text>
           </VStack>
 
@@ -86,10 +86,10 @@ export default function ForgotPasswordScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="Email address"
+                label="E-mail"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email address"
+                placeholder="E-mail"
                 type="email"
                 keyboardType="email-address"
                 error={!!feedbackMessage && !isSuccess}
@@ -118,18 +118,18 @@ export default function ForgotPasswordScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Send OTP
+                    Enviar Link
                   </ButtonText>
                 )}
               </Button>
 
               <HStack space="xs" className="justify-center items-center mt-2">
                 <Text size="sm" className="text-gray-500">
-                  You remember you password?
+                  Lembrou sua senha?
                 </Text>
                 <Link href="/(auth)/login">
                   <Text size="sm" className="text-blue-600 font-semibold">
-                    Sign in
+                    Entrar
                   </Text>
                 </Link>
               </HStack>

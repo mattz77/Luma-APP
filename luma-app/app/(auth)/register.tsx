@@ -134,10 +134,10 @@ export default function RegisterScreen() {
           {/* Title */}
           <VStack space="xs" className="items-center">
             <Heading size="3xl" bold className="text-gray-900">
-              Sign Up
+              Cadastrar
             </Heading>
             <Text size="sm" className="text-gray-500 text-center px-5">
-              Use proper information to continue
+              Use informações válidas para continuar
             </Text>
           </VStack>
 
@@ -145,30 +145,30 @@ export default function RegisterScreen() {
           <Box className="bg-white rounded-3xl p-6 shadow-sm">
             <VStack space="md">
               <AuthInput
-                label="Full name"
+                label="Nome completo"
                 value={name}
                 onChangeText={setName}
-                placeholder="Full name"
+                placeholder="Nome completo"
                 type="text"
                 autoCapitalize="words"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="Email address"
+                label="E-mail"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email address"
+                placeholder="E-mail"
                 type="email"
                 keyboardType="email-address"
                 error={!!errorMessage}
               />
 
               <AuthInput
-                label="Password"
+                label="Senha"
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Password"
+                placeholder="Senha"
                 type="password"
                 error={!!errorMessage}
               />
@@ -180,13 +180,13 @@ export default function RegisterScreen() {
               ) : null}
 
               <Text size="sm" className="text-gray-500 text-center px-2 leading-5">
-                By signing up, you are agree to our{' '}
+                Ao se cadastrar, você concorda com nossos{' '}
                 <Text size="sm" className="text-blue-600 font-medium">
-                  Terms & Conditions
+                  Termos e Condições
                 </Text>{' '}
-                and{' '}
+                e{' '}
                 <Text size="sm" className="text-blue-600 font-medium">
-                  Privacy Policy
+                  Política de Privacidade
                 </Text>
               </Text>
 
@@ -202,7 +202,7 @@ export default function RegisterScreen() {
                   <ButtonSpinner />
                 ) : (
                   <ButtonText className="text-white text-base font-semibold">
-                    Create Account
+                    Criar Conta
                   </ButtonText>
                 )}
               </Button>
@@ -210,7 +210,7 @@ export default function RegisterScreen() {
               {/* Social Login Section */}
               <VStack space="md" className="mt-2">
                 <Text size="sm" className="text-gray-500 text-center">
-                  Or Continue with
+                  Ou continue com
                 </Text>
                 <GoogleSignInButton
                   onPress={handleGoogleLogin}
@@ -223,11 +223,11 @@ export default function RegisterScreen() {
           {/* Footer */}
           <HStack space="xs" className="justify-center items-center mt-6">
             <Text size="sm" className="text-gray-500">
-              Already have an Account?
+              Já tem uma conta?
             </Text>
             <Link href="/(auth)/login">
               <Text size="sm" className="text-blue-600 font-semibold">
-                Sign in
+                Entrar
               </Text>
             </Link>
           </HStack>
