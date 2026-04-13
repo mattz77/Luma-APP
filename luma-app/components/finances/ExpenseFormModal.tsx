@@ -8,6 +8,7 @@ import {
   Modal as RNModal,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -105,7 +106,46 @@ export function ExpenseFormModal({
   onCreateCategory,
 }: ExpenseFormModalProps) {
   const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const translateY = useSharedValue(0);
+
+  /** Bottom sheet: largura total, altura máxima ~92% — empurrado pra base pelo wrapper (funciona na web) */
+  const sheetOuterStyle = useMemo(
+    () => ({
+      width: '100%' as const,
+      maxHeight: screenHeight * 0.92,
+      backgroundColor: '#FFFFFF',
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
+      paddingBottom: Math.max(insets.bottom, 8),
+      overflow: 'hidden' as const,
+    }),
+    [screenHeight, insets.bottom]
+  );
+
+  /** Preenche o overlay para justifyContent flex-end ancorar o sheet na base */
+  const sheetWrapperStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+      justifyContent: 'flex-end' as const,
+      alignItems: 'stretch' as const,
+    }),
+    []
+  );
+
+  const overlayRootStyle = useMemo(
+    () => ({
+      flex: 1,
+      width: '100%' as const,
+      ...(Platform.OS === 'web' ? { minHeight: screenHeight } : {}),
+    }),
+    [screenHeight]
+  );
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('0');
@@ -426,10 +466,10 @@ export function ExpenseFormModal({
     <>
       <RNModal visible={visible} transparent animationType="none" onRequestClose={closeModal} statusBarTranslucent>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
           style={{ flex: 1 }}
         >
-          <View className="flex-1 justify-end">
+          <View className="flex-1 justify-end" style={overlayRootStyle}>
             {/* Backdrop — mesmo padrão da tela de Tarefas */}
             <Animated.View
               entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
@@ -462,15 +502,15 @@ export function ExpenseFormModal({
               />
             </Animated.View>
 
-            <GestureHandlerRootView style={{ width: '100%', zIndex: 10 }}>
+            <GestureHandlerRootView style={sheetWrapperStyle}>
               <GestureDetector gesture={panGesture}>
                 <Animated.View
                   entering={SlideInDown.springify()
                     .damping(Platform.OS === 'ios' ? 18 : 20)
                     .stiffness(Platform.OS === 'ios' ? 280 : 250)
                     .mass(Platform.OS === 'ios' ? 0.8 : 1)}
-                  className="bg-white rounded-t-[40px] w-full shadow-2xl"
-                  style={[{ backgroundColor: '#FFFFFF', maxHeight: '92%' }, modalAnimatedStyle]}
+                  className="w-full shadow-2xl"
+                  style={[sheetOuterStyle, modalAnimatedStyle]}
                 >
                   <View className="w-full items-center pt-2 pb-2">
                     <View className="w-12 h-1 bg-slate-200 rounded-full" />
@@ -494,7 +534,7 @@ export function ExpenseFormModal({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     onScrollBeginDrag={Keyboard.dismiss}
-                    contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 40 }}
+                    contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 24 }}
                   >
                     <VStack space="lg" className="pb-8">
                       <VStack space="xs">
@@ -756,7 +796,7 @@ export function ExpenseFormModal({
                         </Box>
                       )}
 
-                      <HStack space="md" className="mt-4 mb-24">
+                      <HStack space="md" className="mt-4 mb-8">
                         {isEditMode && onDelete ? (
                           <Pressable
                             onPress={handleDelete}
