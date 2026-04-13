@@ -66,12 +66,18 @@ const DateStrip = () => {
 
   return (
     <Animated.View layout={Layout.springify()}>
+      {/* padding vertical: dia ativo usa scale(1.05) + sombra — evita corte no topo */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 10 }}
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 12,
+          paddingBottom: 14,
+          alignItems: 'center',
+        }}
       >
-        <HStack space="md">
+        <HStack space="md" className="items-center">
           {dates.map((date, i) => (
             <Pressable
               key={i}
@@ -81,7 +87,7 @@ const DateStrip = () => {
                   ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
                   : 'bg-white border-slate-200'
               }`}
-              style={[{ overflow: 'hidden', borderRadius: 24 }, date.active && { transform: [{ scale: 1.05 }] }]}
+              style={[{ borderRadius: 24 }, date.active && { transform: [{ scale: 1.05 }] }]}
             >
               <Text className={`text-2xl font-bold mb-1 ${date.active ? 'text-black' : 'text-slate-900'}`}>
                 {date.day}
