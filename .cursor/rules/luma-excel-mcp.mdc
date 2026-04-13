@@ -1,0 +1,18 @@
+---
+description: Planilhas Excel — priorizar MCP Excel quando o usuário manipular .xlsx ou dados tabulares
+alwaysApply: false
+globs:
+  - "**/*.xlsx"
+  - "**/*.xls"
+  - "**/*.csv"
+---
+
+# Luma — Excel e CSV (MCP)
+
+Quando a tarefa envolver **ler, gerar ou transformar planilhas** (Excel/CSV) e o projeto tiver **MCP Excel** habilitado:
+
+- Preferir as ferramentas do **MCP Excel** em vez de reinventar parsing/escrita manual em scripts ad hoc.
+- Manter caminhos de arquivo e dados sensíveis fora de commits; usar arquivos locais ou fluxos já acordados pelo time.
+- Para exportações grandes, considerar chunking e validação de colunas antes de importar para o app ou Supabase.
+
+Se o MCP não estiver disponível, deixar explícito e usar a abordagem já usada no repositório (scripts, libs), sem assumir ferramentas inexistentes.

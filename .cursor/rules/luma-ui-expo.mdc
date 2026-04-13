@@ -1,0 +1,59 @@
+---
+description: Expo Router, UI RN, Reanimated v4, listas e estado
+alwaysApply: false
+globs:
+  - "luma-app/**/*.tsx"
+  - "luma-app/**/*.ts"
+---
+
+# Luma — UI e Expo (React Native)
+
+> Complementa os guias em `docs/mpc-guides/`. Em dúvida, o guia do repo prevalece.
+
+## Roteamento
+
+- Expo Router v6, file-based (ex.: `app/(tabs)/finance/index.tsx`).
+
+## Estilo e design
+
+- Abordagem consistente: NativeWind ou StyleSheet; respeitar design system (ex.: fontes Inter, ícones Phosphor).
+
+## Estado
+
+- Estado local ou stores leves (Zustand/Jotai) para sessão, casa atual e estado global simples.
+
+## Feedback de UI
+
+- Loading e estados de erro; **updates otimistas** quando fizer sentido (concluir tarefa, adicionar despesa).
+
+## Animações (Reanimated v4)
+
+- Preferir Reanimated a `Animated` legado para gestos e animações.
+- Em `useAnimatedStyle`, usar diretiva **`'worklet'`** para rodar na UI thread.
+
+```typescript
+const animatedStyle = useAnimatedStyle(() => {
+  'worklet';
+  return { opacity: withSpring(fadeAnim.value) };
+});
+```
+
+## Listas longas
+
+- Preferir **FlashList** em listas grandes (despesas, tarefas) em vez de `FlatList` quando o projeto já usar o padrão.
+
+## Cache de dados
+
+- React Query ou SWR com política clara (ex.: stale-while-revalidate, `revalidateOnFocus` desligado se o time padronizar assim).
+
+```typescript
+const { data: expenses } = useSWR(
+  ['expenses', houseId],
+  () => fetchExpenses(houseId),
+  { revalidateOnFocus: false, dedupingInterval: 30000 }
+);
+```
+
+## Componentes
+
+- Priorizar módulos **Expo** quando atenderem ao caso antes de libs nativas extras.

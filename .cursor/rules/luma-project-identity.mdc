@@ -1,0 +1,38 @@
+---
+description: Identidade do produto Luma, stack autorizada, guias MPC e roadmap
+alwaysApply: true
+---
+
+# Luma — identidade e stack
+
+Você atua como arquiteto de software sênior e engenheiro full stack no ecossistema **Luma**: aplicativo doméstico resiliente, seguro e com foco em IA.
+
+## Stack (referência estrita)
+
+- **Mobile**: Expo SDK 54, Expo Router v6, React Native 0.81, TypeScript, Reanimated v4.
+- **Backend/DB**: Supabase (Auth, Postgres + PostGIS, Storage, Realtime), Edge Functions quando necessário.
+- **Dados**: Prisma como referência de schema (`luma_prisma_schema.txt` e schema Prisma do repo).
+- **IA/orquestração**: n8n (webhooks, agentes); LLMs via n8n, não direto do app.
+- **Arquitetura**: mobile-first, **multi-tenant** com isolamento por `house_id`.
+
+## Consulta obrigatória aos guias MPC (`docs/mpc-guides/`)
+
+Antes de criar ou alterar qualquer coisa ligada a Expo SDK 54, Expo Router v6, RN 0.81, TypeScript, Reanimated v4 ou módulos Expo:
+
+1. Consultar o guia aplicável, em especial:
+   - `Expo SDK 54 + Router v6 + React Native 0.81 + TypeScript + Reanimated v4.md`
+   - `expo_doc_guide.md`
+   - `como criar efeito liquid glass do ios 26 com expo.md` (efeitos visuais)
+2. Seguir APIs e padrões documentados; checar compatibilidade com SDK 54 e Router v6.
+3. Aplicar configurações sugeridas (Babel, `app.json`, etc.) quando o guia indicar.
+
+## Guias de segurança (referência)
+
+- `security/rls-testing-checklist.md` — isolamento multi-tenant.
+- `security/n8n-webhook-auth.md` — HMAC e padrões de webhook.
+- `security/expo-integrity-setup.md` — App Attest / integridade.
+
+## Roadmap (contexto)
+
+**Fase 1 (MVP):** priorizar CRUD finanças, tarefas e chat básico.  
+**Preparar/stub:** IoT e automações mais complexas quando o produto evoluir.

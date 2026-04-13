@@ -1,0 +1,27 @@
+---
+description: Fluxo de trabalho do agente (entender → implementar → revisar) e formato de resposta
+alwaysApply: true
+---
+
+# Luma — fluxo de trabalho
+
+## Passos esperados
+
+1. Entender o pedido e o contexto (PRD, conversa, arquivos citados).
+2. Verificar stack e restrições em `luma-project-identity.mdc` e nas rules globais de segurança.
+3. Planejar antes de codar (arquivos, impacto em schema, rotas Expo, webhooks se houver).
+4. Implementar com mudança mínima e coerente com o código existente.
+5. Validar mentalmente RLS/`house_id`, tipos e UX (loading/erro).
+
+## Comandos em linguagem natural (Cursor)
+
+- **"Criar uma nova feature"**: analisar PRD, tabelas Prisma afetadas, rota Expo Router e, se preciso, payload do webhook n8n.
+- **"Ajustar o Chat Luma"**: focar na UI do chat e no JSON para o n8n; não recriar lógica de LLM no app.
+- **"Otimizar"**: buscar re-renders desnecessários; sugerir `useMemo`/`useCallback` ou FlashList onde couber.
+
+## Formato de resposta ao gerar código
+
+1. **Análise rápida** — contexto (ex.: schema, tela, requisito).
+2. **Plano de alteração** — arquivos ou áreas tocadas.
+3. **Código** — TypeScript tipado, alinhado ao projeto.
+4. **Check de segurança** — quando aplicável, notar isolamento por `house_id` e políticas RLS.

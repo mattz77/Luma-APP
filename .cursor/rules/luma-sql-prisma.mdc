@@ -1,0 +1,35 @@
+---
+description: Schema Prisma, SQL Supabase, índices multi-tenant e migrations
+alwaysApply: false
+globs:
+  - "**/*.prisma"
+  - "**/supabase/**/*.sql"
+---
+
+# Luma — Prisma e SQL
+
+## Schema
+
+- Antes de propor queries novas, alinhar com `luma_prisma_schema.txt` e o `schema.prisma` do repositório.
+- **Índices compostos** para padrões frequentes filtrados por `house_id` (ex.: despesas por data, por autor).
+
+```prisma
+model Expense {
+  // ... campos existentes
+  @@index([house_id, expense_date(sort: Desc)])
+  @@index([house_id, created_by])
+}
+```
+
+## Migrations e SQL
+
+- Scripts em `supabase/migrations` (ou estrutura equivalente do repo) devem ser **revisáveis** e **reproduzíveis**; evitar “migration só manual” sem registro.
+- Não destruir dados sem plano explícito; preferir migrações incrementais e compatíveis com RLS.
+
+## Edge Functions
+
+- Usar Edge Functions só quando SQL/n8n não resolverem com clareza (ex.: processamento de mídia complexo).
+
+## Realtime
+
+- Onde fizer sentido (chat Luma, status de tarefas), considerar `supabase.channel` para atualização em tempo real.

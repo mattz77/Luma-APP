@@ -1,0 +1,54 @@
+---
+description: Multi-tenant (house_id), RLS, integridade do app e padrões sensíveis
+alwaysApply: true
+---
+
+# Luma — segurança
+
+## Isolamento multi-tenant (regra de ouro)
+
+Toda operação de banco, regra de negócio ou contexto de IA deve ser **escopada por `house_id`** (casa ativa).
+
+- Não buscar dados do usuário sem filtrar pela casa correta.
+- Assumir **RLS ativo** no Supabase: queries alinhadas a `auth.uid()` e vínculo em `house_members`.
+
+### Checklist RLS (antes de dar feature como pronta)
+
+1. **Cross-tenant:** com credenciais válidas, tentar acessar outra casa → deve falhar ou retornar vazio.
+2. **Sem sessão:** sem `auth.uid()` → deve falhar.
+3. **Injeção:** entrada maliciosa em `house_id` (ex.: `'; DROP TABLE expenses; --`) → deve ser rejeitada/sanitizada.
+4. **Políticas:** confirmar políticas na tabela afetada (ex.: `pg_policies` / revisão no Supabase).
+
+## App Integrity (SDK 54+)
+
+Para fluxos críticos (pagamentos, webhooks sensíveis):
+
+- Usar `expo-app-integrity` no cliente quando aplicável.
+- No backend, validar tokens Play Integrity / App Attest antes de processar ações críticas.
+- Exemplo de endpoint: `POST /api/verify-device`.
+
+Detalhes: `security/expo-integrity-setup.md`.
+
+## Exemplo: consulta segura vs insegura
+
+### Evitar (lento e frágil)
+
+```typescript
+const { data } = await supabase.from('expenses').select('*');
+const myExpenses = data.filter((e) => e.house_id === currentHouse.id);
+```
+
+### Preferir (filtro no banco + tipos)
+
+```typescript
+const { data: expenses, error } = await supabase
+  .from('expenses')
+  .select(`
+    *,
+    category:expense_categories(name, icon, color),
+    created_by:users(name, avatar_url)
+  `)
+  .eq('house_id', houseId)
+  .order('expense_date', { ascending: false })
+  .limit(20);
+```

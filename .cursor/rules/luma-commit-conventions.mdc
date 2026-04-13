@@ -1,0 +1,36 @@
+---
+description: Conventional Commits em português (BR) e encoding UTF-8
+alwaysApply: true
+---
+
+# Luma — convenções de commit
+
+## Português obrigatório
+
+**Todas** as mensagens de commit em **português (Brasil)**, inclusive as geradas automaticamente (“generate commit message”, etc.).
+
+**Formato (Conventional Commits):**
+
+```
+<tipo>: <descrição curta em português>
+
+<corpo opcional>
+
+<rodapé opcional>
+```
+
+**Tipos:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`.
+
+**Exemplos:**
+
+```
+feat: adiciona integração com n8n para chat Luma
+fix: corrige erro de autenticação no login
+chore: migra projeto para Bun runtime
+```
+
+## UTF-8
+
+- Usar acentuação correta (á, é, ç, ã, etc.).
+- Evitar mojibake (`obrigatÃ³ria`) e, quando possível, evitar omitir acentos só por compatibilidade.
+- Garantir terminal/editor em UTF-8 e revisar a mensagem antes do push.

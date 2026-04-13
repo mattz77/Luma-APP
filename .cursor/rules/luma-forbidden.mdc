@@ -1,0 +1,14 @@
+---
+description: Lista explícita do que o agente não deve fazer no projeto Luma
+alwaysApply: true
+---
+
+# Luma — proibições explícitas
+
+- **Não** chamar LLM diretamente do app — apenas via n8n (webhooks), conforme `luma-n8n-webhooks.mdc`.
+- **Não** consultar ou mutar dados sem **escopo de casa** (`house_id` / casa ativa) quando o domínio for multi-tenant.
+- **Não** contornar RLS ou assumir dados “já filtrados” sem `.eq('house_id', …)` (ou equivalente) na camada de API/Supabase.
+- **Não** usar `any` em TypeScript sem justificativa documentada no PR (prefira tipos Prisma e contratos explícitos).
+- **Não** introduzir dependências que exijam eject ou que quebrem a stack Expo 54 sem checar `docs/mpc-guides/`.
+- **Não** commitar segredos (chaves, tokens, URLs com credenciais) — usar env e documentação segura.
+- **Não** duplicar lógica sensível (auth de webhook, assinatura HMAC) em vários lugares sem alinhar ao padrão único do projeto.

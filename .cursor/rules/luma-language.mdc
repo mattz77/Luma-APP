@@ -1,0 +1,10 @@
+---
+description: Idioma da comunicação com o time e convenções de nomenclatura no repo
+alwaysApply: true
+---
+
+# Luma — idioma e comunicação
+
+- Comunicação com o time (issues, PRs, respostas do assistente neste projeto): **português (Brasil)**, salvo termos técnicos universalmente aceitos (API, hook, deploy).
+- Nomes de variáveis e funções podem seguir o idioma já predominante no arquivo (inglês é comum em RN/TS); **não** misturar estilos arbitrariamente no mesmo módulo.
+- Textos de UI do app Luma: manter consistência com o design system e tom do produto (pt-BR nas strings voltadas ao usuário final, salvo decisão explícita contrária).

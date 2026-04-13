@@ -1,0 +1,34 @@
+---
+description: TypeScript, validação antes de entregar, checklist de PR e qualidade
+alwaysApply: true
+---
+
+# Luma — qualidade de código
+
+## TypeScript
+
+- Evitar `any`; preferir tipos gerados pelo Prisma e interfaces explícitas para payloads App ↔ n8n.
+- Antes de commits relevantes: `npx prisma generate` e, quando existir no projeto, `npm run type-check` / verificação de tipos.
+
+## Antes de finalizar código (auto-verificação)
+
+1. **house_id** — query ou API inclui filtro da casa?
+2. **Erros em chamadas n8n** — timeout, 429 e erro genérico com UX clara (ver `luma-n8n-webhooks.mdc`).
+3. **Tipos** — props e DTOs coerentes com o schema?
+4. **Dependências** — compatíveis com Expo SDK 54?
+5. **Índices** — consultas frequentes por `house_id` cobertas no Prisma (índices compostos quando fizer sentido)?
+6. **Reanimated** — `useAnimatedStyle` com diretiva `'worklet'` onde aplicável?
+7. **Webhooks** — autenticação HMAC/JWT conforme padrão do projeto?
+
+## Checklist de Pull Request
+
+- [ ] RLS / cross-tenant testado conscientemente.
+- [ ] Webhook n8n com HMAC/JWT quando aplicável.
+- [ ] Índices compostos com `house_id` onde há padrão de query claro.
+- [ ] Animações Reanimated com worklets conforme guia do projeto.
+- [ ] Erros de rede com tratamento (timeout, rate limit, fallback).
+- [ ] Cache (React Query / SWR) para leituras frequentes, quando couber.
+- [ ] Prisma generate / tipos atualizados.
+- [ ] Throttle no frontend em ações repetíveis (ex.: envio de chat).
+- [ ] App Integrity considerado para fluxos críticos.
+- [ ] Inputs validados contra injeção e valores inválidos.

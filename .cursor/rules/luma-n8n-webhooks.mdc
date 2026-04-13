@@ -1,0 +1,63 @@
+---
+description: Integração do app Luma com n8n (webhooks, JWT, HMAC, UX de erro)
+alwaysApply: true
+---
+
+# Luma — integração com n8n (app)
+
+## Protocolo
+
+- O app **nunca** chama LLM diretamente; envia **POST** ao webhook n8n com payload acordado.
+- Tratar resposta como streaming ou resposta única; exibir metadados de progresso quando existirem (ex.: “Processando gastos…”).
+
+## Autenticação (HMAC + JWT)
+
+Webhooks devem usar o padrão de segurança do projeto (ver `security/n8n-webhook-auth.md`). Exemplo conceitual:
+
+```typescript
+const n8nWebhookCall = async (payload: LumaWebhookPayload) => {
+  const token = jwt.sign(
+    { user_id: payload.user_id, house_id: payload.house_id, exp: Date.now() + 3600000 },
+    process.env.JWT_SECRET!
+  );
+  const signature = crypto
+    .createHmac('sha256', process.env.N8N_WEBHOOK_SECRET!)
+    .update(JSON.stringify({ token, message: payload.message }))
+    .digest('hex');
+
+  return fetch(N8N_WEBHOOK_URL, {
+    headers: {
+      'X-Luma-Signature': signature,
+      Authorization: `Bearer ${process.env.N8N_API_KEY}`,
+    },
+    body: JSON.stringify({ token, message: payload.message, context: payload.context }),
+  });
+};
+```
+
+## Payload ilustrativo
+
+```json
+{
+  "token": "eyJhbGc...",
+  "message": "string",
+  "context": {
+    "current_route": "finance",
+    "role": "admin"
+  }
+}
+```
+
+## Rate limiting no cliente
+
+- Throttle/debounce no envio (ex.: `@react-hook/throttle`) para evitar spam.
+
+## Tratamento de erros (UX)
+
+```typescript
+try {
+  await fetchWithTimeout(N8N_WEBHOOK_URL, payload, 10000);
+} catch (error: unknown) {
+  // Timeout → UX de retry | 429 → rate limit | demais → log + erro genérico
+}
+```
