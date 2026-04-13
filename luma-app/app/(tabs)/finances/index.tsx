@@ -1,12 +1,30 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { useMemo, useState, useEffect } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useMemo, useState } from 'react';
+import { RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowDownCircle, ArrowUpCircle, DollarSign, MoreHorizontal, PieChart, Plus, TrendingUp, Wallet, ArrowLeft } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Calendar,
+  ChevronLeft,
+  PieChart,
+  Plus,
+  Search,
+  Wallet,
+  Zap,
+} from 'lucide-react-native';
+
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { useExpenses, useCreateExpense } from '@/hooks/useExpenses';
 import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
@@ -15,34 +33,240 @@ import { useHouseMembers } from '@/hooks/useHouses';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
 import { useAuthStore } from '@/stores/auth.store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { GlassCard } from '@/components/shared';
-import { Colors } from '@/constants/Colors';
 import { ExpenseFormModal, type ExpenseFormResult } from '@/components/finances/ExpenseFormModal';
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
-import { Skeleton } from '@/components/ui/Skeleton';
 import { Toast } from '@/components/ui/Toast';
+import type { Expense } from '@/types/models';
+import { Colors } from '@/constants/Colors';
+import { AlertCircle } from 'lucide-react-native';
 
-if (Platform.OS === 'android') {
-  if (UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
-}
+// --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
+const THEMES = {
+  yellow: { bg: 'bg-[#FDE047]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  lavender: { bg: 'bg-[#DDD6FE]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  dark: { bg: 'bg-[#27272A]', text: 'text-white', badge: 'bg-zinc-800 text-zinc-300', iconBg: 'bg-zinc-700' },
+};
 
-// --- Helper Components for Light Theme ---
-const LightGlassCard = ({ children, style }: any) => (
-  <View style={[styles.glassCard, style]}>
-    <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-    <View style={{ backgroundColor: 'rgba(255,255,255,0.7)', ...StyleSheet.absoluteFillObject }} />
-    <View style={{ zIndex: 10 }}>{children}</View>
-  </View>
-);
+const DateStrip = () => {
+  const dates = useMemo(() => {
+    const arr = [];
+    const today = new Date();
+    for (let i = -1; i < 4; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      arr.push({
+        day: d.getDate(),
+        week: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()],
+        active: i === 0,
+        fullDate: d,
+      });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <Animated.View layout={Layout.springify()}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 10 }}
+      >
+        <HStack space="md">
+          {dates.map((date, i) => (
+            <Pressable
+              key={i}
+              onPress={() => Haptics.selectionAsync()}
+              className={`items-center justify-center border w-[60px] h-[85px] ${
+                date.active
+                  ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
+                  : 'bg-white border-slate-200'
+              }`}
+              style={[{ overflow: 'hidden', borderRadius: 24 }, date.active && { transform: [{ scale: 1.05 }] }]}
+            >
+              <Text className={`text-2xl font-bold mb-1 ${date.active ? 'text-black' : 'text-slate-900'}`}>
+                {date.day}
+              </Text>
+              <Text className={`text-xs font-bold uppercase ${date.active ? 'text-black' : 'text-slate-400'}`}>
+                {date.week}
+              </Text>
+            </Pressable>
+          ))}
+        </HStack>
+      </ScrollView>
+    </Animated.View>
+  );
+};
+
+const FinanceStatsWidget = ({
+  total,
+  paid,
+  pending,
+  budgetProgress,
+  budgetLabel,
+  formatCurrency,
+}: {
+  total: number;
+  paid: number;
+  pending: number;
+  budgetProgress: number;
+  budgetLabel: string;
+  formatCurrency: (v: number) => string;
+}) => {
+  const pct = Math.min(Math.round(budgetProgress), 100);
+
+  return (
+    <Box className="mx-6 mb-8">
+      <HStack className="justify-between items-end mb-4">
+        <Heading size="lg" className="font-bold text-slate-900">
+          Resumo do mês
+        </Heading>
+        <Text className="text-slate-500 text-sm font-medium">{budgetLabel}</Text>
+      </HStack>
+
+      <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+        <HStack className="items-center justify-between mb-6">
+          <VStack>
+            <AnimatedNumber
+              value={total}
+              formatter={formatCurrency}
+              style={{ fontSize: 32, fontWeight: '700', color: '#0f172a', marginBottom: 4 }}
+            />
+            <Text className="text-sm text-slate-400 font-medium">Total gasto</Text>
+          </VStack>
+          <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
+            <Box
+              className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45"
+            />
+            <Text className="text-xs font-bold text-slate-900">{pct}%</Text>
+          </Box>
+        </HStack>
+
+        <Text className="text-xs text-slate-400 font-medium mb-3">Do orçamento utilizado</Text>
+
+        <HStack className="items-center justify-between pt-4 border-t border-slate-100">
+          <HStack space="sm" className="items-center flex-1">
+            <Box className="w-9 h-9 rounded-xl bg-emerald-500/15 items-center justify-center">
+              <ArrowUpCircle size={18} color="#16a34a" />
+            </Box>
+            <VStack>
+              <Text className="text-xs text-slate-400 font-medium">Pago</Text>
+              <AnimatedNumber
+                value={paid}
+                formatter={formatCurrency}
+                style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}
+              />
+            </VStack>
+          </HStack>
+          <Box className="w-px h-10 bg-slate-100 mx-2" />
+          <HStack space="sm" className="items-center flex-1">
+            <Box className="w-9 h-9 rounded-xl bg-red-500/15 items-center justify-center">
+              <ArrowDownCircle size={18} color="#dc2626" />
+            </Box>
+            <VStack>
+              <Text className="text-xs text-slate-400 font-medium">Pendente</Text>
+              <AnimatedNumber
+                value={pending}
+                formatter={formatCurrency}
+                style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}
+              />
+            </VStack>
+          </HStack>
+        </HStack>
+      </Box>
+    </Box>
+  );
+};
+
+const themeForExpense = (expense: Expense): keyof typeof THEMES => {
+  const amount = Number(expense.amount);
+  if (amount >= 500) return 'yellow';
+  if (!expense.isPaid) return 'dark';
+  const id = expense.id ?? '';
+  const n = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return n % 2 === 0 ? 'lavender' : 'yellow';
+};
+
+const BentoExpenseCard = ({
+  expense,
+  formatCurrency,
+  onPress,
+}: {
+  expense: Expense;
+  formatCurrency: (v: number) => string;
+  onPress: () => void;
+}) => {
+  const themeKey = themeForExpense(expense);
+  const theme = THEMES[themeKey];
+  const categoryLabel = expense.category?.name ?? 'Geral';
+  const dateStr = new Date(expense.expenseDate).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+  });
+
+  return (
+    <Animated.View entering={FadeInDown.springify()} layout={Layout.springify()}>
+      <Pressable
+        onPress={onPress}
+        className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] ${theme.bg}`}
+      >
+        <HStack className="justify-between items-start mb-4">
+          <Box className={`px-3 py-1 rounded-full ${theme.badge}`}>
+            <Text className={`text-xs font-bold uppercase tracking-wider ${theme.text} opacity-80`}>
+              {categoryLabel}
+            </Text>
+          </Box>
+          {!expense.isPaid && (
+            <HStack space="xs" className="items-center">
+              <Box className="w-2 h-2 rounded-full bg-amber-500" />
+              <Text className={`text-xs font-bold ${theme.text}`}>Pendente</Text>
+            </HStack>
+          )}
+        </HStack>
+
+        <Heading size="xl" className={`font-bold leading-tight mb-2 ${theme.text}`} numberOfLines={2}>
+          {expense.description || 'Despesa'}
+        </Heading>
+
+        <HStack space="xs" className="items-center mb-6 opacity-80">
+          <Calendar size={16} color={themeKey === 'dark' ? 'white' : 'black'} />
+          <Text className={`text-sm font-medium ${theme.text}`}>{dateStr}</Text>
+          <Text className={`text-sm font-medium ${theme.text} opacity-60`}>•</Text>
+          <Text className={`text-sm font-medium ${theme.text}`} numberOfLines={1}>
+            {expense.createdBy?.name ?? expense.createdBy?.email ?? '—'}
+          </Text>
+        </HStack>
+
+        <HStack className="items-center justify-between mt-auto">
+          <HStack space="xs" className="items-center">
+            <Box className={`w-10 h-10 rounded-2xl items-center justify-center ${theme.iconBg}`}>
+              <Wallet size={18} color={themeKey === 'dark' ? 'white' : 'black'} />
+            </Box>
+            <Text className={`text-lg font-bold ${theme.text}`}>{formatCurrency(Number(expense.amount))}</Text>
+          </HStack>
+
+          <Box
+            className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${
+              expense.isPaid ? (themeKey === 'dark' ? 'bg-emerald-500/25' : 'bg-black') : 'bg-red-500/90'
+            }`}
+          >
+            <Zap size={12} color={expense.isPaid ? (themeKey === 'dark' ? '#34d399' : '#FDE047') : '#fff'} fill="currentColor" />
+            <Text
+              className={`text-xs font-bold ${
+                expense.isPaid ? (themeKey === 'dark' ? 'text-emerald-400' : 'text-[#FDE047]') : 'text-white'
+              }`}
+            >
+              {expense.isPaid ? 'Pago' : 'A pagar'}
+            </Text>
+          </Box>
+        </HStack>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 export default function FinancesScreen() {
   const router = useRouter();
   const { houseId, user } = useAuthStore();
-  const { top } = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-  const isMobile = screenWidth < 768;
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
   const { data: budgetLimit } = useBudgetLimit(houseId);
@@ -103,19 +327,8 @@ export default function FinancesScreen() {
     return category;
   };
 
-  if (!houseId) {
-    return (
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
-      >
-        <Text style={styles.emptyTitle}>Selecione uma casa</Text>
-        <Text style={styles.emptySubtitle}>
-          Associe-se a uma casa para gerenciar as finanças compartilhadas.
-        </Text>
-      </ScrollView>
-    );
-  }
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const summary = useMemo(() => {
     if (!expenses) return { total: 0, paid: 0, pending: 0 };
@@ -123,11 +336,8 @@ export default function FinancesScreen() {
       (acc, expense) => {
         const amount = Number(expense.amount);
         acc.total += amount;
-        if (expense.isPaid) {
-          acc.paid += amount;
-        } else {
-          acc.pending += amount;
-        }
+        if (expense.isPaid) acc.paid += amount;
+        else acc.pending += amount;
         return acc;
       },
       { total: 0, paid: 0, pending: 0 }
@@ -145,170 +355,144 @@ export default function FinancesScreen() {
     return expenses.filter((e) => (selectedFilter === 'paid' ? e.isPaid : !e.isPaid));
   }, [expenses, selectedFilter]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
+  const budgetLabel =
+    budgetLimit && budgetLimit.amount
+      ? `Orçamento ${formatCurrency(Number(budgetLimit.amount))}`
+      : 'Sem orçamento definido';
+
+  if (!houseId) {
+    return (
+      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+        <AlertCircle size={48} color={Colors.textSecondary} />
+        <Heading size="lg" className="text-slate-900 text-center mt-4">
+          Selecione uma casa
+        </Heading>
+        <Text className="text-slate-500 text-center mt-2">
+          Associe-se a uma casa para gerenciar as finanças compartilhadas.
+        </Text>
+      </Box>
+    );
+  }
 
   return (
     <ErrorBoundary>
-      <View style={styles.container}>
-        {/* Background Light Theme */}
-        <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
+      <Box className="flex-1 bg-[#FDFBF7]">
+        <SafeAreaView className="flex-1" edges={['top']}>
+          {/* Header — mesmo padrão de Tarefas */}
+          <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
+            <VStack>
+              <Text className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-0.5">
+                Olá, {user?.name?.split(' ')[0] || 'Usuário'}!
+              </Text>
+              <HStack space="xs" className="items-center">
+                <Heading size="xl" className="font-bold text-slate-900">
+                  Finanças · {new Date().getDate()}
+                </Heading>
+                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+              </HStack>
+            </VStack>
+            <HStack space="sm">
+              <Pressable
+                onPress={handleOpenExpenseModal}
+                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-95"
+              >
+                <Plus size={20} className="text-slate-900" />
+              </Pressable>
+              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95">
+                <Search size={18} className="text-slate-900" />
+              </Pressable>
+            </HStack>
+          </Box>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />
-          }
-        >
-          {/* Header Section */}
-          <View style={styles.headerSection}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.replace('/(tabs)/' as any)}
-            >
-              <ArrowLeft size={24} color={Colors.primary} />
-            </TouchableOpacity>
-            <View style={styles.headerRow}>
-              <View style={styles.walletIconBg}>
-                <Wallet size={24} color={Colors.background} />
-              </View>
-              <View>
-                <Text style={styles.title}>Finanças da Casa</Text>
-                <Text style={styles.subtitle}>Gestão de despesas compartilhadas</Text>
-              </View>
-            </View>
+          <DateStrip />
 
-            <TouchableOpacity style={styles.settingsButton}>
-              <MoreHorizontal size={24} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Main Summary Card */}
-          <LightGlassCard style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Total Gasto este Mês</Text>
-              <View style={styles.budgetBadge}>
-                <Text style={styles.budgetBadgeText}>
-                  Orçamento: {budgetLimit ? formatCurrency(Number(budgetLimit.amount)) : 'Não definido'}
-                </Text>
-              </View>
-            </View>
-
-            <AnimatedNumber
-              value={summary.total}
-              formatter={formatCurrency}
-              style={styles.totalAmount}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
+            }
+          >
+            <FinanceStatsWidget
+              total={summary.total}
+              paid={summary.paid}
+              pending={summary.pending}
+              budgetProgress={budgetProgress}
+              budgetLabel={budgetLabel}
+              formatCurrency={formatCurrency}
             />
 
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#ef4444' : Colors.primary }]} />
-            </View>
-            <Text style={styles.progressText}>{budgetProgress.toFixed(0)}% do orçamento utilizado</Text>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <View style={[styles.statIconBg, { backgroundColor: '#22c55e20' }]}>
-                  <ArrowUpCircle size={20} color="#16a34a" />
-                </View>
-                <View>
-                  <Text style={styles.statLabel}>Pago</Text>
-                  <AnimatedNumber
-                    value={summary.paid}
-                    formatter={formatCurrency}
-                    style={[styles.statValue, { color: '#16a34a' }]}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <View style={[styles.statIconBg, { backgroundColor: '#ef444420' }]}>
-                  <ArrowDownCircle size={20} color="#dc2626" />
-                </View>
-                <View>
-                  <Text style={styles.statLabel}>Pendente</Text>
-                  <AnimatedNumber
-                    value={summary.pending}
-                    formatter={formatCurrency}
-                    style={[styles.statValue, { color: '#dc2626' }]}
-                  />
-                </View>
-              </View>
-            </View>
-          </LightGlassCard>
-
-          {/* Actions Row */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionButtonPrimary} onPress={handleOpenExpenseModal}>
-              <Plus size={20} color={Colors.background} />
-              <Text style={styles.actionButtonTextPrimary}>Nova Despesa</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButtonSecondary}
-              onPress={() => router.push('/(tabs)/finances/budget' as any)}
-            >
-              <PieChart size={20} color={Colors.primary} />
-              <Text style={styles.actionButtonTextSecondary}>Definir orçamento</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Filter Tabs */}
-          <View style={styles.filterTabs}>
-            <TouchableOpacity
-              style={[styles.filterTab, selectedFilter === 'all' && styles.filterTabActive]}
-              onPress={() => setSelectedFilter('all')}
-            >
-              <Text style={[styles.filterTabText, selectedFilter === 'all' && styles.filterTabTextActive]}>Todas</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterTab, selectedFilter === 'paid' && styles.filterTabActive]}
-              onPress={() => setSelectedFilter('paid')}
-            >
-              <Text style={[styles.filterTabText, selectedFilter === 'paid' && styles.filterTabTextActive]}>Pagas</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterTab, selectedFilter === 'pending' && styles.filterTabActive]}
-              onPress={() => setSelectedFilter('pending')}
-            >
-              <Text style={[styles.filterTabText, selectedFilter === 'pending' && styles.filterTabTextActive]}>Pendentes</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Expenses List */}
-          <View style={styles.expensesList}>
-            <Text style={styles.sectionTitle}>Histórico Recente</Text>
-
-            {isLoading ? (
-              <View style={{ gap: 16 }}>
-                {[1, 2, 3].map((i) => (
-                  <View key={i} style={styles.expenseItem}>
-                    <Skeleton width={40} height={40} borderRadius={12} style={{ marginRight: 12 }} />
-                    <View style={{ flex: 1, gap: 8 }}>
-                      <Skeleton width="60%" height={16} />
-                      <Skeleton width="40%" height={12} />
-                    </View>
-                    <Skeleton width={80} height={20} />
-                  </View>
-                ))}
-              </View>
-            ) : filteredExpenses.length > 0 ? (
-              filteredExpenses.map((expense, index) => (
-                <Animated.View
-                  key={expense.id}
-                  entering={FadeInDown.delay(index * 50).springify()}
-                  layout={Layout.springify()}
+            {/* Ações — estilo bento / botões da experiência Tarefas */}
+            <Box className="px-6 mb-6">
+              <HStack space="md">
+                <Pressable
+                  onPress={handleOpenExpenseModal}
+                  className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
                 >
-                  <TouchableOpacity
-                    style={styles.expenseItem}
-                    activeOpacity={0.85}
+                  <Plus size={20} color="#0f172a" />
+                  <Text className="text-slate-900 font-bold text-[15px]">Nova despesa</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/(tabs)/finances/budget' as any)}
+                  className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
+                >
+                  <PieChart size={20} color="#0f172a" />
+                  <Text className="text-slate-900 font-bold text-[14px]">Orçamento</Text>
+                </Pressable>
+              </HStack>
+            </Box>
+
+            {/* Filtros — segmentado como chips da tela de tarefas */}
+            <Box className="px-6 mb-4">
+              <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                {(
+                  [
+                    { key: 'all' as const, label: 'Todas' },
+                    { key: 'paid' as const, label: 'Pagas' },
+                    { key: 'pending' as const, label: 'Pendentes' },
+                  ] as const
+                ).map(({ key, label }) => {
+                  const active = selectedFilter === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setSelectedFilter(key);
+                      }}
+                      className={`flex-1 py-2.5 rounded-xl items-center ${active ? 'bg-white shadow-sm border border-slate-100' : ''}`}
+                    >
+                      <Text className={`text-xs font-bold ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </HStack>
+            </Box>
+
+            <Box className="px-6 space-y-4">
+              <HStack className="justify-between items-center mb-2">
+                <Heading size="xl" className="font-bold text-slate-900">
+                  Histórico
+                </Heading>
+                <Text className="text-sm text-slate-400 font-medium">
+                  {filteredExpenses.length} {filteredExpenses.length === 1 ? 'item' : 'itens'}
+                </Text>
+              </HStack>
+
+              {isLoading ? (
+                <VStack space="md">
+                  {[1, 2].map((i) => (
+                    <Skeleton key={i} className="w-full h-[200px] rounded-[32px]" />
+                  ))}
+                </VStack>
+              ) : (
+                filteredExpenses.map((expense) => (
+                  <BentoExpenseCard
+                    key={expense.id}
+                    expense={expense}
+                    formatCurrency={formatCurrency}
                     onPress={() => {
                       Haptics.selectionAsync();
                       router.push({
@@ -316,390 +500,45 @@ export default function FinancesScreen() {
                         params: { id: expense.id },
                       } as any);
                     }}
-                  >
-                    <View style={styles.expenseIconBg}>
-                      <DollarSign size={20} color={Colors.primary} />
-                    </View>
-                    <View style={styles.expenseDetails}>
-                      <Text style={styles.expenseTitle}>{expense.description}</Text>
-                      <Text style={styles.expenseDate}>
-                        {new Date(expense.expenseDate).toLocaleDateString('pt-BR')} •{' '}
-                        {expense.createdBy?.name ?? expense.createdBy?.email ?? 'Desconhecido'}
-                      </Text>
-                    </View>
-                    <View style={styles.expenseAmountContainer}>
-                      <Text style={styles.expenseAmount}>{formatCurrency(Number(expense.amount))}</Text>
-                      <View style={[
-                        styles.statusBadge,
-                        expense.isPaid ? styles.statusBadgePaid : styles.statusBadgePending
-                      ]}>
-                        <Text style={[
-                          styles.statusBadgeText,
-                          expense.isPaid ? styles.statusBadgeTextPaid : styles.statusBadgeTextPending
-                        ]}>
-                          {expense.isPaid ? 'Pago' : 'Pendente'}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>Nenhuma despesa encontrada.</Text>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-        <ExpenseFormModal
-          visible={isExpenseModalVisible}
-          mode="create"
-          initialExpense={null}
-          onClose={handleCloseExpenseModal}
-          onSubmit={handleSubmitExpense}
-          categories={categories}
-          members={members}
-          currentUserId={user?.id ?? null}
-          isSubmitting={createExpenseMutation.isPending}
-          isDeleting={false}
-          onCreateCategory={handleCreateCategory}
-        />
-        {toast && (
-          <Toast
-            visible={toast.visible}
-            message={toast.message}
-            type={toast.type}
-            onDismiss={() => setToast(null)}
+                  />
+                ))
+              )}
+
+              {filteredExpenses.length === 0 && !isLoading && (
+                <Box className="py-10 items-center opacity-50">
+                  <Wallet size={48} color="#cbd5e1" />
+                  <Text className="text-slate-400 mt-4 font-medium text-center">
+                    Nenhuma despesa neste filtro.
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          </ScrollView>
+
+          <ExpenseFormModal
+            visible={isExpenseModalVisible}
+            mode="create"
+            initialExpense={null}
+            onClose={handleCloseExpenseModal}
+            onSubmit={handleSubmitExpense}
+            categories={categories}
+            members={members}
+            currentUserId={user?.id ?? null}
+            isSubmitting={createExpenseMutation.isPending}
+            isDeleting={false}
+            onCreateCategory={handleCreateCategory}
           />
-        )}
-      </View>
+
+          {toast && (
+            <Toast
+              visible={toast.visible}
+              message={toast.message}
+              type={toast.type}
+              onDismiss={() => setToast(null)}
+            />
+          )}
+        </SafeAreaView>
+      </Box>
     </ErrorBoundary>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-    paddingHorizontal: 20,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-
-  // Header
-  headerSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + '1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  headerRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  walletIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  settingsButton: {
-    padding: 8,
-  },
-
-  // Summary Card
-  glassCard: {
-    borderRadius: 24,
-    padding: 20,
-    overflow: 'hidden',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 24,
-  },
-  summaryCard: {
-    // Additional styles if needed
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  budgetBadge: {
-    backgroundColor: Colors.primary + '10',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  budgetBadgeText: {
-    fontSize: 11,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  totalAmount: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  progressContainer: {
-    height: 6,
-    backgroundColor: Colors.textSecondary + '20',
-    borderRadius: 3,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 2,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: Colors.textSecondary + '20',
-    marginHorizontal: 16,
-  },
-
-  // Actions
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButtonPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  actionButtonTextPrimary: {
-    color: Colors.background,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  actionButtonSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: Colors.primary + '40',
-    paddingVertical: 14,
-    borderRadius: 16,
-    gap: 8,
-  },
-  actionButtonTextSecondary: {
-    color: Colors.primary,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-
-  // Filters
-  filterTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    padding: 4,
-    borderRadius: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  filterTabActive: {
-    backgroundColor: Colors.primary + '10',
-  },
-  filterTabText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  filterTabTextActive: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-
-  // List
-  expensesList: {
-    gap: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  expenseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
-  expenseIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  expenseDetails: {
-    flex: 1,
-  },
-  expenseTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  expenseDate: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  expenseAmountContainer: {
-    alignItems: 'flex-end',
-  },
-  expenseAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  statusBadgePaid: {
-    backgroundColor: '#22c55e20',
-  },
-  statusBadgePending: {
-    backgroundColor: '#ef444420',
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  statusBadgeTextPaid: {
-    color: '#16a34a',
-  },
-  statusBadgeTextPending: {
-    color: '#dc2626',
-  },
-  emptyState: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-});
