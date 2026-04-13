@@ -1,26 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  View,
+  KeyboardAvoidingView,
+  Keyboard,
+  Modal as RNModal,
+  useWindowDimensions,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Colors } from '@/constants/Colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
-import type { Expense, ExpenseCategory, ExpenseSplit, HouseMemberWithUser } from '@/types/models';
+import type { Expense, ExpenseCategory, HouseMemberWithUser } from '@/types/models';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
 
-// Gluestack UI v3 imports
-import {
-  Modal,
-  ModalBackdrop,
-  ModalContent,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-} from '@/components/ui/modal';
 import { Input, InputField } from '@/components/ui/input';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ScrollView } from '@/components/ui/scroll-view';
-import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
 import { VStack } from '@/components/ui/vstack';
 import { HStack } from '@/components/ui/hstack';
 import { Box } from '@/components/ui/box';
@@ -30,8 +41,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { Image } from '@/components/ui/image';
 import { Pressable } from '@/components/ui/pressable';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
-import { AlertDialog, AlertDialogBackdrop, AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter, AlertDialogCloseButton } from '@/components/ui/alert-dialog';
-import { Alert, AlertText } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 
 interface MemberShare {
   userId: string;
@@ -69,6 +86,10 @@ const defaultDate = () => new Date().toISOString().slice(0, 10);
 
 const formatNumber = (value: string) => value.replace(/[^0-9.,]/g, '').replace(',', '.');
 
+const FieldLabel = ({ children }: { children: string }) => (
+  <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
+);
+
 export function ExpenseFormModal({
   visible,
   mode,
@@ -83,6 +104,9 @@ export function ExpenseFormModal({
   isDeleting,
   onCreateCategory,
 }: ExpenseFormModalProps) {
+  const { height: screenHeight } = useWindowDimensions();
+  const translateY = useSharedValue(0);
+
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('0');
   const [expenseDate, setExpenseDate] = useState(defaultDate());
@@ -107,6 +131,67 @@ export function ExpenseFormModal({
     members.forEach((member) => map.set(member.userId, member));
     return map;
   }, [members]);
+
+  useEffect(() => {
+    if (visible) {
+      translateY.value = 0;
+    }
+  }, [visible, translateY]);
+
+  const handleCloseState = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
+
+  const closeModal = () => {
+    Keyboard.dismiss();
+    handleCloseState();
+  };
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetY(10)
+    .onUpdate((event) => {
+      if (event.translationY > 0) {
+        translateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      const shouldClose = event.translationY > 100 || event.velocityY > 500;
+      if (shouldClose) {
+        translateY.value = withSpring(
+          screenHeight,
+          {
+            damping: 25,
+            stiffness: 200,
+            mass: 0.8,
+            velocity: event.velocityY / 1000,
+          },
+          () => {
+            runOnJS(handleCloseState)();
+          }
+        );
+      } else {
+        translateY.value = withSpring(0, {
+          damping: 25,
+          stiffness: 200,
+          mass: 0.8,
+          velocity: event.velocityY / 1000,
+        });
+      }
+    });
+
+  const modalAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const clampedY = Math.max(0, translateY.value);
+    const opacity =
+      clampedY > 0
+        ? interpolate(clampedY, [0, 100, screenHeight], [1, 0.95, 0.8], Extrapolation.CLAMP)
+        : 1;
+    return {
+      transform: [{ translateY: clampedY }],
+      opacity,
+    };
+  });
 
   useEffect(() => {
     if (!visible) {
@@ -185,6 +270,7 @@ export function ExpenseFormModal({
     if (!selectedMembers.length) {
       return;
     }
+    Haptics.selectionAsync();
     const distributed = createEqualShareMap(selectedMembers, parseFloat(amount) || 0);
     setShares(distributed);
   };
@@ -198,6 +284,7 @@ export function ExpenseFormModal({
       setCategoryId(category.id);
       setIsAddingCategory(false);
       setNewCategoryName('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       setErrorMessage((error as Error).message);
     }
@@ -333,311 +420,384 @@ export function ExpenseFormModal({
     }
   };
 
+  const title = isEditMode ? 'Editar despesa' : 'Nova despesa';
+
   return (
     <>
-      <Modal isOpen={visible} onClose={onClose} size="full">
-        <ModalBackdrop />
+      <RNModal visible={visible} transparent animationType="none" onRequestClose={closeModal} statusBarTranslucent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
+          style={{ flex: 1 }}
         >
-          <ModalContent style={styles.modalContent}>
-            <ModalHeader>
-              <VStack space="sm" className="w-full items-center">
-                <Box style={styles.dragHandle} />
-                <Heading size="lg">
-                  {isEditMode ? 'Editar despesa' : 'Nova despesa'}
-                </Heading>
-              </VStack>
-            </ModalHeader>
-            <ModalBody>
-              <ScrollView>
-                <VStack space="lg" style={styles.scrollContent}>
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Descrição</Text>
-                    <Input>
-                      <InputField
-                        value={description}
-                        onChangeText={setDescription}
-                        placeholder="Ex.: Mercado do mês"
-                      />
-                    </Input>
-                  </VStack>
+          <View className="flex-1 justify-end">
+            {/* Backdrop — mesmo padrão da tela de Tarefas */}
+            <Animated.View
+              entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
+              exiting={FadeOut.duration(150)}
+              className="absolute inset-0"
+            >
+              <BlurView intensity={Platform.OS === 'ios' ? 20 : 30} tint="light" style={StyleSheet.absoluteFill} />
+              <View className="absolute inset-0 bg-black/15" />
+              <Pressable className="flex-1" onPress={closeModal} />
+            </Animated.View>
 
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Valor (R$)</Text>
-                    <Input>
-                      <InputField
-                        value={amount}
-                        onChangeText={(value) => setAmount(formatNumber(value))}
-                        keyboardType="decimal-pad"
-                        placeholder="0,00"
-                      />
-                    </Input>
-                  </VStack>
+            <Animated.View
+              entering={FadeIn.duration(400).delay(50)}
+              className="absolute inset-0 pointer-events-none"
+              style={{ zIndex: 1 }}
+            >
+              <LinearGradient
+                colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0)']}
+                locations={[0, 0.3, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%' }}
+              />
+              <LinearGradient
+                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
+                locations={[0, 0.7, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%' }}
+              />
+            </Animated.View>
 
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Data</Text>
-                    <Input>
-                      <InputField
-                        value={expenseDate}
-                        onChangeText={setExpenseDate}
-                        placeholder="AAAA-MM-DD"
-                      />
-                    </Input>
-                  </VStack>
+            <GestureHandlerRootView style={{ width: '100%', zIndex: 10 }}>
+              <GestureDetector gesture={panGesture}>
+                <Animated.View
+                  entering={SlideInDown.springify()
+                    .damping(Platform.OS === 'ios' ? 18 : 20)
+                    .stiffness(Platform.OS === 'ios' ? 280 : 250)
+                    .mass(Platform.OS === 'ios' ? 0.8 : 1)}
+                  className="bg-white rounded-t-[40px] w-full shadow-2xl"
+                  style={[{ backgroundColor: '#FFFFFF', maxHeight: '92%' }, modalAnimatedStyle]}
+                >
+                  <View className="w-full items-center pt-2 pb-2">
+                    <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                  </View>
 
-                  <HStack space="md" className="items-center justify-between py-2">
-                    <Text size="sm" className="font-semibold">Pago</Text>
-                    <Switch value={isPaid} onValueChange={setIsPaid} />
+                  <HStack className="justify-between items-center px-8 mb-4">
+                    <Pressable onPress={Keyboard.dismiss}>
+                      <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">
+                        {title}
+                      </Heading>
+                    </Pressable>
+                    <Pressable
+                      onPress={closeModal}
+                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
+                    >
+                      <X size={18} color="#0f172a" />
+                    </Pressable>
                   </HStack>
 
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Categoria</Text>
-                    <HStack space="sm" className="flex-wrap">
-                      {categories.map((category) => {
-                        const selected = category.id === categoryId;
-                        return (
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    onScrollBeginDrag={Keyboard.dismiss}
+                    contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 40 }}
+                  >
+                    <VStack space="lg" className="pb-8">
+                      <VStack space="xs">
+                        <FieldLabel>Descrição</FieldLabel>
+                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                          <InputField
+                            value={description}
+                            onChangeText={setDescription}
+                            placeholder="Ex: Mercado do mês"
+                            className="text-lg font-medium text-slate-900 px-3"
+                            placeholderTextColor="#94a3b8"
+                          />
+                        </Input>
+                      </VStack>
+
+                      <HStack space="md" className="items-stretch">
+                        <VStack space="xs" className="flex-[1.1]">
+                          <FieldLabel>Valor (R$)</FieldLabel>
+                          <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                            <InputField
+                              value={amount}
+                              onChangeText={(value) => setAmount(formatNumber(value))}
+                              keyboardType="decimal-pad"
+                              placeholder="0,00"
+                              className="text-lg font-semibold text-slate-900 px-3"
+                              placeholderTextColor="#94a3b8"
+                            />
+                          </Input>
+                        </VStack>
+                        <VStack space="xs" className="flex-1">
+                          <FieldLabel>Data</FieldLabel>
+                          <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                            <InputField
+                              value={expenseDate}
+                              onChangeText={setExpenseDate}
+                              placeholder="AAAA-MM-DD"
+                              className="text-base font-medium text-slate-900 px-3"
+                              placeholderTextColor="#94a3b8"
+                            />
+                          </Input>
+                        </VStack>
+                      </HStack>
+
+                      <HStack className="items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5">
+                        <Text className="text-slate-900 font-bold text-sm">Marcar como pago</Text>
+                        <Switch value={isPaid} onValueChange={setIsPaid} />
+                      </HStack>
+
+                      <VStack space="xs">
+                        <FieldLabel>Categoria</FieldLabel>
+                        <HStack space="sm" className="flex-wrap">
+                          {categories.map((category) => {
+                            const selected = category.id === categoryId;
+                            return (
+                              <Pressable
+                                key={category.id}
+                                onPress={() => {
+                                  Haptics.selectionAsync();
+                                  setCategoryId(category.id);
+                                }}
+                                className={`px-4 py-2.5 rounded-xl border ${
+                                  selected
+                                    ? 'bg-[#FDE047] border-[#FDE047]'
+                                    : 'bg-slate-50 border-slate-100'
+                                }`}
+                              >
+                                <Text
+                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-500'}`}
+                                >
+                                  {category.name}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                           <Pressable
-                            key={category.id}
-                            onPress={() => setCategoryId(category.id)}
-                            className={`px-3.5 py-2 rounded-[18px] border ${
-                              selected
-                                ? 'bg-primary-500 border-primary-500'
-                                : 'bg-background-0 border-outline-300'
-                            }`}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setIsAddingCategory(true);
+                            }}
+                            className="px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-white items-center justify-center"
                           >
-                            <Text
-                              size="xs"
-                              className={`font-semibold ${
-                                selected ? 'text-background-0' : 'text-typography-900'
-                              }`}
+                            <Text className="text-xs font-bold text-slate-500">+ Nova</Text>
+                          </Pressable>
+                        </HStack>
+                      </VStack>
+
+                      {isAddingCategory && (
+                        <VStack space="xs">
+                          <FieldLabel>Nome da categoria</FieldLabel>
+                          <HStack space="sm" className="items-center">
+                            <Input className="flex-1 h-12 border border-slate-200 bg-white rounded-2xl">
+                              <InputField
+                                value={newCategoryName}
+                                onChangeText={setNewCategoryName}
+                                placeholder="Ex: Alimentação"
+                                className="text-slate-900 px-3"
+                                placeholderTextColor="#94a3b8"
+                              />
+                            </Input>
+                            <Pressable
+                              onPress={handleAddCategory}
+                              className="bg-[#FDE047] px-4 h-12 rounded-2xl items-center justify-center border border-yellow-200"
                             >
-                              {category.name}
+                              <Text className="text-slate-900 font-bold text-sm">Salvar</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => {
+                                setIsAddingCategory(false);
+                                setNewCategoryName('');
+                              }}
+                              className="px-3 h-12 rounded-2xl items-center justify-center border border-slate-200 bg-white"
+                            >
+                              <Text className="text-slate-500 font-bold text-sm">✕</Text>
+                            </Pressable>
+                          </HStack>
+                        </VStack>
+                      )}
+
+                      <VStack space="xs">
+                        <FieldLabel>Dividir com</FieldLabel>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 8 }}
+                        >
+                          {members.map((member) => {
+                            const selected = selectedMembers.includes(member.userId);
+                            return (
+                              <Pressable
+                                key={member.id}
+                                onPress={() => {
+                                  Haptics.selectionAsync();
+                                  handleToggleMember(member.userId);
+                                }}
+                                className={`px-4 py-2.5 rounded-xl border ${
+                                  selected
+                                    ? 'bg-[#FDE047] border-[#FDE047]'
+                                    : 'bg-slate-50 border-slate-100'
+                                }`}
+                              >
+                                <Text
+                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-500'}`}
+                                >
+                                  {member.user.name ?? member.user.email}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      </VStack>
+
+                      {selectedMembers.length > 0 && (
+                        <VStack space="sm">
+                          <HStack className="justify-between items-center">
+                            <Text className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                              Valores individuais
+                            </Text>
+                            <Pressable onPress={handleDistributeEqually}>
+                              <Text className="text-xs font-bold text-yellow-600">Distribuir igualmente</Text>
+                            </Pressable>
+                          </HStack>
+                          {selectedMembers.map((memberId) => {
+                            const member = memberLookup.get(memberId);
+                            if (!member) return null;
+                            return (
+                              <HStack
+                                key={memberId}
+                                className="items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3"
+                              >
+                                <Text className="text-slate-900 font-medium flex-1" numberOfLines={1}>
+                                  {member.user.name ?? member.user.email}
+                                </Text>
+                                <Input className="w-[110px] h-11 border border-slate-200 bg-white rounded-xl">
+                                  <InputField
+                                    value={shares[memberId] ?? '0'}
+                                    onChangeText={(value) =>
+                                      setShares((prev) => ({ ...prev, [memberId]: formatNumber(value) }))
+                                    }
+                                    keyboardType="decimal-pad"
+                                    className="text-right font-semibold text-slate-900 px-2"
+                                  />
+                                </Input>
+                              </HStack>
+                            );
+                          })}
+                        </VStack>
+                      )}
+
+                      <VStack space="xs">
+                        <FieldLabel>Notas</FieldLabel>
+                        <Textarea className="border border-slate-200 bg-white rounded-2xl min-h-[100px]">
+                          <TextareaInput
+                            value={notes}
+                            onChangeText={setNotes}
+                            placeholder="Observações adicionais"
+                            multiline
+                            textAlignVertical="top"
+                            className="py-3 px-3 text-sm text-slate-900 leading-5"
+                            placeholderTextColor="#94a3b8"
+                          />
+                        </Textarea>
+                      </VStack>
+
+                      <VStack space="xs">
+                        <FieldLabel>Comprovante</FieldLabel>
+                        {selectedImageUri ? (
+                          <Box style={styles.imagePreviewContainer}>
+                            <Image
+                              source={{ uri: selectedImageUri }}
+                              style={styles.imagePreview}
+                              alt="Preview do comprovante"
+                            />
+                            <Pressable style={styles.removeImageButton} onPress={handleRemoveImage}>
+                              <X size={20} color="#fff" />
+                            </Pressable>
+                          </Box>
+                        ) : (
+                          <HStack space="md">
+                            <Pressable
+                              onPress={handlePickImage}
+                              disabled={isUploadingImage}
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 border border-slate-200 bg-white rounded-2xl active:bg-slate-50"
+                            >
+                              <ImageIcon size={18} color="#0f172a" />
+                              <Text className="text-slate-900 font-bold text-sm">Galeria</Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={handleTakePhoto}
+                              disabled={isUploadingImage}
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 border border-slate-200 bg-slate-50 rounded-2xl active:bg-slate-100"
+                            >
+                              <Camera size={18} color="#0f172a" />
+                              <Text className="text-slate-900 font-bold text-sm">Câmera</Text>
+                            </Pressable>
+                          </HStack>
+                        )}
+                        {isUploadingImage && (
+                          <HStack space="sm" className="items-center justify-center py-2">
+                            <Spinner size="small" color="#ca8a04" />
+                            <Text className="text-xs text-slate-500">Enviando imagem...</Text>
+                          </HStack>
+                        )}
+                        <Text className="text-xs text-slate-400 mt-1">Ou cole a URL do arquivo</Text>
+                        <Input className="h-12 border border-slate-200 bg-white rounded-2xl">
+                          <InputField
+                            value={receiptUrl}
+                            onChangeText={setReceiptUrl}
+                            placeholder="https://..."
+                            editable={!selectedImageUri && !isUploadingImage}
+                            className="text-sm text-slate-900 px-3"
+                            placeholderTextColor="#94a3b8"
+                          />
+                        </Input>
+                      </VStack>
+
+                      {errorMessage && (
+                        <Box className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                          <Text className="text-red-700 text-sm font-medium">{errorMessage}</Text>
+                        </Box>
+                      )}
+
+                      <HStack space="md" className="mt-4 mb-24">
+                        {isEditMode && onDelete ? (
+                          <Pressable
+                            onPress={handleDelete}
+                            disabled={isDeleting || isSubmitting}
+                            className="flex-1 h-14 rounded-[24px] border-2 border-red-200 bg-white items-center justify-center active:opacity-80"
+                          >
+                            <Text className="text-red-600 font-bold">
+                              {isDeleting ? 'Removendo...' : 'Excluir'}
                             </Text>
                           </Pressable>
-                        );
-                      })}
-                      <Pressable
-                        onPress={() => setIsAddingCategory(true)}
-                        className="px-3.5 py-2 rounded-[18px] border border-dashed border-outline-300 bg-background-0"
-                      >
-                        <Text size="xs" className="font-semibold text-primary-500">
-                          + Categoria
-                        </Text>
-                      </Pressable>
-                    </HStack>
-                  </VStack>
-
-                  {isAddingCategory && (
-                    <HStack space="sm" className="items-center">
-                      <Input className="flex-1">
-                        <InputField
-                          value={newCategoryName}
-                          onChangeText={setNewCategoryName}
-                          placeholder="Nome da categoria"
-                        />
-                      </Input>
-                      <Button size="sm" action="secondary" onPress={handleAddCategory}>
-                        <ButtonText>Salvar</ButtonText>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        action="secondary"
-                        onPress={() => {
-                          setIsAddingCategory(false);
-                          setNewCategoryName('');
-                        }}
-                      >
-                        <ButtonText>Cancelar</ButtonText>
-                      </Button>
-                    </HStack>
-                  )}
-
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Dividir com</Text>
-                    <HStack space="sm" className="flex-wrap">
-                      {members.map((member) => {
-                        const selected = selectedMembers.includes(member.userId);
-                        return (
+                        ) : (
                           <Pressable
-                            key={member.id}
-                            onPress={() => handleToggleMember(member.userId)}
-                            className={`px-3.5 py-2 rounded-[18px] border ${
-                              selected
-                                ? 'bg-primary-500 border-primary-500'
-                                : 'bg-background-0 border-outline-200'
-                            }`}
+                            onPress={closeModal}
+                            className="flex-1 h-14 rounded-[24px] border border-slate-200 bg-white items-center justify-center active:bg-slate-50"
                           >
-                            <Text
-                              size="xs"
-                              className={`font-medium ${
-                                selected ? 'text-background-0' : 'text-typography-900'
-                              }`}
-                            >
-                              {member.user.name ?? member.user.email}
-                            </Text>
+                            <Text className="text-slate-900 font-bold">Cancelar</Text>
                           </Pressable>
-                        );
-                      })}
-                    </HStack>
-                  </VStack>
-
-                  {selectedMembers.length > 0 && (
-                    <VStack space="sm">
-                      <HStack space="md" className="justify-between items-center mt-2">
-                        <Text size="sm" className="font-semibold">Valores individuais</Text>
-                        <Pressable onPress={handleDistributeEqually}>
-                          <Text size="xs" className="font-semibold text-primary-500">
-                            Distribuir igualmente
+                        )}
+                        <Pressable
+                          onPress={handleSubmit}
+                          disabled={isSubmitting || isUploadingImage}
+                          className="flex-1 h-14 rounded-[24px] bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-lg shadow-yellow-200 active:scale-[0.98] opacity-100 disabled:opacity-60"
+                        >
+                          <Text className="text-slate-900 font-bold text-base">
+                            {isSubmitting
+                              ? 'Salvando...'
+                              : isEditMode
+                                ? 'Salvar'
+                                : 'Adicionar despesa'}
                           </Text>
                         </Pressable>
                       </HStack>
-                      {selectedMembers.map((memberId) => {
-                        const member = memberLookup.get(memberId);
-                        if (!member) {
-                          return null;
-                        }
-                        return (
-                          <HStack key={memberId} space="md" className="items-center justify-between">
-                            <Text size="sm" className="flex-1">
-                              {member.user.name ?? member.user.email}
-                            </Text>
-                            <Input className="w-[120px]">
-                              <InputField
-                                value={shares[memberId] ?? '0'}
-                                onChangeText={(value) =>
-                                  setShares((prev) => ({ ...prev, [memberId]: formatNumber(value) }))
-                                }
-                                keyboardType="decimal-pad"
-                              />
-                            </Input>
-                          </HStack>
-                        );
-                      })}
                     </VStack>
-                  )}
-
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Notas</Text>
-                    <Textarea>
-                      <TextareaInput
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="Observações adicionais"
-                        multiline
-                      />
-                    </Textarea>
-                  </VStack>
-
-                  <VStack space="sm">
-                    <Text size="sm" className="font-semibold">Comprovante</Text>
-                    {selectedImageUri ? (
-                      <Box style={styles.imagePreviewContainer}>
-                        <Image
-                          source={{ uri: selectedImageUri }}
-                          style={styles.imagePreview}
-                          alt="Preview do comprovante"
-                        />
-                        <Pressable style={styles.removeImageButton} onPress={handleRemoveImage}>
-                          <X size={20} color="#fff" />
-                        </Pressable>
-                      </Box>
-                    ) : (
-                      <HStack space="md" className="mb-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          action="primary"
-                          onPress={handlePickImage}
-                          disabled={isUploadingImage}
-                          className="flex-1"
-                        >
-                          <ImageIcon size={20} color="#1d4ed8" />
-                          <ButtonText>Escolher da galeria</ButtonText>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          action="secondary"
-                          onPress={handleTakePhoto}
-                          disabled={isUploadingImage}
-                          className="flex-1"
-                        >
-                          <Camera size={20} color="#64748b" />
-                          <ButtonText>Tirar foto</ButtonText>
-                        </Button>
-                      </HStack>
-                    )}
-                    {isUploadingImage && (
-                      <HStack space="sm" className="items-center justify-center py-2 mb-2">
-                        <Spinner size="small" color="#1d4ed8" />
-                        <Text size="xs" className="text-typography-500">
-                          Fazendo upload da imagem...
-                        </Text>
-                      </HStack>
-                    )}
-                    <Text size="xs" className="text-typography-400 mt-2 mb-1">
-                      Ou insira uma URL manualmente
-                    </Text>
-                    <Input>
-                      <InputField
-                        value={receiptUrl}
-                        onChangeText={setReceiptUrl}
-                        placeholder="https://..."
-                        editable={!selectedImageUri && !isUploadingImage}
-                      />
-                    </Input>
-                  </VStack>
-
-                  {errorMessage && (
-                    <Alert action="error" variant="solid">
-                      <AlertText>{errorMessage}</AlertText>
-                    </Alert>
-                  )}
-                </VStack>
-              </ScrollView>
-            </ModalBody>
-            <ModalFooter>
-              <HStack space="md" className="w-full">
-                {isEditMode && onDelete ? (
-                  <Button
-                    action="negative"
-                    variant="outline"
-                    onPress={handleDelete}
-                    disabled={isDeleting || isSubmitting}
-                    className="flex-1"
-                  >
-                    <ButtonText>{isDeleting ? 'Removendo...' : 'Excluir'}</ButtonText>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    action="secondary"
-                    onPress={onClose}
-                    className="flex-1"
-                  >
-                    <ButtonText>Cancelar</ButtonText>
-                  </Button>
-                )}
-                <Button
-                  action="primary"
-                  onPress={handleSubmit}
-                  disabled={isSubmitting}
-                  className="flex-1"
-                >
-                  <ButtonText>
-                    {isSubmitting ? 'Salvando...' : isEditMode ? 'Salvar alterações' : 'Adicionar'}
-                  </ButtonText>
-                </Button>
-              </HStack>
-            </ModalFooter>
-          </ModalContent>
+                  </ScrollView>
+                </Animated.View>
+              </GestureDetector>
+            </GestureHandlerRootView>
+          </View>
         </KeyboardAvoidingView>
-      </Modal>
+      </RNModal>
 
-      {/* Alert Dialog for Delete Confirmation */}
       <AlertDialog isOpen={showDeleteAlert} onClose={() => setShowDeleteAlert(false)}>
         <AlertDialogBackdrop />
         <AlertDialogContent>
@@ -658,7 +818,6 @@ export function ExpenseFormModal({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Alert Dialog for Invalid Member Selection */}
       <AlertDialog isOpen={showInvalidMemberAlert} onClose={() => setShowInvalidMemberAlert(false)}>
         <AlertDialogBackdrop />
         <AlertDialogContent>
@@ -699,32 +858,10 @@ const createEqualShareMap = (memberIds: string[], total: number) => {
 };
 
 const styles = StyleSheet.create({
-  modalContent: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '20',
-    maxHeight: '88%',
-    overflow: 'hidden',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  dragHandle: {
-    alignSelf: 'center',
-    width: 60,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: Colors.textSecondary + '40',
-    marginBottom: 6,
-  },
   imagePreviewContainer: {
     position: 'relative',
     marginBottom: 8,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e2e8f0',
