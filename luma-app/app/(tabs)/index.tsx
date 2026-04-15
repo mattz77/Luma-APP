@@ -3,6 +3,7 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -71,6 +72,44 @@ import { buildDashboardActivityPreview } from '@/lib/buildActivityFeed';
 import { ActivityFeedListItem } from '@/components/activity/ActivityFeedListItem';
 
 const { width } = Dimensions.get('window');
+
+/**
+ * Na web, `shadow*` no RN Web pode gerar atribuição inválida ao DOM (`CSSStyleDeclaration`).
+ * Preferir `boxShadow` em elementos `div` (ex.: gluestack `Box` web).
+ */
+function cardShadowStyle(spec: {
+  shadowOffset: { width: number; height: number };
+  shadowOpacity: number;
+  shadowRadius: number;
+  shadowColor?: string;
+  elevation?: number;
+}): ViewStyle {
+  const {
+    shadowOffset,
+    shadowOpacity,
+    shadowRadius,
+    shadowColor = '#000',
+    elevation,
+  } = spec;
+
+  if (Platform.OS === 'web') {
+    const color =
+      shadowColor === '#000' || shadowColor === '#000000'
+        ? `rgba(0,0,0,${shadowOpacity})`
+        : shadowColor;
+    return {
+      boxShadow: `${shadowOffset.width}px ${shadowOffset.height}px ${shadowRadius}px ${color}`,
+    };
+  }
+
+  return {
+    shadowColor,
+    shadowOffset,
+    shadowOpacity,
+    shadowRadius,
+    ...(elevation !== undefined ? { elevation } : {}),
+  };
+}
 
 // ... helper functions mantidas ...
 const formatTaskDate = (dateValue: string | null): string => {
@@ -1036,11 +1075,12 @@ export default function Dashboard() {
                 padding: 24,
                 borderWidth: 1,
                 borderColor: 'rgba(0,0,0,0.05)',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.12,
-                shadowRadius: 24,
-                elevation: 8,
+                ...cardShadowStyle({
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 24,
+                  elevation: 8,
+                }),
               }}
               pointerEvents="auto"
             >
@@ -1151,11 +1191,12 @@ export default function Dashboard() {
                   zIndex: 1901,
                   maxHeight: Dimensions.get('window').height * 0.7, // Máx. 70% da tela
                   // Sombra mais pronunciada para destacar o card
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 24,
-                  elevation: 12,
+                  ...cardShadowStyle({
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 24,
+                    elevation: 12,
+                  }),
                 },
               ]}
               pointerEvents="auto"
@@ -1227,11 +1268,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.05)',
     borderWidth: 1,
     backgroundColor: '#FFF', // White cards
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...cardShadowStyle({
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    }),
   },
   glassCardPrimary: {
     backgroundColor: '#FFF',
@@ -1393,11 +1435,12 @@ const styles = StyleSheet.create({
     padding: 0,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.04)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    ...cardShadowStyle({
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      elevation: 2,
+    }),
     overflow: 'hidden',
   },
   viewHistoryButton: {
@@ -1424,11 +1467,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.05)', 
     backgroundColor: Colors.background,
     // Sombra padrão (pode ser sobrescrita)
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 12,
+    ...cardShadowStyle({
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 24,
+      elevation: 12,
+    }),
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { color: Colors.primary, fontSize: 20, fontWeight: 'bold' },

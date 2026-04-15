@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, useColorScheme } from 'react-native';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { Colors } from '@/constants/Colors';
 import { TabBar } from '@/components/navigation/TabBar';
 import { Home, Wallet, CheckCircle, MessageCircle, Home as HouseIcon } from 'lucide-react-native';
