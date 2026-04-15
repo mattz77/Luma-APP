@@ -1,8 +1,13 @@
 'use client';
 import React from 'react';
 import { createPressable } from '@gluestack-ui/core/pressable/creator';
-import { Pressable as RNPressable } from 'react-native';
+import {
+  Platform,
+  Pressable as RNPressable,
+  type PressableProps,
+} from 'react-native';
 
+import { normalizeStyleForDomWeb } from '@/lib/normalizeStyleForDomWeb';
 import { tva } from '@gluestack-ui/utils/nativewind-utils';
 import { withStyleContext } from '@gluestack-ui/utils/nativewind-utils';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
@@ -19,14 +24,18 @@ type IPressableProps = Omit<
   React.ComponentProps<typeof UIPressable>,
   'context'
 > &
-  VariantProps<typeof pressableStyle>;
+  VariantProps<typeof pressableStyle> &
+  Partial<Pick<PressableProps, 'delayPressIn' | 'delayPressOut'>>;
 const Pressable = React.forwardRef<
   React.ComponentRef<typeof UIPressable>,
   IPressableProps
->(function Pressable({ className, ...props }, ref) {
+>(function Pressable({ className, style, ...props }, ref) {
+  const resolvedStyle =
+    Platform.OS === 'web' ? normalizeStyleForDomWeb(style) : style;
   return (
     <UIPressable
       {...props}
+      style={resolvedStyle}
       ref={ref}
       className={pressableStyle({
         class: className,

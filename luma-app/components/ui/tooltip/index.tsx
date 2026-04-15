@@ -10,32 +10,33 @@ import {
   AnimatePresence,
   MotionComponentProps,
 } from '@legendapp/motion';
-import { cssInterop } from 'nativewind';
+import { styled } from 'nativewind';
 
 type IMotionViewProps = React.ComponentProps<typeof View> &
   MotionComponentProps<typeof View, ViewStyle, unknown, unknown, unknown>;
 
 const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
 
+const StyledMotionView = styled(MotionView, { className: 'style' });
+
 export const UITooltip = createTooltip({
-  Root: withStyleContext(View),
+  Root: withStyleContext(StyledMotionView),
   Content: MotionView,
   Text: Text,
   AnimatePresence: AnimatePresence,
 });
 
-cssInterop(MotionView, { className: 'style' });
 
 const tooltipStyle = tva({
   base: 'w-full h-full web:pointer-events-none',
 });
 
 const tooltipContentStyle = tva({
-  base: 'py-1 px-3 rounded-sm bg-background-900 web:pointer-events-auto',
+  base: 'py-1 px-3 rounded-sm bg-background/90 web:pointer-events-auto',
 });
 
 const tooltipTextStyle = tva({
-  base: 'font-normal tracking-normal web:select-none text-xs text-typography-50',
+  base: 'font-normal tracking-normal web:select-none text-xs text-foreground/90',
 
   variants: {
     isTruncated: {
