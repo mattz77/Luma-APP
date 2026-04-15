@@ -1134,7 +1134,7 @@ export default function Dashboard() {
                   borderRadius={32}
                 >
                   <HStack space="md" className="justify-between items-center mb-4">
-                    <Heading size="md" className="text-typography-900">Luma Insight</Heading>
+                    <Heading size="md" className="text-typography-900">Insight</Heading>
                   </HStack>
                   <Box style={styles.noteContent} className="flex-1">
                     <HStack space="sm" className="mb-4">
