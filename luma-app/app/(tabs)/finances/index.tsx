@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, Layout, useSharedValue } from 'react-native-reanimated';
@@ -43,6 +43,9 @@ import { AlertCircle } from 'lucide-react-native';
 import { formatDayAndMonthLongLocal } from '@/lib/dateLocale';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
 import { AnimatedDateStrip } from '@/components/date/AnimatedDateStrip';
+
+// --- Alinhado ao container do dock em TabBar (iOS: tabBar position absolute) ---
+const TAB_DOCK_OVERLAY_CLEARANCE = 120;
 
 // --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
 const THEMES = {
@@ -255,6 +258,7 @@ const BentoExpenseCard = ({
 
 export default function FinancesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { houseId, user } = useAuthStore();
 
   const { data: expenses, isLoading, isRefetching, refetch } = useExpenses(houseId);
@@ -354,6 +358,7 @@ export default function FinancesScreen() {
     hasBudget && budgetLimit ? formatCurrency(Number(budgetLimit.amount)) : null;
 
   const greetingFirstName = user?.name?.split(' ')[0] ?? '';
+  const scrollBottomPadding = TAB_DOCK_OVERLAY_CLEARANCE + insets.bottom;
 
   if (!houseId) {
     return (
@@ -405,7 +410,8 @@ export default function FinancesScreen() {
 
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+            {...(Platform.OS === 'ios' ? { contentInsetAdjustmentBehavior: 'automatic' as const } : {})}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
             }

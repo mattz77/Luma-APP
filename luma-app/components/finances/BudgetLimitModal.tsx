@@ -47,9 +47,12 @@ export function BudgetLimitModal({
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const [draftCentsDigits, setDraftCentsDigits] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  /** Espaço extra no rodapé do ScrollView quando o teclado está visível (iOS). */
+  const [iosKeyboardInset, setIosKeyboardInset] = useState(0);
 
   const sheetOuterStyle = useMemo(
     () => ({
@@ -92,10 +95,34 @@ export function BudgetLimitModal({
       setDraftCentsDigits(initialCentsDigits);
       setLocalError(null);
       Haptics.selectionAsync();
-      const t = setTimeout(() => inputRef.current?.focus(), 350);
-      return () => clearTimeout(t);
+      // iOS: não focar ao abrir — o teclado cobre o campo no sheet + Modal (alinhado ao ExpenseFormModal).
+      if (Platform.OS !== 'ios') {
+        const t = setTimeout(() => inputRef.current?.focus(), 350);
+        return () => clearTimeout(t);
+      }
     }
+    return undefined;
   }, [visible, initialCentsDigits]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      setIosKeyboardInset(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', () => {
+      setIosKeyboardInset(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      setIosKeyboardInset(0);
+    }
+  }, [visible]);
 
   const displayValue = useMemo(() => centsDigitsToDisplay(draftCentsDigits), [draftCentsDigits]);
 
@@ -124,6 +151,7 @@ export function BudgetLimitModal({
     <RNModal visible={visible} transparent animationType="none" onRequestClose={closeModal} statusBarTranslucent>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
         style={{ flex: 1 }}
       >
         <View className="flex-1 justify-end" style={overlayRootStyle}>
@@ -161,9 +189,13 @@ export function BudgetLimitModal({
               </Text>
 
               <ScrollView
+                ref={scrollRef}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 24 }}
+                contentContainerStyle={{
+                  paddingHorizontal: 32,
+                  paddingBottom: 24 + (Platform.OS === 'ios' ? iosKeyboardInset : 0),
+                }}
               >
                 <VStack space="md" className="pb-4">
                   <VStack space="xs">
@@ -190,6 +222,13 @@ export function BudgetLimitModal({
                         onChangeText={(text) => {
                           setDraftCentsDigits((prev) => parseMoneyInputToCentsDigits(text, prev));
                           setLocalError(null);
+                        }}
+                        onFocus={() => {
+                          if (Platform.OS === 'ios') {
+                            setTimeout(() => {
+                              scrollRef.current?.scrollToEnd({ animated: true });
+                            }, 120);
+                          }
                         }}
                         keyboardType="decimal-pad"
                         editable={!isSubmitting}

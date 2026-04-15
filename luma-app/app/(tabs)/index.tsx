@@ -230,14 +230,40 @@ const StatCard = ({
   onPress,
 }: StatCardProps) => {
   const resolvedIconColor = iconColor ?? (highlight ? Colors.secondary : Colors.textSecondary);
+  /** iOS: card ~100px de altura; `xl` + Dynamic Type estoura e corta o subtext (ex.: % do limite). */
+  const valueTextIosStyle =
+    Platform.OS === 'ios'
+      ? { fontSize: 16, lineHeight: 20, fontVariant: ['tabular-nums'] as const, flexShrink: 1 }
+      : undefined;
+
   const content = (
     <GlassCard style={[styles.statCard, onPress && styles.statCardInteractive]}>
       <HStack space="sm" className="justify-between items-center mb-2">
         <Text size="xs" className="font-medium text-typography-500">{label}</Text>
         {Icon && <Icon size={16} color={resolvedIconColor} />}
       </HStack>
-      <Text size="xl" className="font-bold text-typography-900" isTruncated>{value}</Text>
-      {subtext && <Text size="xs" className="text-typography-500">{subtext}</Text>}
+      <Text
+        size={Platform.OS === 'ios' ? 'md' : 'xl'}
+        className="font-bold text-typography-900"
+        numberOfLines={1}
+        adjustsFontSizeToFit={Platform.OS === 'ios'}
+        minimumFontScale={Platform.OS === 'ios' ? 0.72 : undefined}
+        maxFontSizeMultiplier={Platform.OS === 'ios' ? 1.15 : undefined}
+        style={valueTextIosStyle}
+        isTruncated
+      >
+        {value}
+      </Text>
+      {subtext ? (
+        <Text
+          size="xs"
+          className="text-typography-500"
+          numberOfLines={1}
+          maxFontSizeMultiplier={Platform.OS === 'ios' ? 1.1 : undefined}
+        >
+          {subtext}
+        </Text>
+      ) : null}
     </GlassCard>
   );
 

@@ -58,6 +58,7 @@ export const useUpdateTask = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', data.houseId] });
+      queryClient.invalidateQueries({ queryKey: ['task', data.id, data.houseId] });
     },
   });
 };
@@ -69,6 +70,7 @@ export const useDeleteTask = () => {
     mutationFn: ({ id, houseId }: { id: string; houseId: string }) => taskService.remove(id, houseId),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.houseId] });
+      queryClient.invalidateQueries({ queryKey: ['task', variables.id, variables.houseId] });
     },
   });
 };

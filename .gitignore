@@ -18,6 +18,7 @@ build/
 # Dumps de diagnóstico locais (não versionar)
 erro.md
 **/tsc-errors.txt
+luma-images-fix/
 
 # Env / segredos
 .env
