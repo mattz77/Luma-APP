@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { ArrowLeft, User, Mail, Phone, Save, LogOut } from 'lucide-react-native';
+import { ArrowLeft, ChevronLeft, User, Mail, Phone, Save, LogOut } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { ProfilePhotoUpload } from '@/components/profile/ProfilePhotoUpload';
 import { updateUser, getUser } from '@/services/user.service';
-import { Colors } from '@/constants/Colors';
 import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
@@ -118,7 +117,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <Box className="flex-1 bg-[#FDFBF7] items-center justify-center">
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color="#94a3b8" />
       </Box>
     );
   }
@@ -137,20 +136,23 @@ export default function ProfileScreen() {
               keyboardShouldPersistTaps="handled"
               {...(Platform.OS === 'ios' ? { contentInsetAdjustmentBehavior: 'automatic' as const } : {})}
             >
-              <Box className="px-6 pt-8 pb-4">
-                <HStack className="items-center justify-between mb-2">
+              <Box className="px-6 pt-12 pb-6">
+                <HStack className="justify-between items-center mb-4">
                   <Pressable
                     onPress={() => router.back()}
                     className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
                   >
                     <ArrowLeft size={20} color="#0f172a" />
                   </Pressable>
-                  <Box className="w-10" />
+                  <Box className="w-[88px]" />
                 </HStack>
                 <ScreenGreeting firstName={greetingFirstName} variant="ola" />
-                <Heading size="xl" className="font-bold text-slate-900 mt-1">
-                  Meu Perfil
-                </Heading>
+                <HStack space="xs" className="items-center mt-1">
+                  <Heading size="xl" className="font-bold text-slate-900">
+                    Meu Perfil
+                  </Heading>
+                  <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+                </HStack>
               </Box>
 
               <Box className="mx-6 mb-5 p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm">
@@ -242,7 +244,7 @@ export default function ProfileScreen() {
               <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
                 <HStack className="items-center gap-2 mb-2">
                   <LogOut size={20} color="#dc2626" />
-                  <Heading size="md" className="font-bold text-red-600">
+                  <Heading size="lg" className="font-bold text-red-600">
                     Sair da conta
                   </Heading>
                 </HStack>

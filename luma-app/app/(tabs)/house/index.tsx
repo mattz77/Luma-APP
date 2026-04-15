@@ -15,6 +15,7 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   ArrowLeft,
+  ChevronLeft,
   Home as HomeIcon,
   Users,
   Plus,
@@ -39,7 +40,6 @@ import {
 } from '@/hooks/useHouses';
 import { useAuthStore } from '@/stores/auth.store';
 import type { HouseMemberRole, HouseMemberWithUser } from '@/types/models';
-import { Colors } from '@/constants/Colors';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage } from '@/lib/storage';
 import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
@@ -374,17 +374,23 @@ export default function HouseScreen() {
             contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
             {...(Platform.OS === 'ios' ? { contentInsetAdjustmentBehavior: 'automatic' as const } : {})}
           >
-            <Box className="px-6 pt-8 pb-4">
-              <Pressable
-                onPress={() => router.back()}
-                className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95] mb-4 self-start"
-              >
-                <ArrowLeft size={20} color="#0f172a" />
-              </Pressable>
+            <Box className="px-6 pt-12 pb-6">
+              <HStack className="justify-between items-center mb-4">
+                <Pressable
+                  onPress={() => router.back()}
+                  className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
+                >
+                  <ArrowLeft size={20} color="#0f172a" />
+                </Pressable>
+                <Box className="w-[88px]" />
+              </HStack>
               <ScreenGreeting firstName={greetingFirstName} variant="ola" />
-              <Heading size="xl" className="font-bold text-slate-900 mt-1">
-                Casa & Membros
-              </Heading>
+              <HStack space="xs" className="items-center mt-1">
+                <Heading size="xl" className="font-bold text-slate-900">
+                  Casa & Membros
+                </Heading>
+                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+              </HStack>
               <Text className="text-sm text-slate-500 mt-1">{houses.length} casa(s)</Text>
               <Text className="text-xs text-slate-400 mt-2 leading-5">
                 Gerencie membros, convites e permissões da residência.
@@ -394,14 +400,14 @@ export default function HouseScreen() {
             <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
               <HStack className="items-center gap-2 mb-4">
                 <Users size={20} color="#0f172a" />
-                <Heading size="md" className="font-bold text-slate-900">
+                <Heading size="lg" className="font-bold text-slate-900">
                   Minhas casas
                 </Heading>
               </HStack>
 
               {housesLoading ? (
                 <VStack className="items-center py-8 gap-2">
-                  <ActivityIndicator color={Colors.primary} />
+                  <ActivityIndicator color="#94a3b8" />
                   <Text className="text-slate-500 text-sm">Carregando...</Text>
                 </VStack>
               ) : houses.length === 0 ? (
@@ -479,7 +485,7 @@ export default function HouseScreen() {
                 <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
                     <Settings size={20} color="#0f172a" />
-                    <Heading size="md" className="font-bold text-slate-900">
+                    <Heading size="lg" className="font-bold text-slate-900">
                       Resumo da casa
                     </Heading>
                   </HStack>
@@ -505,13 +511,13 @@ export default function HouseScreen() {
                 <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
                     <Users size={20} color="#0f172a" />
-                    <Heading size="md" className="font-bold text-slate-900">
+                    <Heading size="lg" className="font-bold text-slate-900">
                       Membros
                     </Heading>
                   </HStack>
                   {membersLoading ? (
                     <Box className="items-center py-8">
-                      <ActivityIndicator color={Colors.primary} />
+                      <ActivityIndicator color="#94a3b8" />
                     </Box>
                   ) : members.length === 0 ? (
                     <Text className="text-slate-500 text-sm">Nenhum membro encontrado.</Text>
@@ -575,7 +581,7 @@ export default function HouseScreen() {
             <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
               <HStack className="items-center gap-2 mb-2">
                 <LogOut size={20} color="#dc2626" />
-                <Heading size="md" className="font-bold text-red-600">
+                <Heading size="lg" className="font-bold text-red-600">
                   Sair da conta
                 </Heading>
               </HStack>
@@ -584,10 +590,14 @@ export default function HouseScreen() {
               </Text>
               <Pressable
                 onPress={() => setConfirm({ type: 'signOut' })}
-                className="flex-row items-center justify-center gap-2 bg-red-50 border border-red-200 h-12 rounded-[24px] active:opacity-90"
+                className="bg-red-50 border border-red-200 min-h-12 rounded-[24px] active:opacity-90 px-5 py-3 justify-center"
               >
-                <LogOut size={18} color="#dc2626" />
-                <Text className="text-red-600 font-bold">Sair agora</Text>
+                <HStack className="items-center justify-center" space="md">
+                  <LogOut size={18} color="#dc2626" />
+                  <Text className="text-red-600 font-bold text-base tracking-wide">
+                    Sair agora
+                  </Text>
+                </HStack>
               </Pressable>
             </Box>
           </ScrollView>
