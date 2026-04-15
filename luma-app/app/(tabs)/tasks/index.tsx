@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   useWindowDimensions,
   Platform,
@@ -25,6 +25,7 @@ import Animated, {
   interpolate,
   Extrapolation,
   runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 // Gluestack UI imports
@@ -249,17 +250,20 @@ export default function TasksScreen() {
   const translateY = useSharedValue(0);
   const { height: screenHeight } = useWindowDimensions();
 
+  const openCreateModal = useCallback(() => {
+    cancelAnimation(translateY);
+    translateY.value = 0;
+    requestAnimationFrame(() => {
+      setCreateOpen(true);
+    });
+  }, [translateY]);
+
   // Handle 'create' action from global dock
   useEffect(() => {
     if (action === 'create') {
-      // Reset translateY immediately before opening
-      translateY.value = 0;
-      // Use requestAnimationFrame to ensure reset happens before render
-      requestAnimationFrame(() => {
-        setCreateOpen(true);
-      });
+      openCreateModal();
     }
-  }, [action]);
+  }, [action, openCreateModal]);
 
   // Só zera translateY ao **abrir** — evita escrita no shared value ao fechar (menos trabalho no frame do dismiss).
   useEffect(() => {
@@ -279,6 +283,8 @@ export default function TasksScreen() {
   const handleCloseState = () => {
     setCreateOpen(false);
     // Evita re-render da rota no mesmo frame em que o Modal nativo desmonta (piscada).
+    // Não zerar `translateY` aqui: se o reset ocorre com o Modal ainda montando teardown no iOS,
+    // o sheet volta à posição aberta por um frame e pisca. O reset fica em `openCreateModal`.
     InteractionManager.runAfterInteractions(() => {
       router.setParams({ action: '' });
     });
@@ -467,7 +473,7 @@ export default function TasksScreen() {
             </VStack>
             <HStack space="sm">
               <Pressable
-                onPress={() => setCreateOpen(true)}
+                onPress={openCreateModal}
                 className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
               >
                 <Plus size={20} className="text-slate-900" />

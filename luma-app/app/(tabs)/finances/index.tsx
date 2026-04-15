@@ -3,7 +3,7 @@ import { Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'r
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, Layout, useSharedValue } from 'react-native-reanimated';
+import Animated, { cancelAnimation, FadeInDown, Layout, useSharedValue } from 'react-native-reanimated';
 
 import {
   ArrowDownCircle,
@@ -281,6 +281,8 @@ export default function FinancesScreen() {
 
   const handleOpenExpenseModal = () => {
     Haptics.selectionAsync();
+    cancelAnimation(sheetTranslateY);
+    sheetTranslateY.value = 0;
     setExpenseModalVisible(true);
   };
 
