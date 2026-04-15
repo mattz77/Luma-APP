@@ -30,6 +30,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
  */
 export async function getPushToken(): Promise<string | null> {
   try {
+    if (Platform.OS === 'web') {
+      // Push no web exige `notification.vapidPublicKey` no app.json; evita erro e spam no console em dev.
+      return null;
+    }
+
     const hasPermission = await requestNotificationPermission();
     if (!hasPermission) {
       return null;
