@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, RefreshControl, type TextStyle } from 'react-native';
+import { Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+import Animated, { FadeInDown, Layout, useSharedValue } from 'react-native-reanimated';
 
 import {
   ArrowDownCircle,
@@ -38,71 +38,17 @@ import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { Toast } from '@/components/ui/Toast';
 import type { Expense } from '@/types/models';
 import { Colors } from '@/constants/Colors';
+import { getBudgetUsageColor } from '@/lib/budgetUsageColor';
 import { AlertCircle } from 'lucide-react-native';
 import { formatDayAndMonthLongLocal } from '@/lib/dateLocale';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
+import { AnimatedDateStrip } from '@/components/date/AnimatedDateStrip';
 
 // --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
 const THEMES = {
   yellow: { bg: 'bg-[#FDE047]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
   lavender: { bg: 'bg-[#DDD6FE]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
   dark: { bg: 'bg-[#27272A]', text: 'text-white', badge: 'bg-zinc-800 text-zinc-300', iconBg: 'bg-zinc-700' },
-};
-
-const DateStrip = () => {
-  const dates = useMemo(() => {
-    const arr = [];
-    const today = new Date();
-    for (let i = -1; i < 4; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      arr.push({
-        day: d.getDate(),
-        week: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()],
-        active: i === 0,
-        fullDate: d,
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <Animated.View layout={Layout.springify()}>
-      {/* padding vertical: dia ativo usa scale(1.05) + sombra — evita corte no topo */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 24,
-          paddingTop: 12,
-          paddingBottom: 14,
-          alignItems: 'center',
-        }}
-      >
-        <HStack space="md" className="items-center">
-          {dates.map((date, i) => (
-            <Pressable
-              key={i}
-              onPress={() => Haptics.selectionAsync()}
-              className={`items-center justify-center border w-[60px] h-[85px] ${
-                date.active
-                  ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
-                  : 'bg-white border-slate-200'
-              }`}
-              style={[{ borderRadius: 24 }, date.active && { transform: [{ scale: 1.05 }] }]}
-            >
-              <Text className={`text-2xl font-bold mb-1 ${date.active ? 'text-black' : 'text-slate-900'}`}>
-                {date.day}
-              </Text>
-              <Text className={`text-xs font-bold uppercase ${date.active ? 'text-black' : 'text-slate-400'}`}>
-                {date.week}
-              </Text>
-            </Pressable>
-          ))}
-        </HStack>
-      </ScrollView>
-    </Animated.View>
-  );
 };
 
 const TABULAR_NUMS_STYLE: TextStyle | undefined =
@@ -126,6 +72,7 @@ const FinanceStatsWidget = ({
   formatCurrency: (v: number) => string;
 }) => {
   const pct = Math.min(Math.round(budgetProgress), 100);
+  const usageRingColor = getBudgetUsageColor(pct);
 
   return (
     <Box className="mx-6 mb-8">
@@ -170,7 +117,14 @@ const FinanceStatsWidget = ({
           </VStack>
           <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
             <Box
-              className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45"
+              className="absolute w-full h-full rounded-full rotate-45"
+              style={{
+                borderWidth: 4,
+                borderTopColor: usageRingColor,
+                borderRightColor: usageRingColor,
+                borderBottomColor: 'transparent',
+                borderLeftColor: 'transparent',
+              }}
             />
             <Text className="text-xs font-bold text-slate-900">{pct}%</Text>
           </Box>
@@ -314,6 +268,8 @@ export default function FinancesScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'paid' | 'pending'>('all');
   const [isExpenseModalVisible, setExpenseModalVisible] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
+  const sheetTranslateY = useSharedValue(0);
+  const { height: windowHeight } = useWindowDimensions();
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, message, type });
@@ -441,7 +397,11 @@ export default function FinancesScreen() {
             </HStack>
           </Box>
 
-          <DateStrip />
+          <AnimatedDateStrip
+            translateY={sheetTranslateY}
+            screenHeight={windowHeight}
+            isModalOpen={isExpenseModalVisible}
+          />
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -565,6 +525,7 @@ export default function FinancesScreen() {
             isSubmitting={createExpenseMutation.isPending}
             isDeleting={false}
             onCreateCategory={handleCreateCategory}
+            sheetTranslateY={sheetTranslateY}
           />
 
           {toast && (

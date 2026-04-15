@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import {
   getModalOverlayBlurIntensity,
@@ -19,14 +19,14 @@ export interface LumaModalOverlayProps {
  * na web o pacote aplica `backdrop-filter` via `BlurView.web.tsx` + scrim + vinheta topo/fundo.
  */
 export function LumaModalOverlay({ onRequestClose }: LumaModalOverlayProps) {
-  const { enterMs, exitMs } = getModalOverlayDurations();
+  const { enterMs } = getModalOverlayDurations();
   const intensity = getModalOverlayBlurIntensity();
   const layerStyle = getModalOverlayLayerStyle();
 
+  /** Sem `exiting`: ao fechar o `Modal`, FadeOut competia com o teardown nativo e gerava piscada. */
   const vignette = (
     <Animated.View
       entering={FadeIn.duration(enterMs)}
-      exiting={FadeOut.duration(exitMs)}
       pointerEvents="none"
       style={[layerStyle, { zIndex: 1 }]}
     >
@@ -49,11 +49,7 @@ export function LumaModalOverlay({ onRequestClose }: LumaModalOverlayProps) {
 
   return (
     <>
-      <Animated.View
-        entering={FadeIn.duration(enterMs)}
-        exiting={FadeOut.duration(exitMs)}
-        style={layerStyle}
-      >
+      <Animated.View entering={FadeIn.duration(enterMs)} style={layerStyle}>
         <BlurView intensity={intensity} tint="light" style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.15)' }]} />
         <Pressable

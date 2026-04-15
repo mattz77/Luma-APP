@@ -19,6 +19,7 @@ import { BudgetLimitModal } from '@/components/finances/BudgetLimitModal';
 import { useBudgetLimit, useUpsertBudgetLimit } from '@/hooks/useMonthlyBudget';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useAuthStore } from '@/stores/auth.store';
+import { getBudgetUsageColor } from '@/lib/budgetUsageColor';
 import { formatCurrency } from '@/lib/moneyInputBrl';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
 
@@ -71,6 +72,8 @@ export default function BudgetScreen() {
     if (!budget?.amount) return 0;
     return Math.max(Number(budget.amount) - totalSpent, 0);
   }, [budget, totalSpent]);
+
+  const progressColor = useMemo(() => getBudgetUsageColor(progress), [progress]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, message, type });
@@ -158,7 +161,16 @@ export default function BudgetScreen() {
                     </VStack>
                   </HStack>
                   <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
-                    <Box className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45" />
+                    <Box
+                      className="absolute w-full h-full rounded-full rotate-45"
+                      style={{
+                        borderWidth: 4,
+                        borderTopColor: progressColor,
+                        borderRightColor: progressColor,
+                        borderBottomColor: 'transparent',
+                        borderLeftColor: 'transparent',
+                      }}
+                    />
                     <Text className="text-xs font-bold text-slate-900">{Math.round(progress)}%</Text>
                   </Box>
                 </HStack>
@@ -173,7 +185,7 @@ export default function BudgetScreen() {
                 <Text className="text-xs text-slate-400 font-medium mb-3">Do limite utilizado</Text>
 
                 <Box className="h-2 rounded-full bg-slate-100 overflow-hidden mb-4">
-                  <Box className="h-full rounded-full bg-[#FDE047]" style={{ width: `${progress}%` }} />
+                  <Box className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: progressColor }} />
                 </Box>
 
                 <HStack className="justify-between pt-4 border-t border-slate-100">

@@ -18,6 +18,7 @@ import Animated, {
   interpolate,
   Extrapolation,
   runOnJS,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
@@ -25,6 +26,7 @@ import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import type { Expense, ExpenseCategory, HouseMemberWithUser } from '@/types/models';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
 import { isValidIsoYmd, localIsoDateToday } from '@/lib/dateLocale';
+import { useBottomSheetBackdropFadeStyle } from '@/lib/useBottomSheetBackdropFadeStyle';
 import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
 import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
 
@@ -80,6 +82,8 @@ interface ExpenseFormModalProps {
   isSubmitting: boolean;
   isDeleting: boolean;
   onCreateCategory: (name: string) => Promise<ExpenseCategory>;
+  /** Quando definido (ex.: Finanças + `AnimatedDateStrip`), o gesto do sheet usa este `SharedValue`. */
+  sheetTranslateY?: SharedValue<number>;
 }
 
 const formatNumber = (value: string) => value.replace(/[^0-9.,]/g, '').replace(',', '.');
@@ -101,10 +105,12 @@ export function ExpenseFormModal({
   isSubmitting,
   isDeleting,
   onCreateCategory,
+  sheetTranslateY,
 }: ExpenseFormModalProps) {
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const translateY = useSharedValue(0);
+  const internalTranslateY = useSharedValue(0);
+  const translateY = sheetTranslateY ?? internalTranslateY;
 
   /** Bottom sheet: largura total, altura máxima ~92% — empurrado pra base pelo wrapper (funciona na web) */
   const sheetOuterStyle = useMemo(
@@ -229,6 +235,8 @@ export function ExpenseFormModal({
       opacity,
     };
   });
+
+  const backdropFadeStyle = useBottomSheetBackdropFadeStyle(translateY, screenHeight);
 
   useEffect(() => {
     if (!visible) {
@@ -467,7 +475,12 @@ export function ExpenseFormModal({
           style={{ flex: 1 }}
         >
           <View className="flex-1 justify-end" style={overlayRootStyle}>
-            <LumaModalOverlay onRequestClose={closeModal} />
+            <Animated.View
+              style={[StyleSheet.absoluteFillObject, backdropFadeStyle]}
+              pointerEvents="box-none"
+            >
+              <LumaModalOverlay onRequestClose={closeModal} />
+            </Animated.View>
 
             <GestureHandlerRootView style={sheetWrapperStyle}>
               <GestureDetector gesture={panGesture}>

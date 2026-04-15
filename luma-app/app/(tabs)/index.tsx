@@ -70,6 +70,7 @@ import { useHouseMembers } from '@/hooks/useHouses';
 import type { HouseMemberWithUser } from '@/types/models';
 import { Colors } from '@/constants/Colors';
 import { buildDashboardActivityPreview } from '@/lib/buildActivityFeed';
+import { getBudgetUsageColor } from '@/lib/budgetUsageColor';
 import { ActivityFeedListItem } from '@/components/activity/ActivityFeedListItem';
 
 const { width } = Dimensions.get('window');
@@ -215,15 +216,25 @@ type StatCardProps = {
   value: string;
   subtext?: string;
   highlight?: boolean;
+  iconColor?: string;
   onPress?: () => void;
 };
 
-const StatCard = ({ icon: Icon, label, value, subtext, highlight = false, onPress }: StatCardProps) => {
+const StatCard = ({
+  icon: Icon,
+  label,
+  value,
+  subtext,
+  highlight = false,
+  iconColor,
+  onPress,
+}: StatCardProps) => {
+  const resolvedIconColor = iconColor ?? (highlight ? Colors.secondary : Colors.textSecondary);
   const content = (
     <GlassCard style={[styles.statCard, onPress && styles.statCardInteractive]}>
       <HStack space="sm" className="justify-between items-center mb-2">
         <Text size="xs" className="font-medium text-typography-500">{label}</Text>
-        {Icon && <Icon size={16} color={highlight ? Colors.secondary : Colors.textSecondary} />}
+        {Icon && <Icon size={16} color={resolvedIconColor} />}
       </HStack>
       <Text size="xl" className="font-bold text-typography-900" isTruncated>{value}</Text>
       {subtext && <Text size="xs" className="text-typography-500">{subtext}</Text>}
@@ -860,7 +871,7 @@ export default function Dashboard() {
                   label="Finanças"
                   value={`R$ ${financialSummary.spent}`}
                   subtext={`${financialSummary.percent}% do limite`}
-                  highlight={financialSummary.percent > 80}
+                  iconColor={getBudgetUsageColor(financialSummary.percent)}
                   onPress={() => {
                     Haptics.selectionAsync();
                     router.push('/(tabs)/finances' as any);

@@ -7,6 +7,8 @@ import {
   Keyboard,
   Modal as RNModal,
   KeyboardAvoidingView,
+  StyleSheet,
+  InteractionManager,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -76,8 +78,10 @@ import { Toast } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
 import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
+import { useBottomSheetBackdropFadeStyle } from '@/lib/useBottomSheetBackdropFadeStyle';
 import { dateToIsoYmdLocal, formatDayAndMonthLongLocal, parseIsoYmdToLocalDate } from '@/lib/dateLocale';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
+import { AnimatedDateStrip } from '@/components/date/AnimatedDateStrip';
 
 // --- Constants & Helpers ---
 
@@ -113,72 +117,6 @@ const formatRelativeDate = (dateString: string | null): string => {
 };
 
 // --- Components ---
-
-const DateStrip = ({ compact }: { compact: boolean }) => {
-  const dates = useMemo(() => {
-    const arr = [];
-    const today = new Date();
-    for (let i = -1; i < 4; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      arr.push({
-        day: d.getDate(),
-        week: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d.getDay()],
-        active: i === 0,
-        fullDate: d
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <Animated.View layout={Layout.springify()}>
-      {/* padding vertical: dia ativo usa scale(1.05) + sombra — sem espaço o topo cortava */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 24,
-          paddingTop: 12,
-          paddingBottom: 14,
-          alignItems: 'center',
-        }}
-      >
-        <HStack space="md" className="items-center">
-          {dates.map((date, i) => (
-            <Pressable
-              key={i}
-              onPress={() => Haptics.selectionAsync()}
-              className={`items-center justify-center border transition-all duration-300 ${compact
-                ? 'w-12 h-12'
-                : 'w-[60px] h-[85px]'
-                } ${date.active
-                  ? 'bg-[#FDE047] border-[#FDE047] shadow-lg shadow-yellow-900/20'
-                  : 'bg-white border-slate-200'
-                }`}
-              style={[
-                {
-                  borderRadius: compact ? 24 : 24,
-                },
-                date.active && { transform: [{ scale: 1.05 }] },
-              ]}
-            >
-              <Text className={`font-bold ${compact ? 'text-lg' : 'text-2xl mb-1'
-                } ${date.active ? 'text-black' : 'text-slate-900'}`}>
-                {date.day}
-              </Text>
-              {!compact && (
-                <Text className={`text-xs font-bold uppercase ${date.active ? 'text-black' : 'text-slate-400'}`}>
-                  {date.week}
-                </Text>
-              )}
-            </Pressable>
-          ))}
-        </HStack>
-      </ScrollView>
-    </Animated.View>
-  );
-};
 
 const StatsWidget = ({ totalPoints, completedCount, totalCount }: { totalPoints: number, completedCount: number, totalCount: number }) => {
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -323,13 +261,9 @@ export default function TasksScreen() {
     }
   }, [action]);
 
-  // Reset translateY when modal opens
+  // Só zera translateY ao **abrir** — evita escrita no shared value ao fechar (menos trabalho no frame do dismiss).
   useEffect(() => {
     if (isCreateOpen) {
-      // Immediately reset to 0 when opening
-      translateY.value = 0;
-    } else {
-      // Reset when closed
       translateY.value = 0;
     }
   }, [isCreateOpen]);
@@ -344,8 +278,10 @@ export default function TasksScreen() {
 
   const handleCloseState = () => {
     setCreateOpen(false);
-    router.setParams({ action: '' });
-    translateY.value = 0; // Reset for next open
+    // Evita re-render da rota no mesmo frame em que o Modal nativo desmonta (piscada).
+    InteractionManager.runAfterInteractions(() => {
+      router.setParams({ action: '' });
+    });
   };
 
   // Pan gesture for drag to close
@@ -405,6 +341,8 @@ export default function TasksScreen() {
       opacity: opacity,
     };
   });
+
+  const backdropFadeStyle = useBottomSheetBackdropFadeStyle(translateY, screenHeight);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ visible: true, message, type });
@@ -541,7 +479,11 @@ export default function TasksScreen() {
           </Box>
 
           {/* Date Strip */}
-          <DateStrip compact={isCreateOpen} />
+          <AnimatedDateStrip
+            translateY={translateY}
+            screenHeight={screenHeight}
+            isModalOpen={isCreateOpen}
+          />
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
             {/* Stats Widget */}
@@ -599,7 +541,12 @@ export default function TasksScreen() {
               style={{ flex: 1 }}
             >
               <View className="flex-1 justify-end" style={overlayRootStyle}>
-                <LumaModalOverlay onRequestClose={closeModal} />
+                <Animated.View
+                  style={[StyleSheet.absoluteFillObject, backdropFadeStyle]}
+                  pointerEvents="box-none"
+                >
+                  <LumaModalOverlay onRequestClose={closeModal} />
+                </Animated.View>
                 <GestureHandlerRootView style={taskSheetWrapperStyle}>
                 <GestureDetector gesture={panGesture}>
                   <Animated.View
