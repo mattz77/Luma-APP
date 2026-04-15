@@ -1,51 +1,50 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { ArrowLeft, Save, Wallet } from 'lucide-react-native';
 
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Input, InputField } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Toast } from '@/components/ui/Toast';
 import { useBudgetLimit, useUpsertBudgetLimit } from '@/hooks/useMonthlyBudget';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useAuthStore } from '@/stores/auth.store';
-import { cardShadowStyle } from '@/lib/styles';
-import { Colors } from '@/constants/Colors';
+import { AlertCircle } from 'lucide-react-native';
 
-const formatCurrency = (value: string | number) => {
-  const numericValue = Number(value);
-  if (Number.isNaN(numericValue)) {
-    return 'R$ 0,00';
-  }
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  return numericValue.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-  });
-};
+const FieldLabel = ({ children }: { children: string }) => (
+  <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
+);
 
 export default function BudgetScreen() {
   const router = useRouter();
-  const houseId = useAuthStore((state) => state.houseId);
-  const { top } = useSafeAreaInsets();
+  const houseId = useAuthStore((s) => s.houseId);
+  const user = useAuthStore((s) => s.user);
 
   const { data: budget, isLoading } = useBudgetLimit(houseId);
   const upsertMutation = useUpsertBudgetLimit();
   const { data: expenses = [] } = useExpenses(houseId);
 
   const [amount, setAmount] = useState('');
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(
+    null
+  );
 
   useEffect(() => {
     if (budget) {
-      setAmount(budget.amount);
+      setAmount(String(budget.amount));
     } else {
       setAmount('');
     }
@@ -61,7 +60,20 @@ export default function BudgetScreen() {
     return Math.min((totalSpent / Number(budget.amount)) * 100, 100);
   }, [budget, totalSpent]);
 
-  const goToFinances = () => router.replace('/(tabs)/finances' as any);
+  const remaining = useMemo(() => {
+    if (!budget?.amount) return 0;
+    return Math.max(Number(budget.amount) - totalSpent, 0);
+  }, [budget, totalSpent]);
+
+  const parsedPreview = useMemo(() => {
+    const raw = amount.replace(/[^0-9.,]/g, '').replace(',', '.');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n : null;
+  }, [amount]);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
 
   const handleSave = async () => {
     if (!houseId) {
@@ -77,308 +89,187 @@ export default function BudgetScreen() {
 
     try {
       await upsertMutation.mutateAsync({ houseId, amount: numericAmount });
-      Alert.alert('Sucesso', 'Limite salvo com sucesso!', [{ text: 'OK', onPress: goToFinances }]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast('Limite salvo com sucesso!', 'success');
+      setTimeout(() => router.back(), 600);
     } catch (error) {
-      Alert.alert('Erro', (error as Error).message);
+      showToast((error as Error).message, 'error');
     }
-  };
-
-  const handleGoBack = () => {
-    goToFinances();
   };
 
   if (!houseId) {
     return (
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.container, styles.centered, { paddingTop: top + 16 }]}
-      >
-        <Text style={styles.emptyTitle}>Selecione uma casa</Text>
-        <Text style={styles.emptySubtitle}>
+      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+        <AlertCircle size={48} color="#94a3b8" />
+        <Heading size="lg" className="text-slate-900 text-center mt-4">
+          Selecione uma casa
+        </Heading>
+        <Text className="text-slate-500 text-center mt-2">
           Associe-se a uma casa para definir o limite de orçamento.
         </Text>
-      </ScrollView>
+      </Box>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-          <ArrowLeft size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Orçamento da Casa</Text>
-      </View>
-
-      <View style={[styles.summaryCard, cardShadowStyle]}>
-        <View style={styles.summaryHeader}>
-          <View style={styles.summaryIcon}>
-            <Wallet size={26} color={Colors.primary} />
-          </View>
-          <View>
-            <Text style={styles.summaryLabel}>Limite configurado</Text>
-            <Text style={styles.summaryAmount}>
-              {budget ? formatCurrency(budget.amount) : 'Defina um valor'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.progressMeta}>
-          <Text style={styles.progressValue}>{formatCurrency(totalSpent)}</Text>
-          <Text style={styles.progressCaption}>Gasto total este mês</Text>
-        </View>
-
-        <View style={styles.progressBarTrack}>
-          <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-        </View>
-        <View style={styles.progressFooter}>
-          <Text style={styles.progressFooterLabel}>{progress.toFixed(0)}% utilizado</Text>
-          <Text style={styles.progressFooterValue}>
-            Restante:{' '}
-            {budget ? formatCurrency(Math.max(Number(budget.amount) - totalSpent, 0)) : '—'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[styles.card, cardShadowStyle]}>
-        {isLoading ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={styles.loader} />
-        ) : (
-          <>
-            <Text style={styles.label}>Atualizar limite geral</Text>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0,00"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            {amount && !Number.isNaN(parseFloat(amount.replace(/[^0-9.,]/g, '').replace(',', '.'))) && (
-              <Text style={styles.preview}>
-                {formatCurrency(amount.replace(/[^0-9.,]/g, '').replace(',', '.'))}
-              </Text>
-            )}
-
-            <TouchableOpacity
-              style={[styles.saveButton, upsertMutation.isPending && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={upsertMutation.isPending}
+    <ErrorBoundary>
+      <Box className="flex-1 bg-[#FDFBF7]">
+        <SafeAreaView className="flex-1" edges={['top']}>
+          {/* Header — alinhado à lista Finanças */}
+          <HStack className="px-6 pt-12 pb-6 items-center">
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.back();
+              }}
+              className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95 mr-3"
             >
-              {upsertMutation.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Save size={20} color="#fff" />
-                  <Text style={styles.saveButtonText}>Salvar limite</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+              <ArrowLeft size={20} color="#0f172a" />
+            </Pressable>
+            <VStack className="flex-1">
+              <Text className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-0.5">
+                Olá, {user?.name?.split(' ')[0] || 'Usuário'}!
+              </Text>
+              <Heading size="xl" className="font-bold text-slate-900">
+                Orçamento
+              </Heading>
+            </VStack>
+          </HStack>
 
-      <View style={[styles.infoCard, cardShadowStyle]}>
-        <Text style={styles.infoTitle}>Como funciona?</Text>
-        <Text style={styles.infoText}>
-          Defina um limite geral de gastos. O Luma usará esse valor como referência mensal para:
-        </Text>
-        <View style={styles.infoList}>
-          <Text style={styles.infoItem}>• Acompanhar o progresso dos gastos</Text>
-          <Text style={styles.infoItem}>• Alertar quando estiver perto do limite</Text>
-          <Text style={styles.infoItem}>• Gerar relatórios e insights personalizados</Text>
-        </View>
-      </View>
-    </ScrollView>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+            {/* Resumo — mesmo cartão que “Resumo do mês” na lista */}
+            <Box className="mx-6 mb-6">
+              <HStack className="justify-between items-end mb-4">
+                <Heading size="lg" className="font-bold text-slate-900">
+                  Limite do mês
+                </Heading>
+                <Text className="text-slate-500 text-sm font-medium">
+                  {budget?.amount ? formatCurrency(Number(budget.amount)) : 'Não definido'}
+                </Text>
+              </HStack>
+
+              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                <HStack className="items-start justify-between mb-6">
+                  <HStack space="md" className="items-center flex-1">
+                    <Box className="w-14 h-14 rounded-2xl bg-[#DDD6FE] items-center justify-center">
+                      <Wallet size={26} color="#0f172a" />
+                    </Box>
+                    <VStack className="flex-1">
+                      <Text className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">
+                        Limite configurado
+                      </Text>
+                      <Text className="text-3xl font-bold text-slate-900">
+                        {budget?.amount ? formatCurrency(Number(budget.amount)) : '—'}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
+                    <Box className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45" />
+                    <Text className="text-xs font-bold text-slate-900">{Math.round(progress)}%</Text>
+                  </Box>
+                </HStack>
+
+                <VStack className="mb-4">
+                  <Text className="text-2xl font-bold text-slate-900">{formatCurrency(totalSpent)}</Text>
+                  <Text className="text-sm text-slate-400 font-medium">Gasto total este mês</Text>
+                </VStack>
+
+                <Text className="text-xs text-slate-400 font-medium mb-3">Do limite utilizado</Text>
+
+                <Box className="h-2 rounded-full bg-slate-100 overflow-hidden mb-4">
+                  <Box className="h-full rounded-full bg-[#FDE047]" style={{ width: `${progress}%` }} />
+                </Box>
+
+                <HStack className="justify-between pt-4 border-t border-slate-100">
+                  <Text className="text-sm text-slate-500">{Math.round(progress)}% utilizado</Text>
+                  <Text className="text-sm font-semibold text-slate-900">
+                    Restante: {budget?.amount ? formatCurrency(remaining) : '—'}
+                  </Text>
+                </HStack>
+              </Box>
+            </Box>
+
+            {/* Formulário */}
+            <Box className="px-6 mb-6">
+              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                {isLoading ? (
+                  <Box className="py-12 items-center">
+                    <Spinner size="large" />
+                  </Box>
+                ) : (
+                  <VStack space="lg">
+                    <VStack space="xs">
+                      <FieldLabel>Atualizar limite geral</FieldLabel>
+                      <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                        <InputField
+                          value={amount}
+                          onChangeText={setAmount}
+                          placeholder="0,00"
+                          keyboardType="decimal-pad"
+                          className="text-lg font-semibold text-slate-900 px-3"
+                          placeholderTextColor="#94a3b8"
+                        />
+                      </Input>
+                      {parsedPreview !== null && parsedPreview > 0 && (
+                        <Text className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(parsedPreview)}</Text>
+                      )}
+                    </VStack>
+
+                    <Pressable
+                      onPress={handleSave}
+                      disabled={upsertMutation.isPending}
+                      className={`bg-[#FDE047] h-14 rounded-[24px] flex-row items-center justify-center gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98] ${
+                        upsertMutation.isPending ? 'opacity-60' : ''
+                      }`}
+                    >
+                      {upsertMutation.isPending ? (
+                        <Spinner size="small" color="#0f172a" />
+                      ) : (
+                        <>
+                          <Save size={20} color="#0f172a" />
+                          <Text className="text-slate-900 font-bold text-base">Salvar limite</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </VStack>
+                )}
+              </Box>
+            </Box>
+
+            {/* Info */}
+            <Box className="px-6">
+              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                <Heading size="md" className="font-bold text-slate-900 mb-3">
+                  Como funciona?
+                </Heading>
+                <Text className="text-sm text-slate-600 leading-6 mb-4">
+                  Defina um limite geral de gastos. O Luma usará esse valor como referência mensal para:
+                </Text>
+                <VStack space="sm">
+                  <Text className="text-sm text-slate-600 leading-6">
+                    • Acompanhar o progresso dos gastos
+                  </Text>
+                  <Text className="text-sm text-slate-600 leading-6">
+                    • Alertar quando estiver perto do limite
+                  </Text>
+                  <Text className="text-sm text-slate-600 leading-6">
+                    • Gerar relatórios e insights personalizados
+                  </Text>
+                </VStack>
+              </Box>
+            </Box>
+          </ScrollView>
+
+          {toast && (
+            <Toast
+              visible={toast.visible}
+              message={toast.message}
+              type={toast.type}
+              onDismiss={() => setToast(null)}
+            />
+          )}
+        </SafeAreaView>
+      </Box>
+    </ErrorBoundary>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    gap: 12,
-  },
-  backButton: {
-    padding: 6,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  summaryCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    gap: 16,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  summaryIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: Colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryLabel: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  summaryAmount: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  progressMeta: {
-    alignItems: 'flex-start',
-    gap: 2,
-  },
-  progressValue: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  progressCaption: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-  },
-  progressBarTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: Colors.textSecondary + '20',
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: Colors.primary,
-  },
-  progressFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressFooterLabel: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-  },
-  progressFooterValue: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 24,
-    gap: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '30',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    backgroundColor: Colors.background,
-    marginBottom: 8,
-  },
-  preview: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginBottom: 20,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginTop: 8,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loader: {
-    marginVertical: 40,
-  },
-  infoCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 20,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  infoText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  infoList: {
-    gap: 6,
-  },
-  infoItem: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-});
-

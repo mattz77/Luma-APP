@@ -9,12 +9,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  FadeIn,
-  FadeOut,
   SlideInDown,
   useSharedValue,
   useAnimatedStyle,
@@ -28,6 +24,9 @@ import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 
 import type { Expense, ExpenseCategory, HouseMemberWithUser } from '@/types/models';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
+import { isValidIsoYmd, localIsoDateToday } from '@/lib/dateLocale';
+import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
+import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
 
 import { Input, InputField } from '@/components/ui/input';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -82,8 +81,6 @@ interface ExpenseFormModalProps {
   isDeleting: boolean;
   onCreateCategory: (name: string) => Promise<ExpenseCategory>;
 }
-
-const defaultDate = () => new Date().toISOString().slice(0, 10);
 
 const formatNumber = (value: string) => value.replace(/[^0-9.,]/g, '').replace(',', '.');
 
@@ -149,7 +146,7 @@ export function ExpenseFormModal({
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('0');
-  const [expenseDate, setExpenseDate] = useState(defaultDate());
+  const [expenseDateIso, setExpenseDateIso] = useState(localIsoDateToday());
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
@@ -241,7 +238,7 @@ export function ExpenseFormModal({
     if (isEditMode && initialExpense) {
       setDescription(initialExpense.description);
       setAmount(String(Number(initialExpense.amount)));
-      setExpenseDate(initialExpense.expenseDate.slice(0, 10));
+      setExpenseDateIso(initialExpense.expenseDate.trim().slice(0, 10));
       setCategoryId(initialExpense.categoryId);
       setIsPaid(initialExpense.isPaid);
       setNotes(initialExpense.notes ?? '');
@@ -268,7 +265,7 @@ export function ExpenseFormModal({
     } else {
       setDescription('');
       setAmount('0');
-      setExpenseDate(defaultDate());
+      setExpenseDateIso(localIsoDateToday());
       setCategoryId(categories[0]?.id ?? null);
       setIsPaid(false);
       setNotes('');
@@ -377,8 +374,8 @@ export function ExpenseFormModal({
       setErrorMessage('Informe um valor válido.');
       return;
     }
-    if (!expenseDate) {
-      setErrorMessage('Informe a data da despesa.');
+    if (!isValidIsoYmd(expenseDateIso)) {
+      setErrorMessage('Informe uma data válida.');
       return;
     }
     if (!selectedMembers.length) {
@@ -431,7 +428,7 @@ export function ExpenseFormModal({
       await onSubmit({
         description: description.trim(),
         amount: Number(parsedAmount.toFixed(2)),
-        expenseDate,
+        expenseDate: expenseDateIso,
         categoryId,
         isPaid,
         notes: notes.trim() ? notes.trim() : null,
@@ -470,45 +467,15 @@ export function ExpenseFormModal({
           style={{ flex: 1 }}
         >
           <View className="flex-1 justify-end" style={overlayRootStyle}>
-            {/* Backdrop — mesmo padrão da tela de Tarefas */}
-            <Animated.View
-              entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
-              exiting={FadeOut.duration(150)}
-              className="absolute inset-0"
-            >
-              <BlurView intensity={Platform.OS === 'ios' ? 20 : 30} tint="light" style={StyleSheet.absoluteFill} />
-              <View className="absolute inset-0 bg-black/15" />
-              <Pressable className="flex-1" onPress={closeModal} />
-            </Animated.View>
-
-            <Animated.View
-              entering={FadeIn.duration(400).delay(50)}
-              className="absolute inset-0 pointer-events-none"
-              style={{ zIndex: 1 }}
-            >
-              <LinearGradient
-                colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0)']}
-                locations={[0, 0.3, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%' }}
-              />
-              <LinearGradient
-                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
-                locations={[0, 0.7, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%' }}
-              />
-            </Animated.View>
+            <LumaModalOverlay onRequestClose={closeModal} />
 
             <GestureHandlerRootView style={sheetWrapperStyle}>
               <GestureDetector gesture={panGesture}>
                 <Animated.View
                   entering={SlideInDown.springify()
-                    .damping(Platform.OS === 'ios' ? 18 : 20)
-                    .stiffness(Platform.OS === 'ios' ? 280 : 250)
-                    .mass(Platform.OS === 'ios' ? 0.8 : 1)}
+                    .damping(Platform.OS === 'ios' ? 22 : 24)
+                    .stiffness(Platform.OS === 'ios' ? 340 : 300)
+                    .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
                   className="w-full shadow-2xl"
                   style={[sheetOuterStyle, modalAnimatedStyle]}
                 >
@@ -566,15 +533,12 @@ export function ExpenseFormModal({
                         </VStack>
                         <VStack space="xs" className="flex-1">
                           <FieldLabel>Data</FieldLabel>
-                          <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
-                            <InputField
-                              value={expenseDate}
-                              onChangeText={setExpenseDate}
-                              placeholder="AAAA-MM-DD"
-                              className="text-base font-medium text-slate-900 px-3"
-                              placeholderTextColor="#94a3b8"
-                            />
-                          </Input>
+                          <DatePickerBrazilianField
+                            valueIso={expenseDateIso}
+                            onChangeIso={setExpenseDateIso}
+                            placeholder="DD/MM/AAAA"
+                            accessibilityLabel="Data da despesa, abrir calendário"
+                          />
                         </VStack>
                       </HStack>
 
