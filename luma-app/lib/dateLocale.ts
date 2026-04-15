@@ -91,3 +91,12 @@ export function parseBrazilianDateToIso(display: string): string | null {
   if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return null;
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
+
+/**
+ * Dia + mês por extenso para cabeçalhos (ex.: "15 de abril"), pt-BR local.
+ */
+export function formatDayAndMonthLongLocal(d: Date = new Date()): string {
+  const day = d.getDate();
+  const monthName = d.toLocaleDateString('pt-BR', { month: 'long' });
+  return `${day} de ${monthName}`;
+}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { RefreshControl } from 'react-native';
+import { Platform, RefreshControl, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -39,6 +39,8 @@ import { Toast } from '@/components/ui/Toast';
 import type { Expense } from '@/types/models';
 import { Colors } from '@/constants/Colors';
 import { AlertCircle } from 'lucide-react-native';
+import { formatDayAndMonthLongLocal } from '@/lib/dateLocale';
+import { ScreenGreeting } from '@/components/ScreenGreeting';
 
 // --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
 const THEMES = {
@@ -103,19 +105,24 @@ const DateStrip = () => {
   );
 };
 
+const TABULAR_NUMS_STYLE: TextStyle | undefined =
+  Platform.OS === 'ios' ? { fontVariant: ['tabular-nums'] } : undefined;
+
 const FinanceStatsWidget = ({
   total,
   paid,
   pending,
   budgetProgress,
-  budgetLabel,
+  hasBudget,
+  budgetAmountFormatted,
   formatCurrency,
 }: {
   total: number;
   paid: number;
   pending: number;
   budgetProgress: number;
-  budgetLabel: string;
+  hasBudget: boolean;
+  budgetAmountFormatted: string | null;
   formatCurrency: (v: number) => string;
 }) => {
   const pct = Math.min(Math.round(budgetProgress), 100);
@@ -126,7 +133,22 @@ const FinanceStatsWidget = ({
         <Heading size="lg" className="font-bold text-slate-900">
           Resumo do mês
         </Heading>
-        <Text className="text-slate-500 text-sm font-medium">{budgetLabel}</Text>
+        <VStack className="items-end max-w-[55%]">
+          <Text className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-0.5">Orçamento</Text>
+          {hasBudget && budgetAmountFormatted ? (
+            <Text
+              className="text-base font-semibold text-slate-900 tracking-tight"
+              style={TABULAR_NUMS_STYLE}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {budgetAmountFormatted}
+            </Text>
+          ) : (
+            <Text className="text-sm text-slate-500 font-medium text-right">Sem orçamento definido</Text>
+          )}
+        </VStack>
       </HStack>
 
       <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
@@ -135,7 +157,14 @@ const FinanceStatsWidget = ({
             <AnimatedNumber
               value={total}
               formatter={formatCurrency}
-              style={{ fontSize: 32, fontWeight: '700', color: '#0f172a', marginBottom: 4 }}
+              style={{
+                fontSize: 32,
+                fontWeight: '600',
+                color: '#0f172a',
+                marginBottom: 4,
+                letterSpacing: -0.3,
+                ...TABULAR_NUMS_STYLE,
+              }}
             />
             <Text className="text-sm text-slate-400 font-medium">Total gasto</Text>
           </VStack>
@@ -159,7 +188,7 @@ const FinanceStatsWidget = ({
               <AnimatedNumber
                 value={paid}
                 formatter={formatCurrency}
-                style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}
+                style={{ fontSize: 15, fontWeight: '600', color: '#16a34a', ...TABULAR_NUMS_STYLE }}
               />
             </VStack>
           </HStack>
@@ -173,7 +202,7 @@ const FinanceStatsWidget = ({
               <AnimatedNumber
                 value={pending}
                 formatter={formatCurrency}
-                style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}
+                style={{ fontSize: 15, fontWeight: '600', color: '#dc2626', ...TABULAR_NUMS_STYLE }}
               />
             </VStack>
           </HStack>
@@ -361,10 +390,11 @@ export default function FinancesScreen() {
     return expenses.filter((e) => (selectedFilter === 'paid' ? e.isPaid : !e.isPaid));
   }, [expenses, selectedFilter]);
 
-  const budgetLabel =
-    budgetLimit && budgetLimit.amount
-      ? `Orçamento ${formatCurrency(Number(budgetLimit.amount))}`
-      : 'Sem orçamento definido';
+  const hasBudget = !!(budgetLimit && budgetLimit.amount);
+  const budgetAmountFormatted =
+    hasBudget && budgetLimit ? formatCurrency(Number(budgetLimit.amount)) : null;
+
+  const greetingFirstName = user?.name?.split(' ')[0] ?? '';
 
   if (!houseId) {
     return (
@@ -387,12 +417,10 @@ export default function FinancesScreen() {
           {/* Header — mesmo padrão de Tarefas */}
           <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
             <VStack>
-              <Text className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-0.5">
-                Olá, {user?.name?.split(' ')[0] || 'Usuário'}!
-              </Text>
+              <ScreenGreeting firstName={greetingFirstName} variant="ola" />
               <HStack space="xs" className="items-center">
                 <Heading size="xl" className="font-bold text-slate-900">
-                  Finanças · {new Date().getDate()}
+                  Finanças · {formatDayAndMonthLongLocal()}
                 </Heading>
                 <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
               </HStack>
@@ -424,7 +452,8 @@ export default function FinancesScreen() {
               paid={summary.paid}
               pending={summary.pending}
               budgetProgress={budgetProgress}
-              budgetLabel={budgetLabel}
+              hasBudget={hasBudget}
+              budgetAmountFormatted={budgetAmountFormatted}
               formatCurrency={formatCurrency}
             />
 

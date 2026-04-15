@@ -76,7 +76,8 @@ import { Toast } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
 import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
-import { dateToIsoYmdLocal, parseIsoYmdToLocalDate } from '@/lib/dateLocale';
+import { dateToIsoYmdLocal, formatDayAndMonthLongLocal, parseIsoYmdToLocalDate } from '@/lib/dateLocale';
+import { ScreenGreeting } from '@/components/ScreenGreeting';
 
 // --- Constants & Helpers ---
 
@@ -508,6 +509,8 @@ export default function TasksScreen() {
     );
   }
 
+  const greetingFirstName = user?.name?.split(' ')[0] ?? '';
+
   return (
     <ErrorBoundary>
       <Box className="flex-1 bg-[#FDFBF7]">
@@ -516,11 +519,11 @@ export default function TasksScreen() {
           {/* Header */}
           <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
             <VStack>
-              <Text className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-0.5">
-                Bom dia, {user?.name?.split(' ')[0] || 'Usuário'}!
-              </Text>
+              <ScreenGreeting firstName={greetingFirstName} variant="bomDia" />
               <HStack space="xs" className="items-center">
-                <Heading size="xl" className="font-bold text-slate-900">Hoje, {new Date().getDate()}</Heading>
+                <Heading size="xl" className="font-bold text-slate-900">
+                  Hoje, {formatDayAndMonthLongLocal()}
+                </Heading>
                 <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
               </HStack>
             </VStack>
