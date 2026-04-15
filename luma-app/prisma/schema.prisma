@@ -310,6 +310,7 @@ model DeviceAction {
   status      String   @default("pending") // 'pending', 'success', 'failed'
   result      Json?
   executed_at DateTime @default(now())
+  /// Futuro: FK opcional para `users.id` (quem solicitou; null = automação). Ver `device-action.service.ts`.
 
   // Relations
   device Device @relation(fields: [device_id], references: [id], onDelete: Cascade)
