@@ -113,13 +113,13 @@ export default function TaskDetailsScreen() {
         <Box className="px-6 pt-4 pb-4 flex-row items-center justify-between">
           <Pressable
             onPress={() => router.back()}
-            className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95"
+            className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
           >
             <ArrowLeft size={20} color={Colors.text} />
           </Pressable>
           <Pressable
             onPress={handleDelete}
-            className="w-10 h-10 rounded-full bg-red-50 border border-red-100 items-center justify-center active:scale-95"
+            className="w-10 h-10 rounded-full bg-red-50 border border-red-100 items-center justify-center active:scale-[0.95]"
           >
             <Trash2 size={20} color="#ef4444" />
           </Pressable>

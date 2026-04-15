@@ -530,11 +530,11 @@ export default function TasksScreen() {
             <HStack space="sm">
               <Pressable
                 onPress={() => setCreateOpen(true)}
-                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-95"
+                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
               >
                 <Plus size={20} className="text-slate-900" />
               </Pressable>
-              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95">
+              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
                 <Search size={18} className="text-slate-900" />
               </Pressable>
             </HStack>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, RefreshControl, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -362,8 +362,11 @@ export default function FinancesScreen() {
     return category;
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const formatCurrency = useCallback(
+    (value: number) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value),
+    []
+  );
 
   const summary = useMemo(() => {
     if (!expenses) return { total: 0, paid: 0, pending: 0 };
@@ -428,11 +431,11 @@ export default function FinancesScreen() {
             <HStack space="sm">
               <Pressable
                 onPress={handleOpenExpenseModal}
-                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-95"
+                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
               >
                 <Plus size={20} className="text-slate-900" />
               </Pressable>
-              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95">
+              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
                 <Search size={18} className="text-slate-900" />
               </Pressable>
             </HStack>

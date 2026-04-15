@@ -121,7 +121,7 @@ export default function BudgetScreen() {
                 Haptics.selectionAsync();
                 router.back();
               }}
-              className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-95 mr-3"
+              className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95] mr-3"
             >
               <ArrowLeft size={20} color="#0f172a" />
             </Pressable>

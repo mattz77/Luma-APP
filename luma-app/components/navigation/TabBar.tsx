@@ -1,4 +1,5 @@
-import { LayoutChangeEvent, StyleSheet } from 'react-native';
+import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useState, useEffect, useRef } from 'react';
@@ -75,11 +76,22 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const mainDockTranslateY = useSharedValue(0);
     const plusRotation = useSharedValue(0);
 
-    // Use animated style para shared values (corrige warning do Reanimated)
-    const dockAnimatedStyle = useAnimatedStyle(() => ({
-        opacity: mainDockOpacity.value,
-        transform: [{ translateY: mainDockTranslateY.value }]
-    }));
+    /** No iOS 26+ com Liquid Glass nativo, opacity no ancestral quebra o efeito (ver docs/liquid-glass-cross-platform.md). */
+    const isNativeLiquidGlass =
+        Platform.OS === 'ios' && isLiquidGlassAvailable();
+
+    const dockAnimatedStyle = useAnimatedStyle(() => {
+        'worklet';
+        if (isNativeLiquidGlass) {
+            return {
+                transform: [{ translateY: mainDockTranslateY.value }],
+            };
+        }
+        return {
+            opacity: mainDockOpacity.value,
+            transform: [{ translateY: mainDockTranslateY.value }],
+        };
+    });
 
     // Animação de rotação do botão + para X
     useEffect(() => {
@@ -232,7 +244,12 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             >
                 {/* Left: Main Pill */}
                 {/* Intensity alto e tint específico para efeito vidro fino */}
-                <LiquidGlassCard style={styles.mainPill} intensity={85} tint="systemThinMaterialLight">
+                <LiquidGlassCard
+                    style={styles.mainPill}
+                    intensity={85}
+                    tint="systemThinMaterialLight"
+                    skiaHighlight
+                >
                     <HStack space="md" className="items-center justify-between px-5 h-full w-[220px]">
                         {/* Home */}
                         <Box className="items-center justify-center w-11 h-11">
@@ -293,7 +310,12 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 <Pressable
                     onPress={handleMagicPress}
                 >
-                    <LiquidGlassCard style={styles.magicButton} intensity={85} tint="systemThinMaterialLight">
+                    <LiquidGlassCard
+                        style={styles.magicButton}
+                        intensity={85}
+                        tint="systemThinMaterialLight"
+                        skiaHighlight
+                    >
                         <Box style={styles.magicIconContainer}>
                             <Search size={24} color={Colors.text} />
                         </Box>

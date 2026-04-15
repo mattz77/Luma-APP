@@ -52,6 +52,7 @@ import {
   Search, ChevronDown, Users, CheckSquare, MoreHorizontal, Cpu
 } from 'lucide-react-native';
 import { LiquidGlassCard } from '../../components/ui/LiquidGlassCard';
+import { GlassCard } from '@/components/shared/GlassCard';
 import { n8nClient } from '@/lib/n8n';
 import { useAuthStore } from '@/stores/auth.store';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -205,20 +206,6 @@ const BouncyPressable = ({ children, onPress, style, className, disabled, ...pro
         {children}
       </Animated.View>
     </Pressable>
-  );
-};
-
-const GlassCard = ({ children, style, variant = 'default' }: any) => {
-  // Variants: default, primary (yellow tint), danger (red tint)
-  const isPrimary = variant === 'primary';
-
-  return (
-    <Box style={[styles.glassCard, isPrimary && styles.glassCardPrimary, style]}>
-      {/* Light theme: White blur instead of dark */}
-      <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-      <Box style={[styles.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)' }]} />
-      <Box style={{ zIndex: 10, flex: 1 }}>{children}</Box>
-    </Box>
   );
 };
 
@@ -906,7 +893,11 @@ export default function Dashboard() {
             <Animated.View entering={FadeInDown.delay(200).springify()}>
               <HStack space="md" className="px-5 h-[220px] mb-8">
                 {/* Left: Tasks */}
-                <GlassCard style={[styles.splitCard, styles.splitCardLeft]} variant="primary" className="flex-1">
+                <GlassCard
+                  style={[styles.splitCard, styles.splitCardLeft]}
+                  variant="primary"
+                  borderRadius={32}
+                >
                   <HStack space="md" className="justify-between items-center mb-4">
                     <Heading size="md" className="text-typography-900">Tarefas</Heading>
                     <Pressable onPress={() => router.push('/(tabs)/tasks' as any)}>
@@ -934,9 +925,13 @@ export default function Dashboard() {
                 </GlassCard>
 
                 {/* Right: Notes/Insight */}
-                <LiquidGlassCard style={StyleSheet.flatten([styles.splitCard, styles.splitCardRight, { flex: 1 }])} intensity={40}>
+                <LiquidGlassCard
+                  style={StyleSheet.flatten([styles.splitCard, styles.splitCardRight, { flex: 1 }])}
+                  intensity={40}
+                  borderRadius={32}
+                >
                   <HStack space="md" className="justify-between items-center mb-4">
-                    <Heading size="md">Luma Insight</Heading>
+                    <Heading size="md" className="text-typography-900">Luma Insight</Heading>
                     <Pressable onPress={handleDailyBriefing}>
                       <PulsingSparkles />
                     </Pressable>
