@@ -1,0 +1,32 @@
+---
+description: Seleção de datas com calendário e formato pt-BR
+alwaysApply: false
+globs:
+  - "luma-app/**/*.tsx"
+  - "luma-app/**/*.ts"
+---
+
+# Luma — datas na UI
+
+## Comportamento obrigatório
+
+- **Não** usar apenas campo de texto livre como única forma de informar uma data ao usuário.
+- Ao **tocar** no campo de data, deve abrir um **calendário** (picker nativo Android/iOS ou `input type="date"` na web).
+- **Exibição** para o usuário: **DD/MM/AAAA** (pt-BR).
+- **Contrato com API / Postgres**: string **`YYYY-MM-DD`** (dia local, sem depender de `toISOString()` para derivar o dia).
+
+## Implementação no projeto
+
+- Componente: `luma-app/components/forms/DatePickerBrazilianField.tsx` (`DatePickerBrazilianField`).
+- Utilitários: `luma-app/lib/dateLocale.ts` (`isoYmdToBrazilian`, `dateToIsoYmdLocal`, `localIsoDateToday`, `isValidIsoYmd`, etc.).
+- Dependência: `@react-native-community/datetimepicker` (via `npx expo install`, alinhado ao SDK do Expo).
+
+## Novas telas
+
+- Reutilizar `DatePickerBrazilianField` (ou padrão equivalente com o mesmo fluxo toque → calendário).
+- Evitar duplicar máscara manual + lógica de parse espalhada; centralizar em `dateLocale.ts` quando precisar de conversões.
+
+## Referências no app
+
+- **Nova despesa:** `ExpenseFormModal` — data obrigatória (`YYYY-MM-DD`).
+- **Nova tarefa:** `app/(tabs)/tasks/index.tsx` — prazo opcional (`null` = sem prazo); atalhos (Hoje, Amanhã, …) + campo **Data** com calendário; valor vazio no campo = usar `valueIso=""` no `DatePickerBrazilianField`.
