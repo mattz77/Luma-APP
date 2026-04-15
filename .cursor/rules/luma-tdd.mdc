@@ -1,0 +1,28 @@
+---
+description: TDD — testes antes da implementação, ciclo red/green e validação da qualidade dos testes
+alwaysApply: true
+---
+
+# Luma — TDD e validação de testes
+
+## Quando aplicar
+
+Para **novas funcionalidades** e **mudanças comportamentais relevantes** (não para ajustes puramente cosméticos sem efeito testável).
+
+## Ordem obrigatória
+
+1. **Cenários** — listar o que deve acontecer (sucesso, erros, limites). Incluir isolamento por `house_id` / RLS e contratos de webhook quando a feature tocar esses domínios (ver `luma-security.mdc`, `luma-n8n-webhooks.mdc`).
+2. **Red** — escrever testes que descrevem o comportamento desejado e **falham** até existir implementação (ou falham com o comportamento antigo).
+3. **Green** — implementar o mínimo para os testes passarem, alinhado ao código existente.
+4. **Refino** — simplificar código e testes sem mudar o comportamento coberto.
+
+## Validar o próprio teste (antes de considerar pronto)
+
+- Confirmar **ciclo red/green**: o teste falha sem a solução nova (ou com implementação incompleta) e passa com ela.
+- Evitar **falsos positivos**: não “testar o mock”; revisar se stubs retornam valores que tornam o assert trivialmente verdadeiro.
+- Preferir asserts em **comportamento observável** (entrada/saída, contrato público, efeitos esperados), não em detalhe interno irrelevante.
+
+## Ferramentas
+
+- Usar o runner e scripts definidos no repositório (ex.: `npm run test` quando existir).
+- Se ainda não houver suíte no app, ao introduzir a primeira bateria alinhar aos guias do projeto em `docs/mpc-guides/` (Expo/Jest) ou registrar um `chore` para configurar `jest-expo` e scripts — sem duplicar configuração ad hoc fora do padrão acordado.

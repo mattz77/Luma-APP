@@ -19,6 +19,7 @@ alwaysApply: true
 5. **Índices** — consultas frequentes por `house_id` cobertas no Prisma (índices compostos quando fizer sentido)?
 6. **Reanimated** — `useAnimatedStyle` com diretiva `'worklet'` onde aplicável?
 7. **Webhooks** — autenticação HMAC/JWT conforme padrão do projeto?
+8. **TDD** — para features e mudanças comportamentais relevantes: testes acordados antes da implementação; ciclo red/green verificado (ver `luma-tdd.mdc`).
 
 ## Checklist de Pull Request
 
@@ -32,3 +33,5 @@ alwaysApply: true
 - [ ] Throttle no frontend em ações repetíveis (ex.: envio de chat).
 - [ ] App Integrity considerado para fluxos críticos.
 - [ ] Inputs validados contra injeção e valores inválidos.
+- [ ] Testes alinhados ao contrato da feature; ciclo red/green conferido (`luma-tdd.mdc`).
+- [ ] Testes revisados para evitar fragilidade e falsos positivos (mocks e asserts no comportamento certo).

@@ -1,5 +1,5 @@
 ---
-description: Fluxo de trabalho do agente (entender → implementar → revisar) e formato de resposta
+description: Fluxo de trabalho do agente (entender → planejar → testes TDD → implementar → revisar) e formato de resposta
 alwaysApply: true
 ---
 
@@ -10,8 +10,9 @@ alwaysApply: true
 1. Entender o pedido e o contexto (PRD, conversa, arquivos citados).
 2. Verificar stack e restrições em `luma-project-identity.mdc` e nas rules globais de segurança.
 3. Planejar antes de codar (arquivos, impacto em schema, rotas Expo, webhooks se houver).
-4. Implementar com mudança mínima e coerente com o código existente.
-5. Validar mentalmente RLS/`house_id`, tipos e UX (loading/erro).
+4. Escrever ou atualizar testes primeiro, conforme `luma-tdd.mdc` (cenários cobertos; red antes do green).
+5. Implementar com mudança mínima e coerente com o código existente.
+6. Validar mentalmente RLS/`house_id`, tipos e UX (loading/erro).
 
 ## Comandos em linguagem natural (Cursor)
 
