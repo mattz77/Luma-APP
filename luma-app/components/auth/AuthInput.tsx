@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TouchableOpacity } from 'react-native';
+import { Platform, TouchableOpacity } from 'react-native';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
@@ -38,10 +38,10 @@ export function AuthInput({
   const IconComponent = getIcon();
 
   return (
-    <VStack space="xs" className="mb-4">
+    <VStack space="xs" className="mb-2">
       <Input
         variant="outline"
-        size="lg"
+        size="md"
         isInvalid={error}
         className={`${error ? 'border-error-500' : ''}`}
       >
@@ -55,10 +55,12 @@ export function AuthInput({
           onChangeText={onChangeText}
           placeholder={placeholder || label}
           placeholderTextColor="#9CA3AF"
+          multiline={false}
+          textAlignVertical={Platform.OS === 'android' ? 'center' : undefined}
           secureTextEntry={isPassword && !showPassword}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType || (type === 'email' ? 'email-address' : 'default')}
-          className="text-base text-gray-900"
+          className="text-sm text-gray-900"
         />
         {isPassword && (
           <InputSlot className="pr-3">

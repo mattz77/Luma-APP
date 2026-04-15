@@ -5,6 +5,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,7 @@ import { Box } from '@/components/ui/box';
 import { useI18n } from '@/hooks/useI18n';
 
 export default function RegisterScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useI18n();
   const [name, setName] = useState('');
@@ -125,27 +127,32 @@ export default function RegisterScreen() {
       className="flex-1 bg-gray-100"
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 20,
+          paddingTop: Math.max(insets.top, 12) + 8,
+          paddingBottom: Math.max(insets.bottom, 24),
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <VStack space="lg" className="flex-1">
+        <VStack space="md">
           {/* Illustration */}
           <AuthIllustration type="sign-up" />
 
           {/* Title */}
           <VStack space="xs" className="items-center">
-            <Heading size="3xl" bold className="text-gray-900">
+            <Heading size="2xl" bold className="text-gray-900">
               {t('auth.register.title')}
             </Heading>
-            <Text size="sm" className="text-gray-500 text-center px-5">
+            <Text size="sm" className="text-gray-500 text-center px-2">
               {t('auth.register.subtitle')}
             </Text>
           </VStack>
 
           {/* Form */}
-          <Box className="bg-white rounded-3xl p-6 shadow-sm">
-            <VStack space="md">
+          <Box className="bg-white rounded-2xl p-4 shadow-sm">
+            <VStack space="sm">
               <AuthInput
                 label={t('auth.register.fullName')}
                 value={name}
@@ -193,12 +200,12 @@ export default function RegisterScreen() {
               </Text>
 
               <Button
-                size="xl"
+                size="lg"
                 variant="solid"
                 action="primary"
                 onPress={handleRegister}
                 isDisabled={loading}
-                className="bg-blue-600 h-14 rounded-xl"
+                className="bg-blue-600 min-h-12 rounded-xl"
               >
                 {loading ? (
                   <ButtonSpinner />
@@ -210,7 +217,7 @@ export default function RegisterScreen() {
               </Button>
 
               {/* Social Login Section */}
-              <VStack space="md" className="mt-2">
+              <VStack space="sm" className="mt-1">
                 <Text size="sm" className="text-gray-500 text-center">
                   {t('auth.register.continueWith')}
                 </Text>
@@ -223,7 +230,7 @@ export default function RegisterScreen() {
           </Box>
 
           {/* Footer */}
-          <HStack space="xs" className="justify-center items-center mt-6">
+          <HStack space="xs" className="justify-center items-center mt-4">
             <Text size="sm" className="text-gray-500">
               {t('auth.register.alreadyHaveAccount')}
             </Text>

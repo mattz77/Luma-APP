@@ -5,6 +5,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
 import { AuthInput } from '@/components/auth/AuthInput';
@@ -18,6 +19,7 @@ import { Box } from '@/components/ui/box';
 import { useI18n } from '@/hooks/useI18n';
 
 export default function ForgotPasswordScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useI18n();
   const [email, setEmail] = useState('');
@@ -66,27 +68,32 @@ export default function ForgotPasswordScreen() {
       className="flex-1 bg-gray-100"
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 20,
+          paddingTop: Math.max(insets.top, 12) + 8,
+          paddingBottom: Math.max(insets.bottom, 24),
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <VStack space="lg" className="flex-1">
+        <VStack space="md">
           {/* Illustration */}
           <AuthIllustration type="forgot-password" />
 
           {/* Title */}
           <VStack space="xs" className="items-center">
-            <Heading size="3xl" bold className="text-gray-900">
+            <Heading size="2xl" bold className="text-gray-900">
               {t('auth.forgotPassword.title')}
             </Heading>
-            <Text size="sm" className="text-gray-500 text-center px-5 leading-5">
+            <Text size="sm" className="text-gray-500 text-center px-2 leading-5">
               {t('auth.forgotPassword.subtitle')}
             </Text>
           </VStack>
 
           {/* Form */}
-          <Box className="bg-white rounded-3xl p-6 shadow-sm">
-            <VStack space="md">
+          <Box className="bg-white rounded-2xl p-4 shadow-sm">
+            <VStack space="sm">
               <AuthInput
                 label={t('auth.forgotPassword.email')}
                 value={email}
@@ -109,12 +116,12 @@ export default function ForgotPasswordScreen() {
               ) : null}
 
               <Button
-                size="xl"
+                size="lg"
                 variant="solid"
                 action="primary"
                 onPress={handleResetPassword}
                 isDisabled={submitting}
-                className="bg-blue-600 h-14 rounded-xl"
+                className="bg-blue-600 min-h-12 rounded-xl"
               >
                 {submitting ? (
                   <ButtonSpinner />
