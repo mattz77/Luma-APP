@@ -51,8 +51,6 @@ export function BudgetLimitModal({
 
   const [draftCentsDigits, setDraftCentsDigits] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
-  /** Espaço extra no rodapé do ScrollView quando o teclado está visível (iOS). */
-  const [iosKeyboardInset, setIosKeyboardInset] = useState(0);
 
   const sheetOuterStyle = useMemo(
     () => ({
@@ -104,26 +102,6 @@ export function BudgetLimitModal({
     return undefined;
   }, [visible, initialCentsDigits]);
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios') return;
-    const show = Keyboard.addListener('keyboardWillShow', (e) => {
-      setIosKeyboardInset(e.endCoordinates.height);
-    });
-    const hide = Keyboard.addListener('keyboardWillHide', () => {
-      setIosKeyboardInset(0);
-    });
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!visible) {
-      setIosKeyboardInset(0);
-    }
-  }, [visible]);
-
   const displayValue = useMemo(() => centsDigitsToDisplay(draftCentsDigits), [draftCentsDigits]);
 
   const closeModal = () => {
@@ -151,7 +129,6 @@ export function BudgetLimitModal({
     <RNModal visible={visible} transparent animationType="none" onRequestClose={closeModal} statusBarTranslucent>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
         style={{ flex: 1 }}
       >
         <View className="flex-1 justify-end" style={overlayRootStyle}>
@@ -194,7 +171,7 @@ export function BudgetLimitModal({
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{
                   paddingHorizontal: 32,
-                  paddingBottom: 24 + (Platform.OS === 'ios' ? iosKeyboardInset : 0),
+                  paddingBottom: 24,
                 }}
               >
                 <VStack space="md" className="pb-4">
