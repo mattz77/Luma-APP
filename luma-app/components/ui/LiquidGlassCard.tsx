@@ -1,21 +1,26 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { StyleSheet, View, ViewStyle, Platform, LayoutChangeEvent } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { 
-  useSharedValue, 
-  withRepeat, 
-  withTiming, 
+import {
+  StyleSheet,
+  View,
+  ViewStyle,
+  Platform,
+  LayoutChangeEvent,
+} from 'react-native';
+import {
+  useSharedValue,
+  withRepeat,
+  withTiming,
   Easing,
-  useDerivedValue 
+  useDerivedValue,
 } from 'react-native-reanimated';
+import type { BlurTint } from 'expo-blur';
 import { liquidGlassShader } from '../../assets/shaders/liquidGlass';
-import { LinearGradient } from 'expo-linear-gradient';
+import { AdaptiveGlass } from './AdaptiveGlass';
 
-// Imports condicionais para Skia (apenas mobile)
-let Canvas: any;
-let Fill: any;
-let Shader: any;
-let Skia: any;
+let Canvas: typeof import('@shopify/react-native-skia').Canvas | undefined;
+let Fill: typeof import('@shopify/react-native-skia').Fill | undefined;
+let Shader: typeof import('@shopify/react-native-skia').Shader | undefined;
+let Skia: typeof import('@shopify/react-native-skia').Skia | undefined;
 
 if (Platform.OS !== 'web') {
   try {
@@ -29,60 +34,79 @@ if (Platform.OS !== 'web') {
   }
 }
 
-interface LiquidGlassCardProps {
+type LegacyTint =
+  | 'light'
+  | 'dark'
+  | 'default'
+  | 'systemMaterial'
+  | 'systemMaterialLight'
+  | 'systemThinMaterial'
+  | 'systemThinMaterialLight'
+  | 'systemUltraThinMaterial'
+  | 'systemUltraThinMaterialLight';
+
+export interface LiquidGlassCardProps {
   children: React.ReactNode;
   style?: ViewStyle;
   intensity?: number;
-  tint?: 'light' | 'dark' | 'default' | 'systemMaterial' | 'systemMaterialLight' | 'systemThinMaterial' | 'systemThinMaterialLight' | 'systemUltraThinMaterial' | 'systemUltraThinMaterialLight';
+  /** Preferir `blurTint` quando possível (contrato do `expo-blur`). */
+  tint?: LegacyTint;
+  blurTint?: BlurTint;
   animated?: boolean;
+  /** Brilho extra via shader Skia (só nativo; custo maior). */
+  skiaHighlight?: boolean;
+  borderRadius?: number;
 }
 
-export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({ 
-  children, 
-  style, 
-  intensity = 80, // Aumentado para 80 para efeito "frosted" forte
-  tint = 'systemThinMaterialLight', // Material mais fino e moderno do iOS
-  animated = false
-}) => {
-  const isWeb = Platform.OS === 'web';
-  const [layout, setLayout] = useState({ width: 0, height: 0 });
+function resolveBlurTint(tint: LegacyTint): BlurTint {
+  if (Platform.OS === 'ios') {
+    return tint as BlurTint;
+  }
+  return String(tint).includes('dark') ? 'dark' : 'light';
+}
 
-  // Criar shader apenas em mobile e se Skia estiver disponível
+function normalizeBorderRadius(
+  value: number | string | undefined,
+  fallback: number
+): number {
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const n = parseFloat(value);
+    if (!Number.isNaN(n)) return n;
+  }
+  return fallback;
+}
+
+type SkiaOverlayProps = {
+  layout: { width: number; height: number };
+  animated: boolean;
+};
+
+function LiquidGlassSkiaOverlay({ layout, animated }: SkiaOverlayProps) {
   const sourceShader = useMemo(() => {
-    if (isWeb || !Skia || !Skia.RuntimeEffect) {
-      return null;
-    }
+    if (!Skia?.RuntimeEffect) return null;
     try {
       return Skia.RuntimeEffect.Make(liquidGlassShader);
     } catch (error) {
       console.warn('[LiquidGlassCard] Erro ao criar shader:', error);
       return null;
     }
-  }, [isWeb]);
+  }, []);
 
-  // Shared Values para Worklets
-  const time = isWeb ? null : useSharedValue(0);
-  const touchX = isWeb ? null : useSharedValue(0);
-  const touchY = isWeb ? null : useSharedValue(0);
-  const resolutionX = isWeb ? null : useSharedValue(0);
-  const resolutionY = isWeb ? null : useSharedValue(0);
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setLayout({ width, height });
-      if (!isWeb && resolutionX && resolutionY && touchX && touchY) {
-        resolutionX.value = width;
-        resolutionY.value = height;
-        touchX.value = width / 2;
-        touchY.value = height / 2;
-      }
-    }
-  };
+  const time = useSharedValue(0);
+  const touchX = useSharedValue(layout.width / 2);
+  const touchY = useSharedValue(layout.height / 2);
+  const resolutionX = useSharedValue(layout.width);
+  const resolutionY = useSharedValue(layout.height);
 
   useEffect(() => {
-    if (isWeb || !time) return;
-    
+    resolutionX.value = layout.width;
+    resolutionY.value = layout.height;
+    touchX.value = layout.width / 2;
+    touchY.value = layout.height / 2;
+  }, [layout.width, layout.height, resolutionX, resolutionY, touchX, touchY]);
+
+  useEffect(() => {
     if (animated) {
       time.value = withRepeat(
         withTiming(100, { duration: 20000, easing: Easing.linear }),
@@ -92,101 +116,125 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     } else {
       time.value = 0;
     }
-  }, [isWeb, animated, time]);
+  }, [animated, time]);
 
-  // Uniforms derived value
-  const uniforms = (!isWeb && time && touchX && touchY && resolutionX && resolutionY) 
-    ? useDerivedValue(() => {
-        'worklet';
-        return {
-          resolution: [resolutionX.value, resolutionY.value],
-          time: time.value,
-          touch: [touchX.value, touchY.value],
-        };
-      })
-    : null;
+  const uniforms = useDerivedValue(() => {
+    'worklet';
+    return {
+      resolution: [resolutionX.value, resolutionY.value],
+      time: time.value,
+      touch: [touchX.value, touchY.value],
+    };
+  });
 
-  // Fallback tint for Android/Web if system materials not supported
-  const actualTint = Platform.OS === 'ios' ? tint : (tint.includes('dark') ? 'dark' : 'light');
+  if (
+    !sourceShader ||
+    !Canvas ||
+    !Fill ||
+    !Shader ||
+    layout.width <= 0 ||
+    layout.height <= 0
+  ) {
+    return null;
+  }
 
   return (
-    <View 
-      style={[styles.container, style]}
-      onLayout={handleLayout}
-    >
-       {/* Background para Web (Fallback) */}
-       {isWeb && (
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.6)', 'rgba(255, 255, 255, 0.4)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={isWeb ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } : StyleSheet.absoluteFill}
-        />
-      )}
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Canvas style={{ width: layout.width, height: layout.height }}>
+        <Fill>
+          <Shader source={sourceShader} uniforms={uniforms} />
+        </Fill>
+      </Canvas>
+    </View>
+  );
+}
 
-      {/* Camada 1: Blur Nativo (O Fundo Fosco) */}
-      {/* Deve vir PRIMEIRO para borrar o que está atrás */}
-      <BlurView 
-        intensity={intensity} 
-        tint={actualTint as any}
-        style={isWeb ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } : StyleSheet.absoluteFill} 
-      />
+export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
+  children,
+  style,
+  intensity = 80,
+  tint = 'systemThinMaterialLight',
+  blurTint: blurTintProp,
+  animated = false,
+  skiaHighlight = false,
+  borderRadius: borderRadiusProp,
+}) => {
+  const isWeb = Platform.OS === 'web';
+  const [layout, setLayout] = useState({ width: 0, height: 0 });
 
-      {/* Camada 2: Shader Skia (O Brilho Líquido) */}
-      {/* Desenhado POR CIMA do Blur para adicionar reflexos */}
-      {!isWeb && sourceShader && Canvas && Fill && Shader && uniforms && layout.width > 0 && layout.height > 0 && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Canvas style={{ width: layout.width, height: layout.height }}>
-            <Fill>
-              <Shader source={sourceShader} uniforms={uniforms} />
-            </Fill>
-          </Canvas>
-        </View>
-      )}
+  const blurTint = blurTintProp ?? resolveBlurTint(tint);
 
-      {/* Camada 3: Bordas e Overlays Sutis */}
-      <View style={styles.glassOverlay} />
-      <View style={styles.borderOverlay} />
+  const flatStyle = StyleSheet.flatten(style) as ViewStyle | undefined;
+  const flatRadius = flatStyle?.borderRadius;
+  const borderRadiusFromStyle =
+    typeof flatRadius === 'number'
+      ? flatRadius
+      : typeof flatRadius === 'string'
+        ? parseFloat(flatRadius)
+        : undefined;
+  const borderRadius = normalizeBorderRadius(
+    borderRadiusProp ?? borderRadiusFromStyle,
+    32
+  );
 
-      {/* Camada 4: Conteúdo */}
-      <View style={styles.content}>
-        {children}
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setLayout({ width, height });
+    }
+  };
+
+  const showSkia =
+    skiaHighlight && !isWeb && layout.width > 0 && layout.height > 0;
+
+  return (
+    <View style={[styles.container, { borderRadius }, style]}>
+      {/* Camadas de vidro como no GlassCard: fundo absoluto; conteúdo é irmão para respeitar padding */}
+      <View
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+        onLayout={handleLayout}
+      >
+        <AdaptiveGlass
+          style={StyleSheet.absoluteFill}
+          borderRadius={borderRadius}
+          blurIntensity={intensity}
+          blurTint={blurTint}
+          variant="regular"
+          tintColor="rgba(255,255,255,0.12)"
+        >
+          {showSkia && (
+            <LiquidGlassSkiaOverlay layout={layout} animated={animated} />
+          )}
+          <View style={styles.glassOverlay} />
+          <View style={[styles.borderOverlay, { borderRadius }]} />
+        </AdaptiveGlass>
       </View>
+      <View style={styles.content}>{children}</View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 32, // Mais arredondado como no iOS
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: 'transparent', // Importante: transparente para ver o blur
+    backgroundColor: 'transparent',
   },
   glassOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.05)', // Overlay branco muito sutil
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     zIndex: 2,
   },
   borderOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 32,
-    borderWidth: 1, // Borda fina
-    borderColor: 'rgba(255,255,255,0.2)', // Borda translúcida
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     zIndex: 2,
   },
   content: {
     zIndex: 3,
     flex: 1,
     position: 'relative',
-    // padding removido para flexibilidade, deve ser controlado pelo pai
-  }
+  },
 });
