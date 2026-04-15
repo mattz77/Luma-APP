@@ -20,6 +20,7 @@ import { ScrollView } from '@/components/ui/scroll-view';
 import { Spinner } from '@/components/ui/spinner';
 import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
 import { Image } from '@/components/ui/image';
+import { Avatar, AvatarFallbackText, AvatarImage } from '@/components/ui/avatar';
 import {
   Modal,
   ModalBackdrop,
@@ -876,14 +877,21 @@ export default function Dashboard() {
                 }}
               >
                 {user?.avatarUrl ? (
-                  <Image
-                    source={{ uri: user.avatarUrl }}
-                    style={styles.userAvatar}
-                    alt="Avatar"
-                  />
+                  <Avatar
+                    size="sm"
+                    className="h-10 w-10 min-h-10 min-w-10 rounded-xl bg-secondary items-center justify-center overflow-hidden"
+                  >
+                    <AvatarFallbackText className="text-background-0">
+                      {userName.trim().charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallbackText>
+                    <AvatarImage
+                      source={{ uri: user.avatarUrl }}
+                      className="rounded-xl"
+                    />
+                  </Avatar>
                 ) : (
-                  <Box style={styles.userAvatar}>
-                    <User size={20} color={Colors.background} />
+                  <Box style={styles.headerAvatarPlaceholder}>
+                    <User size={22} color="#FFFFFF" />
                   </Box>
                 )}
               </Pressable>
@@ -1277,15 +1285,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
-  userAvatar: {
+  /** Sem foto: fundo rosa sólido + ícone branco (evita ícone bege em bg bege e slots do Avatar que não renderizam Lucide). */
+  headerAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 12,
     backgroundColor: Colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-
   // Stats Row
   statsRow: {
     flexDirection: 'row',

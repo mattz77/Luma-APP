@@ -33,6 +33,11 @@ export function ProfilePhotoUpload({
 }: ProfilePhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
+  /** Bytes da mesma escolha do picker (evita upload vazio no RN) */
+  const [pendingPickerData, setPendingPickerData] = useState<{
+    base64?: string | null;
+    mimeType?: string | null;
+  } | null>(null);
 
   const handlePickImage = async (source: 'gallery' | 'camera') => {
     try {
@@ -48,12 +53,16 @@ export function ProfilePhotoUpload({
         return;
       }
 
-      const uri = result.assets[0]?.uri;
+      const asset = result.assets[0];
+      const uri = asset?.uri;
       if (!uri) {
         return;
       }
 
-      // Mostrar preview
+      setPendingPickerData({
+        base64: asset.base64 ?? null,
+        mimeType: asset.mimeType ?? null,
+      });
       setPreviewUri(uri);
 
       // Perguntar se quer usar esta imagem
@@ -61,7 +70,14 @@ export function ProfilePhotoUpload({
         'Confirmar foto',
         'Deseja usar esta foto como perfil?',
         [
-          { text: 'Cancelar', style: 'cancel', onPress: () => setPreviewUri(null) },
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              setPreviewUri(null);
+              setPendingPickerData(null);
+            },
+          },
           {
             text: 'Usar',
             onPress: () => handleUpload(uri),
@@ -76,14 +92,20 @@ export function ProfilePhotoUpload({
 
   const handleUpload = async (uri: string) => {
     setIsUploading(true);
+    const pickerPayload = pendingPickerData;
     try {
-      const newAvatarUrl = await uploadProfilePhoto(userId, uri);
+      const newAvatarUrl = await uploadProfilePhoto(userId, uri, {
+        base64: pickerPayload?.base64,
+        mimeType: pickerPayload?.mimeType,
+      });
       setPreviewUri(null);
+      setPendingPickerData(null);
       onUploadComplete(newAvatarUrl);
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
       Alert.alert('Erro', 'Não foi possível fazer upload da foto. Tente novamente.');
       setPreviewUri(null);
+      setPendingPickerData(null);
     } finally {
       setIsUploading(false);
     }
@@ -150,7 +172,11 @@ export function ProfilePhotoUpload({
             <ActivityIndicator size="large" color={Colors.primary} />
           </View>
         ) : displayUri ? (
-          <Image source={{ uri: displayUri }} style={[styles.avatar, { width: size, height: size }]} />
+          <Image
+            source={{ uri: displayUri }}
+            style={[styles.avatar, { width: size, height: size }]}
+            resizeMode="cover"
+          />
         ) : (
           <View style={[styles.avatarPlaceholder, { width: size, height: size }]}>
             <User size={size * 0.5} color={Colors.textSecondary} />

@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import { getEnvVar } from '@/lib/utils';
+import { getUser } from '@/services/user.service';
+import { mergeAuthUserWithDbProfile } from '@/stores/auth-user-merge';
 
 export interface AuthUser {
   id: string;
@@ -39,6 +41,19 @@ const mapAuthUser = (user: Awaited<ReturnType<typeof supabase.auth.getUser>>['da
   };
 };
 
+/** Enriquece o usuário do JWT com `users` (avatar_url, nome) no Postgres. */
+async function authUserWithProfile(mapped: AuthUser | null): Promise<AuthUser | null> {
+  if (!mapped) {
+    return null;
+  }
+  try {
+    const profile = await getUser(mapped.id);
+    return mergeAuthUserWithDbProfile(mapped, profile);
+  } catch {
+    return mapped;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   houseId: null,
@@ -66,14 +81,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       const mappedUser = mapAuthUser(data.user);
+      const userWithProfile = await authUserWithProfile(mappedUser);
       console.log('[AuthStore] User initialized:', {
-        hasUser: !!mappedUser,
-        userId: mappedUser?.id,
-        email: mappedUser?.email,
+        hasUser: !!userWithProfile,
+        userId: userWithProfile?.id,
+        email: userWithProfile?.email,
       });
 
       set({
-        user: mappedUser,
+        user: userWithProfile,
         loading: false,
         initialized: true,
       });
@@ -96,8 +112,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw error;
       }
 
+      const mapped = mapAuthUser(data.user);
+      const userWithProfile = await authUserWithProfile(mapped);
       set({
-        user: mapAuthUser(data.user),
+        user: userWithProfile,
         loading: false,
       });
     } catch (authError) {
@@ -124,8 +142,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw error;
       }
 
+      const mapped = mapAuthUser(data.user);
+      const userWithProfile = await authUserWithProfile(mapped);
       set({
-        user: mapAuthUser(data.user),
+        user: userWithProfile,
         loading: false,
       });
     } catch (authError) {
@@ -228,11 +248,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 supabase.auth.onAuthStateChange((_event, session) => {
   const state = useAuthStore.getState();
   // Só atualiza via onAuthStateChange se já inicializou, para evitar race condition
-  if (state.initialized) {
+  if (!state.initialized) {
+    return;
+  }
+
+  const mapped = mapAuthUser(session?.user ?? null);
+  if (!mapped) {
+    useAuthStore.setState({ user: null, loading: false });
+    return;
+  }
+
+  void authUserWithProfile(mapped).then((userWithProfile) => {
     useAuthStore.setState({
-      user: mapAuthUser(session?.user ?? null),
+      user: userWithProfile,
       loading: false,
     });
-  }
+  });
 });
 

@@ -138,8 +138,18 @@ export default function ProfileScreen() {
           <ProfilePhotoUpload
             userId={user?.id || ''}
             currentAvatarUrl={avatarUrl}
-            onUploadComplete={(newUrl) => setAvatarUrl(newUrl)}
-            onRemoveComplete={() => setAvatarUrl(null)}
+            onUploadComplete={(newUrl) => {
+              setAvatarUrl(newUrl);
+              useAuthStore.setState((s) =>
+                s.user ? { user: { ...s.user, avatarUrl: newUrl } } : {}
+              );
+            }}
+            onRemoveComplete={() => {
+              setAvatarUrl(null);
+              useAuthStore.setState((s) =>
+                s.user ? { user: { ...s.user, avatarUrl: null } } : {}
+              );
+            }}
             size={120}
           />
         </View>

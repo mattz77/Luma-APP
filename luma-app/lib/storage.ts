@@ -1,9 +1,60 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
+
 import { supabase } from './supabase';
 
 export interface UploadResult {
   url: string | null;
   error: string | null;
+}
+
+/** Opções extras para upload — no React Native, `fetch(uri)` costuma retornar blob vazio; use `base64` do ImagePicker. */
+export interface UploadImageOptions {
+  base64?: string | null;
+  mimeType?: string | null;
+}
+
+function base64ToUint8Array(b64: string): Uint8Array {
+  const clean = b64.includes('base64,') ? (b64.split('base64,')[1] ?? b64) : b64;
+  if (typeof globalThis.atob !== 'function') {
+    throw new Error('Decodificação base64 indisponível neste ambiente');
+  }
+  const binaryString = globalThis.atob(clean.replace(/\s/g, ''));
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Obtém bytes da imagem para upload. No iOS/Android o `fetch(file://)` pode retornar corpo vazio — prefira `base64` do expo-image-picker (`base64: true`).
+ */
+async function resolveImageBytes(
+  uri: string,
+  options?: UploadImageOptions,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  const contentType = options?.mimeType?.trim() || 'image/jpeg';
+
+  if (options?.base64 && options.base64.length > 0) {
+    const bytes = base64ToUint8Array(options.base64);
+    if (bytes.byteLength === 0) {
+      throw new Error('Imagem em base64 vazia');
+    }
+    return { bytes, contentType };
+  }
+
+  const response = await fetch(uri);
+  const ab = await response.arrayBuffer();
+  if (ab.byteLength === 0) {
+    throw new Error(
+      Platform.OS === 'web'
+        ? 'Não foi possível ler a imagem (arquivo vazio). Tente outra foto.'
+        : 'Não foi possível ler a imagem no dispositivo. Tente novamente ou use base64.',
+    );
+  }
+  return { bytes: new Uint8Array(ab), contentType };
 }
 
 /**
@@ -32,10 +83,11 @@ export async function pickImageFromGallery(): Promise<ImagePicker.ImagePickerRes
   }
 
   return await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [4, 3],
     quality: 0.8,
+    base64: true,
   });
 }
 
@@ -49,10 +101,11 @@ export async function takePhoto(): Promise<ImagePicker.ImagePickerResult> {
   }
 
   return await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [4, 3],
     quality: 0.8,
+    base64: true,
   });
 }
 
@@ -67,18 +120,23 @@ export async function uploadImageToStorage(
   uri: string,
   bucket: string = 'receipts',
   folder: string = 'expenses',
+  uploadOptions?: UploadImageOptions,
 ): Promise<UploadResult> {
   try {
-    // Gerar nome único para o arquivo
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-    
-    // Converter URI para blob
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const extFromMime = (mime: string): string => {
+      if (mime.includes('png')) return 'png';
+      if (mime.includes('webp')) return 'webp';
+      if (mime.includes('gif')) return 'gif';
+      if (mime.includes('heic')) return 'heic';
+      return 'jpg';
+    };
 
-    // Fazer upload para o Supabase Storage
-    const { data, error } = await supabase.storage.from(bucket).upload(fileName, blob, {
-      contentType: 'image/jpeg',
+    const { bytes, contentType } = await resolveImageBytes(uri, uploadOptions);
+    const ext = extFromMime(contentType);
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+
+    const { error } = await supabase.storage.from(bucket).upload(fileName, bytes, {
+      contentType,
       upsert: false,
     });
 
@@ -86,7 +144,6 @@ export async function uploadImageToStorage(
       return { url: null, error: error.message };
     }
 
-    // Obter URL pública
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
 
     return { url: urlData.publicUrl, error: null };
@@ -95,23 +152,50 @@ export async function uploadImageToStorage(
   }
 }
 
+/** Pasta padrão para fotos de perfil dentro do bucket de storage. */
+export const PROFILE_PHOTOS_FOLDER = 'profile-photos';
+
 /**
- * Remove uma imagem do Supabase Storage
- * @param url - URL pública da imagem
- * @param bucket - Nome do bucket (padrão: 'receipts')
+ * Bucket para avatares. Padrão `receipts` (costuma existir no projeto com despesas).
+ * Crie o bucket `avatars` no Supabase e defina EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET=avatars se preferir separado.
+ */
+export function getAvatarStorageBucket(): string {
+  const b = process.env.EXPO_PUBLIC_SUPABASE_AVATAR_BUCKET;
+  return typeof b === 'string' && b.trim().length > 0 ? b.trim() : 'receipts';
+}
+
+/**
+ * Remove uma imagem do Supabase Storage.
+ * URLs públicas `.../storage/v1/object/public/<bucket>/<caminho>` extraem bucket e caminho completos (inclui pastas aninhadas).
  */
 export async function deleteImageFromStorage(
   url: string,
-  bucket: string = 'receipts',
+  /** Usado só quando a URL não segue o formato público do Supabase */
+  bucketFallback: string = 'receipts',
 ): Promise<{ error: string | null }> {
   try {
-    // Extrair o nome do arquivo da URL
-    const urlParts = url.split('/');
-    const fileName = urlParts[urlParts.length - 1].split('?')[0];
-    const folder = urlParts[urlParts.length - 2];
-    const fullPath = `${folder}/${fileName}`;
+    const marker = '/storage/v1/object/public/';
+    const idx = url.indexOf(marker);
+    let bucket: string;
+    let objectPath: string;
 
-    const { error } = await supabase.storage.from(bucket).remove([fullPath]);
+    if (idx !== -1) {
+      const rest = url.slice(idx + marker.length).split('?')[0];
+      const slash = rest.indexOf('/');
+      if (slash === -1) {
+        return { error: 'URL de storage inválida' };
+      }
+      bucket = rest.slice(0, slash);
+      objectPath = decodeURIComponent(rest.slice(slash + 1));
+    } else {
+      const urlParts = url.split('/');
+      const fileName = urlParts[urlParts.length - 1].split('?')[0];
+      const folder = urlParts[urlParts.length - 2];
+      bucket = bucketFallback;
+      objectPath = `${folder}/${fileName}`;
+    }
+
+    const { error } = await supabase.storage.from(bucket).remove([objectPath]);
 
     if (error) {
       return { error: error.message };

@@ -72,6 +72,8 @@ export default function HouseScreen() {
   const [houseAddressInput, setHouseAddressInput] = useState('');
   const [inviteCodeInput, setInviteCodeInput] = useState('');
   const [housePhotoUri, setHousePhotoUri] = useState<string | null>(null);
+  const [housePhotoBase64, setHousePhotoBase64] = useState<string | null>(null);
+  const [housePhotoMime, setHousePhotoMime] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const currentHouse = useMemo(
@@ -414,7 +416,11 @@ export default function HouseScreen() {
                     <Image source={{ uri: housePhotoUri }} style={styles.photoPreview} />
                     <TouchableOpacity
                       style={styles.removePhotoButton}
-                      onPress={() => setHousePhotoUri(null)}
+                      onPress={() => {
+                        setHousePhotoUri(null);
+                        setHousePhotoBase64(null);
+                        setHousePhotoMime(null);
+                      }}
                     >
                       <X size={16} color="#fff" />
                     </TouchableOpacity>
@@ -431,13 +437,19 @@ export default function HouseScreen() {
                             { text: 'Galeria', onPress: async () => {
                               const result = await pickImageFromGallery();
                               if (!result.canceled && result.assets[0]) {
-                                setHousePhotoUri(result.assets[0].uri);
+                                const a = result.assets[0];
+                                setHousePhotoUri(a.uri);
+                                setHousePhotoBase64(a.base64 ?? null);
+                                setHousePhotoMime(a.mimeType ?? null);
                               }
                             }},
                             ...(Platform.OS !== 'web' ? [{ text: 'Câmera', onPress: async () => {
                               const result = await takePhoto();
                               if (!result.canceled && result.assets[0]) {
-                                setHousePhotoUri(result.assets[0].uri);
+                                const a = result.assets[0];
+                                setHousePhotoUri(a.uri);
+                                setHousePhotoBase64(a.base64 ?? null);
+                                setHousePhotoMime(a.mimeType ?? null);
                               }
                             }}] : []),
                             { text: 'Cancelar', style: 'cancel' },
@@ -477,7 +489,10 @@ export default function HouseScreen() {
                       if (housePhotoUri) {
                         setIsUploadingPhoto(true);
                         try {
-                          const uploadResult = await uploadImageToStorage(housePhotoUri, 'houses', 'photos');
+                          const uploadResult = await uploadImageToStorage(housePhotoUri, 'houses', 'photos', {
+                            base64: housePhotoBase64,
+                            mimeType: housePhotoMime,
+                          });
                           if (uploadResult.url) {
                             photoUrl = uploadResult.url;
                           } else {
@@ -503,6 +518,8 @@ export default function HouseScreen() {
                       setHouseNameInput('');
                       setHouseAddressInput('');
                       setHousePhotoUri(null);
+                      setHousePhotoBase64(null);
+                      setHousePhotoMime(null);
 
                       setHouseId(house.id);
 

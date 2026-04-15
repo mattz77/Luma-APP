@@ -1,5 +1,11 @@
 import { supabase } from '@/lib/supabase';
-import { uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
+import {
+  uploadImageToStorage,
+  deleteImageFromStorage,
+  getAvatarStorageBucket,
+  PROFILE_PHOTOS_FOLDER,
+  type UploadImageOptions,
+} from '@/lib/storage';
 
 export interface UserUpdate {
   name?: string;
@@ -36,12 +42,23 @@ export async function updateUser(userId: string, updates: UserUpdate): Promise<U
 }
 
 /**
- * Faz upload da foto de perfil do usuário
+ * Faz upload da foto de perfil do usuário.
+ * Passe `imageBytes` com `base64` (e opcionalmente `mimeType`) vindos do `expo-image-picker` com `base64: true` — no RN `fetch(uri)` costuma gerar arquivo vazio no Storage.
  */
-export async function uploadProfilePhoto(userId: string, imageUri: string): Promise<string> {
+export async function uploadProfilePhoto(
+  userId: string,
+  imageUri: string,
+  imageBytes?: UploadImageOptions,
+): Promise<string> {
   try {
-    // Upload para bucket 'avatars'
-    const uploadResult = await uploadImageToStorage(imageUri, 'avatars', 'profiles');
+    const bucket = getAvatarStorageBucket();
+    // Caminho por usuário: exige política RLS `profile-photos/{auth.uid()}/...` no Storage
+    const uploadResult = await uploadImageToStorage(
+      imageUri,
+      bucket,
+      `${PROFILE_PHOTOS_FOLDER}/${userId}`,
+      imageBytes,
+    );
 
     if (uploadResult.error || !uploadResult.url) {
       throw new Error(uploadResult.error || 'Erro ao fazer upload da imagem');
@@ -54,9 +71,9 @@ export async function uploadProfilePhoto(userId: string, imageUri: string): Prom
       .eq('id', userId)
       .single();
 
-    // Deletar avatar antigo se existir
+    // Deletar avatar antigo se existir (URL resolve bucket/caminho automaticamente)
     if (currentUser?.avatar_url) {
-      await deleteImageFromStorage(currentUser.avatar_url, 'avatars').catch((err) => {
+      await deleteImageFromStorage(currentUser.avatar_url).catch((err) => {
         console.warn('[UserService] Erro ao deletar avatar antigo:', err);
       });
     }
@@ -84,8 +101,7 @@ export async function removeProfilePhoto(userId: string): Promise<void> {
       .single();
 
     if (currentUser?.avatar_url) {
-      // Deletar do storage
-      await deleteImageFromStorage(currentUser.avatar_url, 'avatars');
+      await deleteImageFromStorage(currentUser.avatar_url);
     }
 
     // Remover referência no banco

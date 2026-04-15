@@ -158,6 +158,9 @@ export function ExpenseFormModal({
   const [notes, setNotes] = useState('');
   const [receiptUrl, setReceiptUrl] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  /** Base64 do picker (RN: fetch(uri) no upload pode enviar arquivo vazio) */
+  const [selectedImageBase64, setSelectedImageBase64] = useState<string | null>(null);
+  const [selectedImageMime, setSelectedImageMime] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [shares, setShares] = useState<Record<string, string>>({});
@@ -252,6 +255,8 @@ export function ExpenseFormModal({
       setNotes(initialExpense.notes ?? '');
       setReceiptUrl(initialExpense.receiptUrl ?? '');
       setSelectedImageUri(initialExpense.receiptUrl ?? null);
+      setSelectedImageBase64(null);
+      setSelectedImageMime(null);
 
       const splits = initialExpense.splits ?? [];
       const memberIds = splits.length
@@ -279,6 +284,8 @@ export function ExpenseFormModal({
       setNotes('');
       setReceiptUrl('');
       setSelectedImageUri(null);
+      setSelectedImageBase64(null);
+      setSelectedImageMime(null);
       const defaultMembers = currentUserId ? [currentUserId] : [];
       setSelectedMembers(defaultMembers);
       setShares(createEqualShareMap(defaultMembers, 0));
@@ -339,7 +346,10 @@ export function ExpenseFormModal({
     try {
       const result = await pickImageFromGallery();
       if (!result.canceled && result.assets && result.assets[0]) {
-        setSelectedImageUri(result.assets[0].uri);
+        const a = result.assets[0];
+        setSelectedImageUri(a.uri);
+        setSelectedImageBase64(a.base64 ?? null);
+        setSelectedImageMime(a.mimeType ?? null);
         setReceiptUrl('');
       }
     } catch (error) {
@@ -351,7 +361,10 @@ export function ExpenseFormModal({
     try {
       const result = await takePhoto();
       if (!result.canceled && result.assets && result.assets[0]) {
-        setSelectedImageUri(result.assets[0].uri);
+        const a = result.assets[0];
+        setSelectedImageUri(a.uri);
+        setSelectedImageBase64(a.base64 ?? null);
+        setSelectedImageMime(a.mimeType ?? null);
         setReceiptUrl('');
       }
     } catch (error) {
@@ -368,6 +381,8 @@ export function ExpenseFormModal({
       }
     }
     setSelectedImageUri(null);
+    setSelectedImageBase64(null);
+    setSelectedImageMime(null);
     setReceiptUrl('');
   };
 
@@ -420,7 +435,10 @@ export function ExpenseFormModal({
 
       if (selectedImageUri && !selectedImageUri.startsWith('http')) {
         setIsUploadingImage(true);
-        const uploadResult = await uploadImageToStorage(selectedImageUri);
+        const uploadResult = await uploadImageToStorage(selectedImageUri, 'receipts', 'expenses', {
+          base64: selectedImageBase64,
+          mimeType: selectedImageMime,
+        });
         setIsUploadingImage(false);
 
         if (uploadResult.error) {
