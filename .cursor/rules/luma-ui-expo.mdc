@@ -57,3 +57,4 @@ const { data: expenses } = useSWR(
 ## Componentes
 
 - Priorizar módulos **Expo** quando atenderem ao caso antes de libs nativas extras.
+- **Modais / bottom sheets:** ver `luma-ui-modals.mdc` (`LumaModalOverlay`, `RNModal` transparente, tokens em `modalOverlayTokens.ts`).

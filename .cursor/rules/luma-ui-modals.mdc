@@ -1,0 +1,38 @@
+---
+description: Bottom sheets com blur unificado e shell RNModal
+alwaysApply: false
+globs:
+  - "luma-app/**/*.tsx"
+  - "luma-app/**/*.ts"
+---
+
+# Luma — modais e bottom sheets
+
+## Shell obrigatório (consistência)
+
+- Usar **`Modal` do React Native** (`transparent`, `animationType="none"`, `onRequestClose`, `statusBarTranslucent` quando aplicável) como raiz — não overlay só com `View` absoluta na árvore da tab.
+- Envolver em **`KeyboardAvoidingView`** quando o conteúdo tiver teclado (iOS `padding`, Android `height`, web `undefined`).
+- **Backdrop único:** componente [`luma-app/components/ui/luma-modal-overlay.tsx`](luma-app/components/ui/luma-modal-overlay.tsx) — **`LumaModalOverlay`** com `onRequestClose` (tap fora).
+- **Não** duplicar `BlurView` por região (ex.: faixa extra na dock). Um overlay em tela cheia cobre tab bar e conteúdo.
+
+## Tokens e implementação
+
+- Durações, intensidade e **área mínima do viewport:** [`luma-app/lib/modalOverlayTokens.ts`](luma-app/lib/modalOverlayTokens.ts) (`getModalOverlayDurations`, `getModalOverlayBlurIntensity`, `getModalOverlayLayerStyle`).
+- **Todas as plataformas:** `BlurView` do **expo-blur** — na web o pacote usa `backdrop-filter` / `WebkitBackdropFilter` (`BlurView.web.tsx`); camada extra de scrim `rgba(0,0,0,0.15)` + vinheta só **topo e base** em [`LumaModalOverlay`](luma-app/components/ui/luma-modal-overlay.tsx).
+- **Web:** `getModalOverlayLayerStyle()` define `minHeight` ao tamanho da janela para o backdrop não colapsar dentro do `Modal` transparente.
+
+## Sheet (conteúdo)
+
+- Container do gesto/conteúdo: `GestureHandlerRootView` com `position: 'absolute'`, `inset: 0`, `zIndex: 10`, `justifyContent: 'flex-end'` — igual ao padrão de [`ExpenseFormModal.tsx`](luma-app/components/finances/ExpenseFormModal.tsx) e tela de tarefas.
+- Estilo visual: fundo branco, `rounded-t-[40px]` (ou equivalente), sombra; animação de entrada **`SlideInDown`** com spring (referência atual: damping ~22–24, stiffness ~300–340, mass ~0.75–0.85 no iOS).
+
+## Referências no repositório
+
+- **Nova despesa / editar despesa:** [`ExpenseFormModal.tsx`](luma-app/components/finances/ExpenseFormModal.tsx).
+- **Nova tarefa:** [`app/(tabs)/tasks/index.tsx`](luma-app/app/(tabs)/tasks/index.tsx).
+- Campos de **data** nos formulários: regra [`luma-ui-dates.mdc`](.cursor/rules/luma-ui-dates.mdc).
+
+## O que evitar
+
+- Múltiplas camadas animadas separadas só para blur/vinheta sem o componente compartilhado.
+- Vinheta em quatro bordas duplicando gradientes — o padrão Luma é **dois** gradientes (topo/fundo) via `LumaModalOverlay`.
