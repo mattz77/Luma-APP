@@ -48,7 +48,7 @@ import Animated, {
 import {
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles,
   X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home,
-  Search, ChevronDown, Users, CheckSquare, MoreHorizontal
+  Search, ChevronDown, Users, CheckSquare, MoreHorizontal, Cpu
 } from 'lucide-react-native';
 import { LiquidGlassCard } from '../../components/ui/LiquidGlassCard';
 import { n8nClient } from '@/lib/n8n';
@@ -67,6 +67,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useHouseMembers } from '@/hooks/useHouses';
 import type { HouseMemberWithUser } from '@/types/models';
 import { Colors } from '@/constants/Colors';
+import { buildDashboardActivityPreview } from '@/lib/buildActivityFeed';
+import { ActivityFeedListItem } from '@/components/activity/ActivityFeedListItem';
 
 const { width } = Dimensions.get('window');
 
@@ -212,35 +214,6 @@ const StatCard = ({ icon: Icon, label, value, subtext, highlight = false, onPres
     </BouncyPressable>
   );
 };
-
-type ActivityItemProps = {
-  icon: any;
-  title: string;
-  subtitle: string;
-  time: string;
-  onPress?: () => void;
-};
-
-const ActivityItem = ({ icon: Icon, title, subtitle, time, onPress }: ActivityItemProps) => (
-  <BouncyPressable
-    style={styles.activityItem}
-    onPress={onPress}
-    disabled={!onPress}
-  >
-    <HStack className="items-center flex-1 gap-4">
-      <Box style={styles.activityIconBg}>
-        <Icon size={18} color={Colors.primary} />
-      </Box>
-      <Box className="flex-1 justify-center gap-0.5">
-        <Text size="sm" className="font-semibold text-typography-900 leading-tight" numberOfLines={1}>{title}</Text>
-        <Text size="xs" className="text-typography-500" numberOfLines={1}>{subtitle}</Text>
-      </Box>
-      <Box className="items-end justify-center pl-2">
-        <Text size="xs" className="font-medium text-typography-400 text-[10px]">{time}</Text>
-      </Box>
-    </HStack>
-  </BouncyPressable>
-);
 
 const PulsingSparkles = () => {
   const scale = useSharedValue(1);
@@ -438,51 +411,16 @@ export default function Dashboard() {
       .slice(0, 3);
   }, [tasks]);
 
-  const recentActivity = useMemo(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    // 1. Filter expenses: Current Month only, sort desc, take top 3
-    const recentExpenses = expenses
-      .filter(e => {
-        const date = new Date(e.expenseDate);
-        return date >= startOfMonth && date <= endOfMonth;
-      })
-      .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
-      .slice(0, 3)
-      .map(e => ({
-        id: e.id,
-        type: 'finance' as const,
-        title: e.description,
-        subtitle: `R$ ${Number(e.amount).toFixed(2)}`,
-        date: new Date(e.expenseDate),
-        time: new Date(e.expenseDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }));
-
-    // 2. Filter tasks: Completed, Current Month (updatedAt), sort desc, take top 3
-    const recentTasks = tasks
-      .filter(t => {
-        if (t.status !== 'COMPLETED') return false;
-        const date = new Date(t.updatedAt);
-        return date >= startOfMonth && date <= endOfMonth;
-      })
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 3)
-      .map(t => ({
-        id: t.id,
-        type: 'task' as const,
-        title: t.title,
-        subtitle: 'Concluída',
-        date: new Date(t.updatedAt),
-        time: new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }));
-
-    // 3. Merge and sort by date desc, then limit to top 4 for dashboard preview
-    return [...recentExpenses, ...recentTasks]
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 4);
-  }, [expenses, tasks]);
+  const recentActivity = useMemo(
+    () =>
+      buildDashboardActivityPreview({
+        expenses,
+        tasks,
+        iotFeedItems: [],
+        referenceDate: new Date(),
+      }),
+    [expenses, tasks]
+  );
 
   // --- Handlers (Mantidos) ---
   const handleMagicInput = async () => {
@@ -1004,25 +942,37 @@ export default function Dashboard() {
                           key={`${item.type}-${item.id}-${index}`}
                           entering={FadeInDown.delay(400 + index * 100).springify()}
                         >
-                          <ActivityItem
-                            icon={item.type === 'finance' ? Wallet : CheckCircle}
+                          <ActivityFeedListItem
+                            variant="embedded"
+                            icon={
+                              item.type === 'finance'
+                                ? Wallet
+                                : item.type === 'iot'
+                                  ? Cpu
+                                  : CheckCircle
+                            }
                             title={item.title}
                             subtitle={item.subtitle}
                             time={item.time}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              if (item.type === 'finance') {
-                                router.push({
-                                  pathname: '/(tabs)/finances/[id]',
-                                  params: { id: item.id },
-                                } as any);
-                              } else {
-                                router.push({
-                                  pathname: '/(tabs)/tasks/[id]',
-                                  params: { id: item.id },
-                                } as any);
-                              }
-                            }}
+                            avatarUrl={item.avatarUrl}
+                            onPress={
+                              item.type === 'iot'
+                                ? undefined
+                                : () => {
+                                    Haptics.selectionAsync();
+                                    if (item.type === 'finance') {
+                                      router.push({
+                                        pathname: '/(tabs)/finances/[id]',
+                                        params: { id: item.id },
+                                      } as any);
+                                    } else {
+                                      router.push({
+                                        pathname: '/(tabs)/tasks/[id]',
+                                        params: { id: item.id },
+                                      } as any);
+                                    }
+                                  }
+                            }
                           />
                         </Animated.View>
                       ))}
@@ -1449,37 +1399,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     overflow: 'hidden',
-  },
-  activityItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.03)',
-  },
-  activityIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.primary + '08', // More subtle background
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 0,
-  },
-  activitySubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  activityTime: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '500',
-    opacity: 0.5,
   },
   viewHistoryButton: {
     paddingVertical: 16,
