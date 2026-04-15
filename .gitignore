@@ -15,6 +15,10 @@ build/
 .idea/
 *.log
 
+# Dumps de diagnóstico locais (não versionar)
+erro.md
+**/tsc-errors.txt
+
 # Env / segredos
 .env
 .env.*.local
