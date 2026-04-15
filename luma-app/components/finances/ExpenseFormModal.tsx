@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Modal as RNModal,
+  TextInput,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,11 @@ import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromS
 import { isValidIsoYmd, localIsoDateToday } from '@/lib/dateLocale';
 import { useBottomSheetBackdropFadeStyle } from '@/lib/useBottomSheetBackdropFadeStyle';
 import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
+import {
+  centsDigitsToDisplay,
+  centsDigitsToReais,
+  parseMoneyInputToCentsDigits,
+} from '@/lib/moneyInputBrl';
 import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
 
 import { Input, InputField } from '@/components/ui/input';
@@ -86,7 +92,65 @@ interface ExpenseFormModalProps {
   sheetTranslateY?: SharedValue<number>;
 }
 
-const formatNumber = (value: string) => value.replace(/[^0-9.,]/g, '').replace(',', '.');
+/** Mesmo fluxo do limite mensal (`BudgetLimitModal`): dígitos + máscara BRL na camada visual. */
+function BrlCentOverlayInput(props: {
+  centsDigits: string;
+  onChangeCentsDigits: (text: string, prev: string) => void;
+  minHeight: number;
+  fontSize: number;
+  roundedClassName: string;
+  textAlign: 'left' | 'right' | 'center';
+  accessibilityLabel: string;
+  editable?: boolean;
+}) {
+  const {
+    centsDigits,
+    onChangeCentsDigits,
+    minHeight,
+    fontSize,
+    roundedClassName,
+    textAlign,
+    accessibilityLabel,
+    editable = true,
+  } = props;
+  const display = centsDigitsToDisplay(centsDigits) || 'R$ 0,00';
+
+  return (
+    <View className={`border border-slate-200 bg-white overflow-hidden relative w-full ${roundedClassName}`} style={{ minHeight }}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', paddingHorizontal: 12 }]}
+      >
+        <Text
+          className="font-semibold text-slate-900"
+          style={{ fontSize, width: '100%', textAlign }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {display}
+        </Text>
+      </View>
+      <TextInput
+        value={centsDigits}
+        onChangeText={(text) => onChangeCentsDigits(text, centsDigits)}
+        keyboardType="decimal-pad"
+        editable={editable}
+        autoCorrect={false}
+        autoCapitalize="none"
+        accessibilityLabel={accessibilityLabel}
+        style={{
+          minHeight,
+          width: '100%',
+          opacity: 0.04,
+          fontSize,
+          textAlign,
+          color: '#0f172a',
+        }}
+      />
+    </View>
+  );
+}
 
 const FieldLabel = ({ children }: { children: string }) => (
   <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
@@ -151,19 +215,18 @@ export function ExpenseFormModal({
   );
 
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState<string>('0');
+  const [amountCentsDigits, setAmountCentsDigits] = useState('');
   const [expenseDateIso, setExpenseDateIso] = useState(localIsoDateToday());
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
-  const [receiptUrl, setReceiptUrl] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   /** Base64 do picker (RN: fetch(uri) no upload pode enviar arquivo vazio) */
   const [selectedImageBase64, setSelectedImageBase64] = useState<string | null>(null);
   const [selectedImageMime, setSelectedImageMime] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [shares, setShares] = useState<Record<string, string>>({});
+  const [shareCentsDigits, setShareCentsDigits] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -248,12 +311,14 @@ export function ExpenseFormModal({
 
     if (isEditMode && initialExpense) {
       setDescription(initialExpense.description);
-      setAmount(String(Number(initialExpense.amount)));
+      const amt = Number(initialExpense.amount);
+      setAmountCentsDigits(
+        Number.isFinite(amt) && amt > 0 ? String(Math.round(amt * 100)) : ''
+      );
       setExpenseDateIso(initialExpense.expenseDate.trim().slice(0, 10));
       setCategoryId(initialExpense.categoryId);
       setIsPaid(initialExpense.isPaid);
       setNotes(initialExpense.notes ?? '');
-      setReceiptUrl(initialExpense.receiptUrl ?? '');
       setSelectedImageUri(initialExpense.receiptUrl ?? null);
       setSelectedImageBase64(null);
       setSelectedImageMime(null);
@@ -269,26 +334,32 @@ export function ExpenseFormModal({
       if (splits.length) {
         const shareMap: Record<string, string> = {};
         splits.forEach((split) => {
-          shareMap[split.userId] = String(parseFloat(split.amount));
+          const v = Number(split.amount);
+          shareMap[split.userId] =
+            Number.isFinite(v) && v > 0 ? String(Math.round(v * 100)) : '';
         });
-        setShares(shareMap);
+        setShareCentsDigits(shareMap);
       } else {
-        setShares(createEqualShareMap(memberIds, Number(initialExpense.amount || 0)));
+        setShareCentsDigits(
+          createEqualShareCentsMap(
+            memberIds,
+            Number.isFinite(amt) && amt > 0 ? String(Math.round(amt * 100)) : ''
+          )
+        );
       }
     } else {
       setDescription('');
-      setAmount('0');
+      setAmountCentsDigits('');
       setExpenseDateIso(localIsoDateToday());
       setCategoryId(categories[0]?.id ?? null);
       setIsPaid(false);
       setNotes('');
-      setReceiptUrl('');
       setSelectedImageUri(null);
       setSelectedImageBase64(null);
       setSelectedImageMime(null);
       const defaultMembers = currentUserId ? [currentUserId] : [];
       setSelectedMembers(defaultMembers);
-      setShares(createEqualShareMap(defaultMembers, 0));
+      setShareCentsDigits(createEqualShareCentsMap(defaultMembers, ''));
     }
     setErrorMessage(null);
     setIsAddingCategory(false);
@@ -304,7 +375,7 @@ export function ExpenseFormModal({
           return prev;
         }
         const updatedMembers = prev.filter((id) => id !== memberId);
-        setShares((prevShares) => {
+        setShareCentsDigits((prevShares) => {
           const newShares = { ...prevShares };
           delete newShares[memberId];
           return newShares;
@@ -312,8 +383,8 @@ export function ExpenseFormModal({
         return updatedMembers;
       }
       const updatedMembers = [...prev, memberId];
-      const distributed = createEqualShareMap(updatedMembers, parseFloat(amount) || 0);
-      setShares(distributed);
+      const distributed = createEqualShareCentsMap(updatedMembers, amountCentsDigits);
+      setShareCentsDigits(distributed);
       return updatedMembers;
     });
   };
@@ -323,8 +394,8 @@ export function ExpenseFormModal({
       return;
     }
     Haptics.selectionAsync();
-    const distributed = createEqualShareMap(selectedMembers, parseFloat(amount) || 0);
-    setShares(distributed);
+    const distributed = createEqualShareCentsMap(selectedMembers, amountCentsDigits);
+    setShareCentsDigits(distributed);
   };
 
   const handleAddCategory = async () => {
@@ -350,7 +421,6 @@ export function ExpenseFormModal({
         setSelectedImageUri(a.uri);
         setSelectedImageBase64(a.base64 ?? null);
         setSelectedImageMime(a.mimeType ?? null);
-        setReceiptUrl('');
       }
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -365,7 +435,6 @@ export function ExpenseFormModal({
         setSelectedImageUri(a.uri);
         setSelectedImageBase64(a.base64 ?? null);
         setSelectedImageMime(a.mimeType ?? null);
-        setReceiptUrl('');
       }
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -373,9 +442,9 @@ export function ExpenseFormModal({
   };
 
   const handleRemoveImage = async () => {
-    if (receiptUrl && receiptUrl.startsWith('http')) {
+    if (selectedImageUri?.startsWith('http')) {
       try {
-        await deleteImageFromStorage(receiptUrl);
+        await deleteImageFromStorage(selectedImageUri);
       } catch (error) {
         console.error('Erro ao deletar imagem:', error);
       }
@@ -383,12 +452,11 @@ export function ExpenseFormModal({
     setSelectedImageUri(null);
     setSelectedImageBase64(null);
     setSelectedImageMime(null);
-    setReceiptUrl('');
   };
 
   const handleSubmit = async () => {
     setErrorMessage(null);
-    const parsedAmount = parseFloat(formatNumber(amount));
+    const parsedAmount = centsDigitsToReais(amountCentsDigits);
     if (!description.trim()) {
       setErrorMessage('Descreva a despesa.');
       return;
@@ -406,48 +474,51 @@ export function ExpenseFormModal({
       return;
     }
 
-    const splitValues = selectedMembers.map((memberId) => {
-      const value = parseFloat(formatNumber(shares[memberId] ?? '0'));
-      return { memberId, value };
-    });
-    const totalShares = splitValues.reduce((acc, item) => acc + (Number.isNaN(item.value) ? 0 : item.value), 0);
-    const difference = Math.abs(totalShares - parsedAmount);
-    if (difference > 0.05) {
+    const totalCents = amountCentsDigits ? parseInt(amountCentsDigits, 10) : 0;
+    let sumShareCents = 0;
+    for (const memberId of selectedMembers) {
+      const d = shareCentsDigits[memberId] ?? '';
+      const c = d ? parseInt(d, 10) : 0;
+      sumShareCents += Number.isFinite(c) ? c : 0;
+    }
+    if (sumShareCents !== totalCents) {
       setErrorMessage('A soma das cotas deve ser igual ao valor total da despesa.');
       return;
     }
 
-    const normalizedSplits: MemberShare[] = splitValues.map((item, index) => {
-      let value = item.value;
-      if (index === splitValues.length - 1 && difference > 0) {
-        const adjustment = parsedAmount - (totalShares - item.value);
-        value = adjustment;
-      }
+    const normalizedSplits: MemberShare[] = selectedMembers.map((memberId) => {
+      const digits = shareCentsDigits[memberId] ?? '';
+      const reais = centsDigitsToReais(digits);
+      const safe = Number.isNaN(reais) ? 0 : reais;
       return {
-        userId: item.memberId,
-        amount: Number(value.toFixed(2)),
+        userId: memberId,
+        amount: Number(safe.toFixed(2)),
         isPaid,
       };
     });
 
     try {
-      let finalReceiptUrl = receiptUrl.trim() || null;
+      let finalReceiptUrl: string | null = null;
 
-      if (selectedImageUri && !selectedImageUri.startsWith('http')) {
-        setIsUploadingImage(true);
-        const uploadResult = await uploadImageToStorage(selectedImageUri, 'receipts', 'expenses', {
-          base64: selectedImageBase64,
-          mimeType: selectedImageMime,
-        });
-        setIsUploadingImage(false);
+      if (selectedImageUri) {
+        if (selectedImageUri.startsWith('http')) {
+          finalReceiptUrl = selectedImageUri;
+        } else {
+          setIsUploadingImage(true);
+          const uploadResult = await uploadImageToStorage(selectedImageUri, 'receipts', 'expenses', {
+            base64: selectedImageBase64,
+            mimeType: selectedImageMime,
+          });
+          setIsUploadingImage(false);
 
-        if (uploadResult.error) {
-          setErrorMessage(`Erro ao fazer upload da imagem: ${uploadResult.error}`);
-          return;
-        }
+          if (uploadResult.error) {
+            setErrorMessage(`Erro ao fazer upload da imagem: ${uploadResult.error}`);
+            return;
+          }
 
-        if (uploadResult.url) {
-          finalReceiptUrl = uploadResult.url;
+          if (uploadResult.url) {
+            finalReceiptUrl = uploadResult.url;
+          }
         }
       }
 
@@ -551,16 +622,19 @@ export function ExpenseFormModal({
                       <HStack space="md" className="items-stretch">
                         <VStack space="xs" className="flex-[1.1]">
                           <FieldLabel>Valor (R$)</FieldLabel>
-                          <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
-                            <InputField
-                              value={amount}
-                              onChangeText={(value) => setAmount(formatNumber(value))}
-                              keyboardType="decimal-pad"
-                              placeholder="0,00"
-                              className="text-lg font-semibold text-slate-900 px-3"
-                              placeholderTextColor="#94a3b8"
-                            />
-                          </Input>
+                          <BrlCentOverlayInput
+                            centsDigits={amountCentsDigits}
+                            onChangeCentsDigits={(text, prev) => {
+                              setAmountCentsDigits(parseMoneyInputToCentsDigits(text, prev));
+                              setErrorMessage(null);
+                            }}
+                            minHeight={56}
+                            fontSize={18}
+                            roundedClassName="rounded-2xl"
+                            textAlign="center"
+                            accessibilityLabel="Valor da despesa em reais"
+                            editable={!isSubmitting}
+                          />
                         </VStack>
                         <VStack space="xs" className="flex-1">
                           <FieldLabel>Data</FieldLabel>
@@ -702,16 +776,24 @@ export function ExpenseFormModal({
                                 <Text className="text-slate-900 font-medium flex-1" numberOfLines={1}>
                                   {member.user.name ?? member.user.email}
                                 </Text>
-                                <Input className="w-[110px] h-11 border border-slate-200 bg-white rounded-xl">
-                                  <InputField
-                                    value={shares[memberId] ?? '0'}
-                                    onChangeText={(value) =>
-                                      setShares((prev) => ({ ...prev, [memberId]: formatNumber(value) }))
-                                    }
-                                    keyboardType="decimal-pad"
-                                    className="text-right font-semibold text-slate-900 px-2"
+                                <View className="w-[110px]">
+                                  <BrlCentOverlayInput
+                                    centsDigits={shareCentsDigits[memberId] ?? ''}
+                                    onChangeCentsDigits={(text, prev) => {
+                                      setShareCentsDigits((p) => ({
+                                        ...p,
+                                        [memberId]: parseMoneyInputToCentsDigits(text, prev),
+                                      }));
+                                      setErrorMessage(null);
+                                    }}
+                                    minHeight={44}
+                                    fontSize={15}
+                                    roundedClassName="rounded-xl"
+                                    textAlign="right"
+                                    accessibilityLabel={`Cota em reais de ${member.user.name ?? member.user.email ?? 'membro'}`}
+                                    editable={!isSubmitting}
                                   />
-                                </Input>
+                                </View>
                               </HStack>
                             );
                           })}
@@ -772,17 +854,6 @@ export function ExpenseFormModal({
                             <Text className="text-xs text-slate-500">Enviando imagem...</Text>
                           </HStack>
                         )}
-                        <Text className="text-xs text-slate-400 mt-1">Ou cole a URL do arquivo</Text>
-                        <Input className="h-12 border border-slate-200 bg-white rounded-2xl">
-                          <InputField
-                            value={receiptUrl}
-                            onChangeText={setReceiptUrl}
-                            placeholder="https://..."
-                            editable={!selectedImageUri && !isUploadingImage}
-                            className="text-sm text-slate-900 px-3"
-                            placeholderTextColor="#94a3b8"
-                          />
-                        </Input>
                       </VStack>
 
                       {errorMessage && (
@@ -873,24 +944,27 @@ export function ExpenseFormModal({
   );
 }
 
-const createEqualShareMap = (memberIds: string[], total: number) => {
-  if (!memberIds.length || total <= 0) {
+/** Cotas em dígitos de centavos (mesmo contrato que `parseMoneyInputToCentsDigits`). */
+function createEqualShareCentsMap(memberIds: string[], amountCentsDigits: string) {
+  const totalCents = amountCentsDigits ? parseInt(amountCentsDigits, 10) : 0;
+  if (!memberIds.length || !Number.isFinite(totalCents) || totalCents <= 0) {
     return memberIds.reduce<Record<string, string>>((acc, id) => {
-      acc[id] = '0';
+      acc[id] = '';
       return acc;
     }, {});
   }
-  const equalValue = total / memberIds.length;
+  const n = memberIds.length;
+  const base = Math.floor(totalCents / n);
   return memberIds.reduce<Record<string, string>>((acc, id, index) => {
-    let value = equalValue;
-    if (index === memberIds.length - 1) {
-      const currentTotal = equalValue * (memberIds.length - 1);
-      value = total - currentTotal;
+    if (index === n - 1) {
+      const assigned = base * (n - 1);
+      acc[id] = String(Math.max(0, totalCents - assigned));
+    } else {
+      acc[id] = String(base);
     }
-    acc[id] = value.toFixed(2);
     return acc;
   }, {});
-};
+}
 
 const styles = StyleSheet.create({
   imagePreviewContainer: {

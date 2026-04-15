@@ -1,22 +1,33 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Modal,
+  KeyboardAvoidingView,
+  Modal as RNModal,
   Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Home as HomeIcon, Users, Plus, LogIn, Copy, Settings, UserPlus, UserMinus, Shield, LogOut, ArrowLeft } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
+import Animated, { SlideInDown } from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  ArrowLeft,
+  Home as HomeIcon,
+  Users,
+  Plus,
+  LogIn,
+  Copy,
+  Settings,
+  Shield,
+  LogOut,
+  Camera,
+  X,
+  UserMinus,
+} from 'lucide-react-native';
+
 import {
   useCreateHouse,
   useHouseMembers,
@@ -30,7 +41,28 @@ import { useAuthStore } from '@/stores/auth.store';
 import type { HouseMemberRole, HouseMemberWithUser } from '@/types/models';
 import { Colors } from '@/constants/Colors';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage } from '@/lib/storage';
-import { Camera, X } from 'lucide-react-native';
+import { getTabScrollBottomPadding } from '@/lib/screenLayout';
+import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
+import { Box } from '@/components/ui/box';
+import { VStack } from '@/components/ui/vstack';
+import { HStack } from '@/components/ui/hstack';
+import { Text } from '@/components/ui/text';
+import { Heading } from '@/components/ui/heading';
+import { Pressable } from '@/components/ui/pressable';
+import { ScrollView } from '@/components/ui/scroll-view';
+import { Input, InputField } from '@/components/ui/input';
+import { Toast } from '@/components/ui/Toast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ScreenGreeting } from '@/components/ScreenGreeting';
+import {
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from '@/components/ui/alert-dialog';
+import { Button, ButtonText } from '@/components/ui/button';
 
 const ROLE_LABELS: Record<HouseMemberRole, string> = {
   ADMIN: 'Admin',
@@ -40,22 +72,21 @@ const ROLE_LABELS: Record<HouseMemberRole, string> = {
 
 const formatRole = (role: HouseMemberRole) => ROLE_LABELS[role] ?? 'Membro';
 
-// --- Light Theme Components ---
-const LightGlassCard = ({ children, style }: any) => (
-  <View style={[styles.glassCard, style]}>
-    <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-    <View style={{ backgroundColor: 'rgba(255,255,255,0.6)', ...StyleSheet.absoluteFillObject }} />
-    <View style={{ zIndex: 10 }}>{children}</View>
-  </View>
-);
+type ConfirmState =
+  | null
+  | { type: 'removeMember'; member: HouseMemberWithUser }
+  | { type: 'updateRole'; member: HouseMemberWithUser }
+  | { type: 'leaveHouse' }
+  | { type: 'signOut' };
 
 export default function HouseScreen() {
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
   const setHouseId = useAuthStore((state) => state.setHouseId);
   const signOut = useAuthStore((state) => state.signOut);
-  const { top } = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { height: screenHeight } = useWindowDimensions();
 
   const { data: houses = [], isLoading: housesLoading } = useUserHouses(user?.id);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
@@ -75,6 +106,14 @@ export default function HouseScreen() {
   const [housePhotoBase64, setHousePhotoBase64] = useState<string | null>(null);
   const [housePhotoMime, setHousePhotoMime] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(
+    null
+  );
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ visible: true, message, type });
+  }, []);
 
   const currentHouse = useMemo(
     () => houses.find((item) => item.house.id === houseId) ?? null,
@@ -82,6 +121,42 @@ export default function HouseScreen() {
   );
 
   const isAdmin = currentHouse?.membership.role === 'ADMIN';
+
+  const overlayRootStyle = useMemo(
+    () => ({
+      flex: 1,
+      width: '100%' as const,
+      ...(Platform.OS === 'web' ? { minHeight: screenHeight } : {}),
+    }),
+    [screenHeight],
+  );
+
+  const sheetWrapperStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+      justifyContent: 'flex-end' as const,
+      alignItems: 'stretch' as const,
+    }),
+    [],
+  );
+
+  const sheetOuterStyle = useMemo(
+    () => ({
+      width: '100%' as const,
+      maxHeight: screenHeight * 0.92,
+      backgroundColor: '#FFFFFF',
+      borderTopLeftRadius: 40,
+      borderTopRightRadius: 40,
+      paddingBottom: Math.max(insets.bottom, 8),
+      overflow: 'hidden' as const,
+    }),
+    [screenHeight, insets.bottom],
+  );
 
   useEffect(() => {
     if (!houses.length) {
@@ -100,919 +175,703 @@ export default function HouseScreen() {
     }
   }, [houses, houseId, setHouseId]);
 
+  const copyInviteCode = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      showToast('Código copiado!', 'success');
+    } catch {
+      showToast(`Código: ${code}`, 'error');
+    }
+  };
+
   const handleRemoveMember = (member: HouseMemberWithUser) => {
     if (member.userId === user?.id) {
-      handleLeaveHouse();
+      setConfirm({ type: 'leaveHouse' });
       return;
     }
-
-    Alert.alert(
-      'Remover membro',
-      `Deseja remover ${member.user.name ?? member.user.email} da casa?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Remover',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeMemberMutation.mutateAsync(member.id);
-            } catch (error) {
-              Alert.alert('Erro', (error as Error).message);
-            }
-          },
-        },
-      ],
-    );
+    setConfirm({ type: 'removeMember', member });
   };
 
   const handleUpdateRole = (member: HouseMemberWithUser) => {
-    const currentRole = member.role;
-    const newRole = currentRole === 'ADMIN' ? 'MEMBER' : 'ADMIN';
-
-    Alert.alert(
-      'Alterar permissão',
-      `Deseja alterar a permissão de ${member.user.name ?? member.user.email} para ${ROLE_LABELS[newRole]}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await updateMemberRoleMutation.mutateAsync({
-                membershipId: member.id,
-                role: newRole,
-              });
-            } catch (error) {
-              Alert.alert('Erro', (error as Error).message);
-            }
-          },
-        },
-      ],
-    );
+    setConfirm({ type: 'updateRole', member });
   };
 
   const handleLeaveHouse = () => {
-    if (!houseId) {
+    setConfirm({ type: 'leaveHouse' });
+  };
+
+  const closeConfirm = () => {
+    if (
+      removeMemberMutation.isPending ||
+      leaveHouseMutation.isPending ||
+      updateMemberRoleMutation.isPending
+    ) {
+      return;
+    }
+    setConfirm(null);
+  };
+
+  const runConfirm = async () => {
+    if (!confirm) return;
+    try {
+      if (confirm.type === 'removeMember') {
+        await removeMemberMutation.mutateAsync(confirm.member.id);
+        showToast('Membro removido.', 'success');
+      } else if (confirm.type === 'leaveHouse') {
+        if (!houseId) return;
+        await leaveHouseMutation.mutateAsync();
+        setHouseId(null);
+        showToast('Você saiu da casa.', 'success');
+      } else if (confirm.type === 'updateRole') {
+        const member = confirm.member;
+        const newRole = member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN';
+        await updateMemberRoleMutation.mutateAsync({
+          membershipId: member.id,
+          role: newRole,
+        });
+        showToast('Permissão atualizada.', 'success');
+      } else if (confirm.type === 'signOut') {
+        await signOut();
+        router.replace('/(auth)/login');
+      }
+      setConfirm(null);
+    } catch (error) {
+      showToast((error as Error).message, 'error');
+    }
+  };
+
+  const confirmPending =
+    removeMemberMutation.isPending || leaveHouseMutation.isPending || updateMemberRoleMutation.isPending;
+
+  const confirmTitle = (() => {
+    if (!confirm) return '';
+    if (confirm.type === 'removeMember') return 'Remover membro';
+    if (confirm.type === 'updateRole') return 'Alterar permissão';
+    if (confirm.type === 'leaveHouse') return 'Sair da casa';
+    return 'Sair da conta';
+  })();
+
+  const confirmBody = (() => {
+    if (!confirm) return '';
+    if (confirm.type === 'removeMember') {
+      return `Deseja remover ${confirm.member.user.name ?? confirm.member.user.email} da casa?`;
+    }
+    if (confirm.type === 'updateRole') {
+      const newRole = confirm.member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN';
+      return `Alterar a permissão de ${confirm.member.user.name ?? confirm.member.user.email} para ${ROLE_LABELS[newRole]}?`;
+    }
+    if (confirm.type === 'leaveHouse') {
+      return 'Tem certeza que deseja sair desta casa?';
+    }
+    return 'Tem certeza que deseja sair? Você precisará entrar novamente com e-mail e senha.';
+  })();
+
+  const greetingFirstName = user?.name?.split(' ')[0] ?? '';
+  const scrollBottomPadding = getTabScrollBottomPadding(insets.bottom);
+
+  const pickFromGallery = async () => {
+    try {
+      const result = await pickImageFromGallery();
+      if (!result.canceled && result.assets[0]) {
+        const a = result.assets[0];
+        setHousePhotoUri(a.uri);
+        setHousePhotoBase64(a.base64 ?? null);
+        setHousePhotoMime(a.mimeType ?? null);
+      }
+    } catch {
+      showToast('Não foi possível selecionar a imagem.', 'error');
+    }
+  };
+
+  const pickFromCamera = async () => {
+    try {
+      const result = await takePhoto();
+      if (!result.canceled && result.assets[0]) {
+        const a = result.assets[0];
+        setHousePhotoUri(a.uri);
+        setHousePhotoBase64(a.base64 ?? null);
+        setHousePhotoMime(a.mimeType ?? null);
+      }
+    } catch {
+      showToast('Não foi possível usar a câmera.', 'error');
+    }
+  };
+
+  const submitCreateHouse = async () => {
+    if (!houseNameInput.trim()) {
+      showToast('Informe um nome para a casa.', 'error');
+      return;
+    }
+    if (!user?.id) return;
+
+    try {
+      let photoUrl: string | null = null;
+
+      if (housePhotoUri) {
+        setIsUploadingPhoto(true);
+        try {
+          const uploadResult = await uploadImageToStorage(housePhotoUri, 'houses', 'photos', {
+            base64: housePhotoBase64,
+            mimeType: housePhotoMime,
+          });
+          if (uploadResult.url) {
+            photoUrl = uploadResult.url;
+          }
+        } catch (uploadError) {
+          console.error('Erro ao fazer upload da foto:', uploadError);
+        } finally {
+          setIsUploadingPhoto(false);
+        }
+      }
+
+      const house = await createHouseMutation.mutateAsync({
+        creatorUserId: user.id,
+        name: houseNameInput,
+        address: houseAddressInput ? houseAddressInput : null,
+        photoUrl,
+      });
+
+      setCreateModalVisible(false);
+      setHouseNameInput('');
+      setHouseAddressInput('');
+      setHousePhotoUri(null);
+      setHousePhotoBase64(null);
+      setHousePhotoMime(null);
+
+      setHouseId(house.id);
+      showToast(`Casa criada! Convide com o código ${house.inviteCode}.`, 'success');
+    } catch (error) {
+      console.error('Erro ao criar casa:', error);
+      showToast((error as Error).message, 'error');
+    }
+  };
+
+  const submitJoinHouse = async () => {
+    if (!inviteCodeInput.trim()) {
+      showToast('Informe o código de convite.', 'error');
       return;
     }
 
-    Alert.alert('Sair da casa', 'Tem certeza que deseja sair desta casa?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await leaveHouseMutation.mutateAsync();
-            setHouseId(null);
-          } catch (error) {
-            Alert.alert('Erro', (error as Error).message);
-          }
-        },
-      },
-    ]);
+    try {
+      const house = await joinHouseMutation.mutateAsync({
+        inviteCode: inviteCodeInput.trim(),
+      });
+      setJoinModalVisible(false);
+      setInviteCodeInput('');
+      setHouseId(house.id);
+      showToast(`Bem-vindo à casa ${house.name}!`, 'success');
+    } catch (error) {
+      showToast((error as Error).message, 'error');
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Light Theme Background */}
-      <View style={{ backgroundColor: Colors.background, ...StyleSheet.absoluteFillObject }} />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: top + 16 }]}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
+    <ErrorBoundary>
+      <Box className="flex-1 bg-[#FDFBF7]">
+        <SafeAreaView className="flex-1" edges={['top']}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+            {...(Platform.OS === 'ios' ? { contentInsetAdjustmentBehavior: 'automatic' as const } : {})}
           >
-            <ArrowLeft size={24} color={Colors.primary} />
-          </TouchableOpacity>
-          <View style={styles.headerIconRow}>
-            <View style={styles.homeIconBg}>
-              <HomeIcon size={24} color={Colors.background} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Casa & Membros</Text>
-              <Text style={styles.subtitle}>{houses.length} casa(s)</Text>
-            </View>
-          </View>
-          <Text style={styles.subtitleSecondary}>
-            Gerencie membros, convites e permissões da residência.
-          </Text>
-        </View>
-
-        <LightGlassCard style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Users size={20} color={Colors.primary} />
-            <Text style={styles.sectionTitle}>Minhas casas</Text>
-          </View>
-          {housesLoading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.helperText}>Carregando...</Text>
-            </View>
-          ) : houses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Nenhuma casa ainda</Text>
-              <Text style={styles.helperText}>
-                Crie uma nova ou entre com um código de convite.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.houseList}>
-              {houses.map(({ house, membership }) => (
-                <TouchableOpacity
-                  key={house.id}
-                  style={[
-                    styles.houseListItem,
-                    house.id === houseId && styles.houseListItemActive,
-                  ]}
-                  onPress={() => setHouseId(house.id)}
-                >
-                  <View style={styles.houseIconBg}>
-                    <HomeIcon size={18} color={house.id === houseId ? Colors.primary : Colors.textSecondary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.houseName, house.id === houseId && styles.houseNameActive]}>{house.name}</Text>
-                    <Text style={styles.houseMeta}>
-                      {membership.role === 'ADMIN' ? '👑 Admin' : '👤 Membro'} ·{' '}
-                      {new Date(membership.joinedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={() => {
-                setHouseNameInput('');
-                setHouseAddressInput('');
-                setCreateModalVisible(true);
-              }}
-            >
-              <Plus size={18} color={Colors.background} />
-              <Text style={styles.primaryActionText}>Criar casa</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={() => {
-                setInviteCodeInput('');
-                setJoinModalVisible(true);
-              }}
-            >
-              <LogIn size={18} color={Colors.primary} />
-              <Text style={styles.secondaryActionText}>Entrar</Text>
-            </TouchableOpacity>
-          </View>
-        </LightGlassCard>
-
-        {currentHouse ? (
-          <>
-            <LightGlassCard style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <Settings size={20} color={Colors.primary} />
-                <Text style={styles.cardTitle}>Resumo da casa</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Casa atual:</Text>
-                <Text style={styles.infoValue}>{currentHouse.house.name}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Membros:</Text>
-                <Text style={styles.infoValue}>{members.length}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.inviteButton}
-                onPress={async () => {
-                  const invite = currentHouse.house.inviteCode;
-                  try {
-                    if (Platform.OS === 'web' && navigator?.clipboard) {
-                      await navigator.clipboard.writeText(invite);
-                      Alert.alert('Convite', 'Código copiado! 📋');
-                    } else {
-                      Alert.alert('Convite', `Compartilhe: ${invite}`);
-                    }
-                  } catch {
-                    Alert.alert('Convite', `Código: ${invite}`);
-                  }
-                }}
+            <Box className="px-6 pt-8 pb-4">
+              <Pressable
+                onPress={() => router.back()}
+                className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95] mb-4 self-start"
               >
-                <Copy size={16} color={Colors.background} />
-                <Text style={styles.inviteButtonText}>Copiar código: {currentHouse.house.inviteCode}</Text>
-              </TouchableOpacity>
-            </LightGlassCard>
+                <ArrowLeft size={20} color="#0f172a" />
+              </Pressable>
+              <ScreenGreeting firstName={greetingFirstName} variant="ola" />
+              <Heading size="xl" className="font-bold text-slate-900 mt-1">
+                Casa & Membros
+              </Heading>
+              <Text className="text-sm text-slate-500 mt-1">{houses.length} casa(s)</Text>
+              <Text className="text-xs text-slate-400 mt-2 leading-5">
+                Gerencie membros, convites e permissões da residência.
+              </Text>
+            </Box>
 
-            <LightGlassCard style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <Users size={20} color={Colors.primary} />
-                <Text style={styles.cardTitle}>Membros</Text>
-              </View>
-              {membersLoading ? (
-                <View style={styles.loadingState}>
+            <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+              <HStack className="items-center gap-2 mb-4">
+                <Users size={20} color="#0f172a" />
+                <Heading size="md" className="font-bold text-slate-900">
+                  Minhas casas
+                </Heading>
+              </HStack>
+
+              {housesLoading ? (
+                <VStack className="items-center py-8 gap-2">
                   <ActivityIndicator color={Colors.primary} />
-                </View>
-              ) : members.length === 0 ? (
-                <Text style={styles.helperText}>Nenhum membro encontrado.</Text>
+                  <Text className="text-slate-500 text-sm">Carregando...</Text>
+                </VStack>
+              ) : houses.length === 0 ? (
+                <VStack className="items-center py-8 gap-2">
+                  <Text className="text-slate-900 font-semibold">Nenhuma casa ainda</Text>
+                  <Text className="text-slate-500 text-sm text-center">
+                    Crie uma nova ou entre com um código de convite.
+                  </Text>
+                </VStack>
               ) : (
-                members.map((member) => (
-                  <View key={member.id} style={styles.memberRow}>
-                    <View style={styles.memberIconBg}>
-                      {member.role === 'ADMIN' ? (
-                        <Shield size={16} color={Colors.primary} />
-                      ) : (
-                        <Users size={16} color={Colors.primary} />
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.memberName}>{member.user.name ?? member.user.email}</Text>
-                      <Text style={styles.memberMeta}>
-                        {member.user.email} · {formatRole(member.role)}
-                      </Text>
-                    </View>
-                    <View style={styles.memberActions}>
-                      {member.userId === user?.id ? (
-                        <TouchableOpacity onPress={handleLeaveHouse} style={styles.actionButton}>
-                          <LogOut size={14} color="#FF6B6B" />
-                        </TouchableOpacity>
-                      ) : isAdmin ? (
-                        <>
-                          <TouchableOpacity onPress={() => handleUpdateRole(member)} style={styles.actionButton}>
-                            <Shield size={14} color={Colors.primary} />
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleRemoveMember(member)} style={styles.actionButton}>
-                            <UserMinus size={14} color="#FF6B6B" />
-                          </TouchableOpacity>
-                        </>
-                      ) : null}
-                    </View>
-                  </View>
-                ))
+                <VStack className="gap-3">
+                  {houses.map(({ house, membership }) => {
+                    const active = house.id === houseId;
+                    return (
+                      <Pressable
+                        key={house.id}
+                        onPress={() => setHouseId(house.id)}
+                        className={`flex-row items-center gap-3 p-4 rounded-2xl border ${
+                          active
+                            ? 'border-2 border-[#FDE047] bg-[#FDE047]/10'
+                            : 'border border-slate-100 bg-slate-50'
+                        }`}
+                      >
+                        <Box className="w-10 h-10 rounded-xl bg-white border border-slate-100 items-center justify-center">
+                          <HomeIcon size={18} color={active ? '#0f172a' : '#64748b'} />
+                        </Box>
+                        <VStack className="flex-1">
+                          <Text className={`text-base font-semibold ${active ? 'text-slate-900' : 'text-slate-800'}`}>
+                            {house.name}
+                          </Text>
+                          <Text className="text-xs text-slate-500 mt-1">
+                            {membership.role === 'ADMIN' ? 'Admin' : 'Membro'} ·{' '}
+                            {new Date(membership.joinedAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'short',
+                            })}
+                          </Text>
+                        </VStack>
+                      </Pressable>
+                    );
+                  })}
+                </VStack>
               )}
-            </LightGlassCard>
-          </>
-        ) : null}
 
-        <LightGlassCard style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <LogOut size={20} color="#FF6B6B" />
-            <Text style={[styles.cardTitle, { color: '#FF6B6B' }]}>Sair da conta</Text>
-          </View>
-          <Text style={styles.helperText}>
-            Encerre sua sessão. Você poderá entrar novamente com seu e-mail e senha.
-          </Text>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={async () => {
-              try {
-                await signOut();
-                router.replace('/login' as any);
-              } catch (error) {
-                Alert.alert('Erro ao sair', (error as Error).message);
-              }
-            }}
-          >
-            <LogOut size={18} color={Colors.background} />
-            <Text style={styles.logoutButtonText}>Sair agora</Text>
-          </TouchableOpacity>
-        </LightGlassCard>
+              <HStack className="gap-3 mt-5">
+                <Pressable
+                  onPress={() => {
+                    setHouseNameInput('');
+                    setHouseAddressInput('');
+                    setHousePhotoUri(null);
+                    setHousePhotoBase64(null);
+                    setHousePhotoMime(null);
+                    setCreateModalVisible(true);
+                  }}
+                  className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
+                >
+                  <Plus size={20} color="#0f172a" />
+                  <Text className="text-slate-900 font-bold text-[15px]">Criar casa</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setInviteCodeInput('');
+                    setJoinModalVisible(true);
+                  }}
+                  className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
+                >
+                  <LogIn size={20} color="#0f172a" />
+                  <Text className="text-slate-900 font-bold text-[14px]">Entrar</Text>
+                </Pressable>
+              </HStack>
+            </Box>
 
-        <Modal
-          animationType="slide"
-          transparent
-          visible={isCreateModalVisible}
-          onRequestClose={() => setCreateModalVisible(false)}
-        >
-          <View style={styles.modalBackdrop}>
-            <LightGlassCard style={styles.modalContent}>
-              <View style={styles.modalHeaderRow}>
-                <Plus size={24} color={Colors.primary} />
-                <Text style={styles.modalTitle}>Criar nova casa</Text>
-              </View>
-              <TextInput
-                value={houseNameInput}
-                onChangeText={setHouseNameInput}
-                placeholder="Nome da casa"
-                placeholderTextColor={Colors.textSecondary}
-                style={styles.modalInput}
-              />
-              <TextInput
-                value={houseAddressInput}
-                onChangeText={setHouseAddressInput}
-                placeholder="Endereço (opcional)"
-                placeholderTextColor={Colors.textSecondary}
-                style={styles.modalInput}
-              />
-              
-              {/* Photo Upload */}
-              <View style={styles.photoUploadContainer}>
-                {housePhotoUri ? (
-                  <View style={styles.photoPreviewContainer}>
-                    <Image source={{ uri: housePhotoUri }} style={styles.photoPreview} />
-                    <TouchableOpacity
-                      style={styles.removePhotoButton}
-                      onPress={() => {
-                        setHousePhotoUri(null);
-                        setHousePhotoBase64(null);
-                        setHousePhotoMime(null);
-                      }}
-                    >
-                      <X size={16} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.photoUploadButton}
-                    onPress={async () => {
-                      try {
-                        Alert.alert(
-                          'Selecionar foto',
-                          'Escolha uma opção',
-                          [
-                            { text: 'Galeria', onPress: async () => {
-                              const result = await pickImageFromGallery();
-                              if (!result.canceled && result.assets[0]) {
-                                const a = result.assets[0];
-                                setHousePhotoUri(a.uri);
-                                setHousePhotoBase64(a.base64 ?? null);
-                                setHousePhotoMime(a.mimeType ?? null);
-                              }
-                            }},
-                            ...(Platform.OS !== 'web' ? [{ text: 'Câmera', onPress: async () => {
-                              const result = await takePhoto();
-                              if (!result.canceled && result.assets[0]) {
-                                const a = result.assets[0];
-                                setHousePhotoUri(a.uri);
-                                setHousePhotoBase64(a.base64 ?? null);
-                                setHousePhotoMime(a.mimeType ?? null);
-                              }
-                            }}] : []),
-                            { text: 'Cancelar', style: 'cancel' },
-                          ]
-                        );
-                      } catch (error) {
-                        Alert.alert('Erro', 'Não foi possível selecionar a imagem.');
-                      }
-                    }}
+            {currentHouse ? (
+              <>
+                <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                  <HStack className="items-center gap-2 mb-4">
+                    <Settings size={20} color="#0f172a" />
+                    <Heading size="md" className="font-bold text-slate-900">
+                      Resumo da casa
+                    </Heading>
+                  </HStack>
+                  <HStack className="justify-between items-center py-2">
+                    <Text className="text-sm text-slate-500">Casa atual</Text>
+                    <Text className="text-base font-semibold text-slate-900">{currentHouse.house.name}</Text>
+                  </HStack>
+                  <HStack className="justify-between items-center py-2">
+                    <Text className="text-sm text-slate-500">Membros</Text>
+                    <Text className="text-base font-semibold text-slate-900">{members.length}</Text>
+                  </HStack>
+                  <Pressable
+                    onPress={() => void copyInviteCode(currentHouse.house.inviteCode)}
+                    className="flex-row items-center justify-center gap-2 bg-[#FDE047] h-12 rounded-[24px] mt-3 shadow-lg shadow-yellow-200 active:scale-[0.98]"
                   >
-                    <Camera size={24} color={Colors.primary} />
-                    <Text style={styles.photoUploadText}>Adicionar foto (opcional)</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                    <Copy size={18} color="#0f172a" />
+                    <Text className="text-slate-900 font-bold text-sm" numberOfLines={1}>
+                      Copiar código: {currentHouse.house.inviteCode}
+                    </Text>
+                  </Pressable>
+                </Box>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.modalSecondary}
-                  onPress={() => setCreateModalVisible(false)}
-                  disabled={createHouseMutation.isPending}
+                <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                  <HStack className="items-center gap-2 mb-4">
+                    <Users size={20} color="#0f172a" />
+                    <Heading size="md" className="font-bold text-slate-900">
+                      Membros
+                    </Heading>
+                  </HStack>
+                  {membersLoading ? (
+                    <Box className="items-center py-8">
+                      <ActivityIndicator color={Colors.primary} />
+                    </Box>
+                  ) : members.length === 0 ? (
+                    <Text className="text-slate-500 text-sm">Nenhum membro encontrado.</Text>
+                  ) : (
+                    <VStack className="gap-0">
+                      {members.map((member, index) => (
+                        <HStack
+                          key={member.id}
+                          className={`items-center gap-3 py-4 ${
+                            index < members.length - 1 ? 'border-b border-slate-100' : ''
+                          }`}
+                        >
+                          <Box className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-100 items-center justify-center">
+                            {member.role === 'ADMIN' ? (
+                              <Shield size={16} color="#0f172a" />
+                            ) : (
+                              <Users size={16} color="#64748b" />
+                            )}
+                          </Box>
+                          <VStack className="flex-1">
+                            <Text className="text-base font-semibold text-slate-900">
+                              {member.user.name ?? member.user.email}
+                            </Text>
+                            <Text className="text-xs text-slate-500 mt-0.5">
+                              {member.user.email} · {formatRole(member.role)}
+                            </Text>
+                          </VStack>
+                          <HStack className="gap-2">
+                            {member.userId === user?.id ? (
+                              <Pressable
+                                onPress={handleLeaveHouse}
+                                className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 items-center justify-center"
+                              >
+                                <LogOut size={14} color="#ef4444" />
+                              </Pressable>
+                            ) : isAdmin ? (
+                              <>
+                                <Pressable
+                                  onPress={() => handleUpdateRole(member)}
+                                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 items-center justify-center"
+                                >
+                                  <Shield size={14} color="#0f172a" />
+                                </Pressable>
+                                <Pressable
+                                  onPress={() => handleRemoveMember(member)}
+                                  className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 items-center justify-center"
+                                >
+                                  <UserMinus size={14} color="#ef4444" />
+                                </Pressable>
+                              </>
+                            ) : null}
+                          </HStack>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  )}
+                </Box>
+              </>
+            ) : null}
+
+            <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
+              <HStack className="items-center gap-2 mb-2">
+                <LogOut size={20} color="#dc2626" />
+                <Heading size="md" className="font-bold text-red-600">
+                  Sair da conta
+                </Heading>
+              </HStack>
+              <Text className="text-sm text-slate-500 mb-4 leading-5">
+                Encerre sua sessão. Você poderá entrar novamente com seu e-mail e senha.
+              </Text>
+              <Pressable
+                onPress={() => setConfirm({ type: 'signOut' })}
+                className="flex-row items-center justify-center gap-2 bg-red-50 border border-red-200 h-12 rounded-[24px] active:opacity-90"
+              >
+                <LogOut size={18} color="#dc2626" />
+                <Text className="text-red-600 font-bold">Sair agora</Text>
+              </Pressable>
+            </Box>
+          </ScrollView>
+
+          <AlertDialog isOpen={confirm !== null && confirm.type !== 'signOut'} onClose={closeConfirm}>
+            <AlertDialogBackdrop />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <Heading size="lg">{confirmTitle}</Heading>
+              </AlertDialogHeader>
+              <AlertDialogBody>
+                <Text className="text-slate-600 leading-6">{confirmBody}</Text>
+              </AlertDialogBody>
+              <AlertDialogFooter>
+                <Button variant="outline" action="secondary" onPress={closeConfirm}>
+                  <ButtonText>Cancelar</ButtonText>
+                </Button>
+                <Button
+                  action="negative"
+                  onPress={() => void runConfirm()}
+                  isDisabled={confirmPending}
                 >
-                  <Text style={styles.modalSecondaryText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalPrimary}
-                  onPress={async () => {
-                    if (!houseNameInput.trim()) {
-                      Alert.alert('Campos obrigatórios', 'Informe um nome para a casa.');
-                      return;
-                    }
+                  <ButtonText>
+                    {confirmPending
+                      ? confirm?.type === 'leaveHouse'
+                        ? 'Saindo...'
+                        : 'Aguarde...'
+                      : confirm?.type === 'removeMember'
+                        ? 'Remover'
+                        : confirm?.type === 'updateRole'
+                          ? 'Confirmar'
+                          : 'Sair'}
+                  </ButtonText>
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-                    try {
-                      let photoUrl: string | null = null;
-                      
-                      // Upload foto se houver
-                      if (housePhotoUri) {
-                        setIsUploadingPhoto(true);
-                        try {
-                          const uploadResult = await uploadImageToStorage(housePhotoUri, 'houses', 'photos', {
-                            base64: housePhotoBase64,
-                            mimeType: housePhotoMime,
-                          });
-                          if (uploadResult.url) {
-                            photoUrl = uploadResult.url;
-                          } else {
-                            console.warn('Erro ao fazer upload da foto:', uploadResult.error);
-                          }
-                        } catch (uploadError) {
-                          console.error('Erro ao fazer upload da foto:', uploadError);
-                        } finally {
-                          setIsUploadingPhoto(false);
-                        }
-                      }
+          <AlertDialog isOpen={confirm?.type === 'signOut'} onClose={closeConfirm}>
+            <AlertDialogBackdrop />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <Heading size="lg">Sair da conta</Heading>
+              </AlertDialogHeader>
+              <AlertDialogBody>
+                <Text className="text-slate-600 leading-6">{confirmBody}</Text>
+              </AlertDialogBody>
+              <AlertDialogFooter>
+                <Button variant="outline" action="secondary" onPress={closeConfirm}>
+                  <ButtonText>Cancelar</ButtonText>
+                </Button>
+                <Button action="negative" onPress={() => void runConfirm()} isDisabled={confirmPending}>
+                  <ButtonText>Sair</ButtonText>
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-                      const house = await createHouseMutation.mutateAsync({
-                        creatorUserId: user!.id,
-                        name: houseNameInput,
-                        address: houseAddressInput ? houseAddressInput : null,
-                        photoUrl,
-                      });
+          {toast ? (
+            <Toast
+              visible={toast.visible}
+              message={toast.message}
+              type={toast.type}
+              onDismiss={() => setToast(null)}
+            />
+          ) : null}
+        </SafeAreaView>
 
-                      await new Promise(resolve => setTimeout(resolve, 500));
-
-                      setCreateModalVisible(false);
-                      setHouseNameInput('');
-                      setHouseAddressInput('');
-                      setHousePhotoUri(null);
-                      setHousePhotoBase64(null);
-                      setHousePhotoMime(null);
-
-                      setHouseId(house.id);
-
-                      await new Promise(resolve => setTimeout(resolve, 300));
-
-                      Alert.alert(
-                        'Casa criada',
-                        `Convide membros utilizando o código ${house.inviteCode}.`,
-                      );
-                    } catch (error) {
-                      console.error('Erro ao criar casa:', error);
-                      Alert.alert('Erro ao criar casa', (error as Error).message);
-                    }
-                  }}
-                >
-                  <Text style={styles.modalPrimaryText}>
-                    {createHouseMutation.isPending || isUploadingPhoto
-                      ? isUploadingPhoto
-                        ? 'Enviando foto...'
-                        : 'Salvando...'
-                      : 'Criar casa'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </LightGlassCard>
-          </View>
-        </Modal>
-
-        <Modal
-          animationType="slide"
+        {/* Criar casa */}
+        <RNModal
+          visible={isCreateModalVisible}
           transparent
-          visible={isJoinModalVisible}
-          onRequestClose={() => setJoinModalVisible(false)}
+          animationType="none"
+          onRequestClose={() => !createHouseMutation.isPending && !isUploadingPhoto && setCreateModalVisible(false)}
+          statusBarTranslucent
         >
-          <View style={styles.modalBackdrop}>
-            <LightGlassCard style={styles.modalContent}>
-              <View style={styles.modalHeaderRow}>
-                <LogIn size={24} color={Colors.primary} />
-                <Text style={styles.modalTitle}>Entrar com código</Text>
-              </View>
-              <TextInput
-                value={inviteCodeInput}
-                onChangeText={setInviteCodeInput}
-                autoCapitalize="none"
-                placeholder="Código de convite"
-                placeholderTextColor={Colors.textSecondary}
-                style={styles.modalInput}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+            style={{ flex: 1 }}
+          >
+            <View className="flex-1 justify-end" style={overlayRootStyle}>
+              <LumaModalOverlay
+                onRequestClose={() =>
+                  !createHouseMutation.isPending && !isUploadingPhoto && setCreateModalVisible(false)
+                }
               />
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.modalSecondary}
-                  onPress={() => setJoinModalVisible(false)}
-                  disabled={joinHouseMutation.isPending}
+              <GestureHandlerRootView style={sheetWrapperStyle}>
+                <Animated.View
+                  entering={SlideInDown.springify()
+                    .damping(Platform.OS === 'ios' ? 22 : 24)
+                    .stiffness(Platform.OS === 'ios' ? 340 : 300)
+                    .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
+                  style={sheetOuterStyle}
+                  className="shadow-2xl"
                 >
-                  <Text style={styles.modalSecondaryText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.modalPrimary}
-                  onPress={async () => {
-                    if (!inviteCodeInput.trim()) {
-                      Alert.alert('Campos obrigatórios', 'Informe o código de convite.');
-                      return;
-                    }
+                  <Box className="w-full items-center pt-2 pb-2">
+                    <Box className="w-12 h-1 bg-slate-200 rounded-full" />
+                  </Box>
+                  <HStack className="justify-between items-center px-8 mb-4">
+                    <Heading size="2xl" className="font-bold text-slate-900">
+                      Nova casa
+                    </Heading>
+                    <Pressable
+                      onPress={() => setCreateModalVisible(false)}
+                      isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
+                    >
+                      <X size={18} color="#0f172a" />
+                    </Pressable>
+                  </HStack>
 
-                    try {
-                      const house = await joinHouseMutation.mutateAsync({
-                        inviteCode: inviteCodeInput.trim(),
-                      });
-                      setJoinModalVisible(false);
-                      setInviteCodeInput('');
-                      setHouseId(house.id);
-                      Alert.alert('Bem-vindo!', `Agora você faz parte da casa ${house.name}.`);
-                    } catch (error) {
-                      Alert.alert('Erro ao entrar na casa', (error as Error).message);
-                    }
-                  }}
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 24 }}
+                  >
+                    <VStack className="gap-4 pb-6">
+                      <VStack className="gap-2">
+                        <Text className="text-sm text-slate-500 font-medium">Nome da casa</Text>
+                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                          <InputField
+                            value={houseNameInput}
+                            onChangeText={setHouseNameInput}
+                            placeholder="Nome"
+                            className="text-base text-slate-900 px-3"
+                            placeholderTextColor="#94a3b8"
+                          />
+                        </Input>
+                      </VStack>
+                      <VStack className="gap-2">
+                        <Text className="text-sm text-slate-500 font-medium">Endereço (opcional)</Text>
+                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                          <InputField
+                            value={houseAddressInput}
+                            onChangeText={setHouseAddressInput}
+                            placeholder="Endereço"
+                            className="text-base text-slate-900 px-3"
+                            placeholderTextColor="#94a3b8"
+                          />
+                        </Input>
+                      </VStack>
+
+                      <VStack className="gap-2">
+                        <Text className="text-sm text-slate-500 font-medium">Foto (opcional)</Text>
+                        {housePhotoUri ? (
+                          <Box className="relative w-full h-[120px] rounded-2xl overflow-hidden">
+                            <Image source={{ uri: housePhotoUri }} className="w-full h-full" resizeMode="cover" />
+                            <Pressable
+                              onPress={() => {
+                                setHousePhotoUri(null);
+                                setHousePhotoBase64(null);
+                                setHousePhotoMime(null);
+                              }}
+                              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 items-center justify-center"
+                            >
+                              <X size={16} color="#fff" />
+                            </Pressable>
+                          </Box>
+                        ) : (
+                          <VStack className="gap-2">
+                            <Pressable
+                              onPress={() => void pickFromGallery()}
+                              className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50"
+                            >
+                              <Camera size={22} color="#0f172a" />
+                              <Text className="text-slate-900 font-medium">Galeria</Text>
+                            </Pressable>
+                            {Platform.OS !== 'web' ? (
+                              <Pressable
+                                onPress={() => void pickFromCamera()}
+                                className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-slate-200 bg-white"
+                              >
+                                <Camera size={22} color="#0f172a" />
+                                <Text className="text-slate-900 font-medium">Câmera</Text>
+                              </Pressable>
+                            ) : null}
+                          </VStack>
+                        )}
+                      </VStack>
+
+                      <HStack className="gap-3 justify-end mt-2">
+                        <Button
+                          variant="outline"
+                          action="secondary"
+                          onPress={() => setCreateModalVisible(false)}
+                          isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                        >
+                          <ButtonText>Cancelar</ButtonText>
+                        </Button>
+                        <Button
+                          action="primary"
+                          onPress={() => void submitCreateHouse()}
+                          isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                        >
+                          <ButtonText>
+                            {createHouseMutation.isPending || isUploadingPhoto
+                              ? isUploadingPhoto
+                                ? 'Enviando foto...'
+                                : 'Salvando...'
+                              : 'Criar casa'}
+                          </ButtonText>
+                        </Button>
+                      </HStack>
+                    </VStack>
+                  </ScrollView>
+                </Animated.View>
+              </GestureHandlerRootView>
+            </View>
+          </KeyboardAvoidingView>
+        </RNModal>
+
+        {/* Entrar com código */}
+        <RNModal
+          visible={isJoinModalVisible}
+          transparent
+          animationType="none"
+          onRequestClose={() => !joinHouseMutation.isPending && setJoinModalVisible(false)}
+          statusBarTranslucent
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+            style={{ flex: 1 }}
+          >
+            <View className="flex-1 justify-end" style={overlayRootStyle}>
+              <LumaModalOverlay onRequestClose={() => !joinHouseMutation.isPending && setJoinModalVisible(false)} />
+              <GestureHandlerRootView style={sheetWrapperStyle}>
+                <Animated.View
+                  entering={SlideInDown.springify()
+                    .damping(Platform.OS === 'ios' ? 22 : 24)
+                    .stiffness(Platform.OS === 'ios' ? 340 : 300)
+                    .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
+                  style={sheetOuterStyle}
+                  className="shadow-2xl"
                 >
-                  <Text style={styles.modalPrimaryText}>
-                    {joinHouseMutation.isPending ? 'Entrando...' : 'Entrar na casa'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </LightGlassCard>
-          </View>
-        </Modal>
-      </ScrollView>
-    </View>
+                  <Box className="w-full items-center pt-2 pb-2">
+                    <Box className="w-12 h-1 bg-slate-200 rounded-full" />
+                  </Box>
+                  <HStack className="justify-between items-center px-8 mb-4">
+                    <Heading size="2xl" className="font-bold text-slate-900">
+                      Entrar com código
+                    </Heading>
+                    <Pressable
+                      onPress={() => setJoinModalVisible(false)}
+                      isDisabled={joinHouseMutation.isPending}
+                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
+                    >
+                      <X size={18} color="#0f172a" />
+                    </Pressable>
+                  </HStack>
+
+                  <VStack className="px-8 pb-8 gap-4" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
+                    <VStack className="gap-2">
+                      <Text className="text-sm text-slate-500 font-medium">Código de convite</Text>
+                      <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                        <InputField
+                          value={inviteCodeInput}
+                          onChangeText={setInviteCodeInput}
+                          autoCapitalize="none"
+                          placeholder="Cole o código"
+                          className="text-base text-slate-900 px-3"
+                          placeholderTextColor="#94a3b8"
+                        />
+                      </Input>
+                    </VStack>
+                    <HStack className="gap-3 justify-end">
+                      <Button
+                        variant="outline"
+                        action="secondary"
+                        onPress={() => setJoinModalVisible(false)}
+                        isDisabled={joinHouseMutation.isPending}
+                      >
+                        <ButtonText>Cancelar</ButtonText>
+                      </Button>
+                      <Button action="primary" onPress={() => void submitJoinHouse()} isDisabled={joinHouseMutation.isPending}>
+                        <ButtonText>{joinHouseMutation.isPending ? 'Entrando...' : 'Entrar na casa'}</ButtonText>
+                      </Button>
+                    </HStack>
+                  </VStack>
+                </Animated.View>
+              </GestureHandlerRootView>
+            </View>
+          </KeyboardAvoidingView>
+        </RNModal>
+      </Box>
+    </ErrorBoundary>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: 24,
-    paddingBottom: 40,
-    paddingHorizontal: 24,
-    gap: 20,
-  },
-  headerRow: {
-    marginBottom: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary + '1A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.primary + '4D',
-    alignSelf: 'flex-start',
-  },
-  headerIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  homeIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: Colors.text,
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  subtitleSecondary: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  sectionCard: {
-    padding: 20,
-    gap: 16,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  houseList: {
-    gap: 12,
-  },
-  houseListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 16,
-    padding: 16,
-    backgroundColor: '#FFF',
-  },
-  houseListItemActive: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-    backgroundColor: Colors.primary + '0D',
-  },
-  houseIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  houseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  houseNameActive: {
-    color: Colors.primary,
-  },
-  houseMeta: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  primaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  primaryActionText: {
-    color: Colors.background,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  secondaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    paddingVertical: 14,
-  },
-  secondaryActionText: {
-    color: Colors.primary,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  card: {
-    padding: 20,
-    gap: 16,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  inviteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  inviteButtonText: {
-    color: Colors.background,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  logoutButtonText: {
-    color: Colors.background,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  helperText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-  },
-  loadingState: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 20,
-  },
-  emptyState: {
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 20,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  memberIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  memberName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  memberMeta: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  memberActions: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    padding: 24,
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  modalInput: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 16,
-    color: Colors.text,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-    fontSize: 16,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalSecondary: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.textSecondary + '40',
-  },
-  modalSecondaryText: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  modalPrimary: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-  },
-  modalPrimaryText: {
-    color: Colors.background,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  glassCard: {
-    borderRadius: 24,
-    padding: 20,
-    overflow: 'hidden',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    marginBottom: 24,
-  },
-  photoUploadContainer: {
-    marginVertical: 12,
-  },
-  photoUploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '40',
-    borderStyle: 'dashed',
-    backgroundColor: Colors.primary + '05',
-  },
-  photoUploadText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '500',
-  },
-  photoPreviewContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  photoPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

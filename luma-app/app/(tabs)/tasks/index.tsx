@@ -83,6 +83,7 @@ import { useBottomSheetBackdropFadeStyle } from '@/lib/useBottomSheetBackdropFad
 import { dateToIsoYmdLocal, formatDayAndMonthLongLocal, parseIsoYmdToLocalDate } from '@/lib/dateLocale';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
 import { AnimatedDateStrip } from '@/components/date/AnimatedDateStrip';
+import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 
 // --- Constants & Helpers ---
 
@@ -491,7 +492,10 @@ export default function TasksScreen() {
             isModalOpen={isCreateOpen}
           />
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: getTabScrollBottomPadding(bottom) }}
+          >
             {/* Stats Widget */}
             <StatsWidget totalPoints={totalPoints} completedCount={completedCount} totalCount={tasks.length} />
 

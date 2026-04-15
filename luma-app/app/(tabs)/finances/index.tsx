@@ -43,9 +43,7 @@ import { AlertCircle } from 'lucide-react-native';
 import { formatDayAndMonthLongLocal } from '@/lib/dateLocale';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
 import { AnimatedDateStrip } from '@/components/date/AnimatedDateStrip';
-
-// --- Alinhado ao container do dock em TabBar (iOS: tabBar position absolute) ---
-const TAB_DOCK_OVERLAY_CLEARANCE = 120;
+import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 
 // --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
 const THEMES = {
@@ -360,7 +358,7 @@ export default function FinancesScreen() {
     hasBudget && budgetLimit ? formatCurrency(Number(budgetLimit.amount)) : null;
 
   const greetingFirstName = user?.name?.split(' ')[0] ?? '';
-  const scrollBottomPadding = TAB_DOCK_OVERLAY_CLEARANCE + insets.bottom;
+  const scrollBottomPadding = getTabScrollBottomPadding(insets.bottom);
 
   if (!houseId) {
     return (
