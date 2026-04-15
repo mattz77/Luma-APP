@@ -5,7 +5,23 @@ import { getEnvVar } from '@/lib/utils';
 import type { Database } from '@/types/supabase';
 
 const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+
+/** Chave pública do projeto: publishable (`sb_publishable_…`) ou legado `anon` (JWT). */
+const getSupabasePublicKey = (): string => {
+  const publishable = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (publishable?.trim()) {
+    return publishable.trim();
+  }
+  if (anon?.trim()) {
+    return anon.trim();
+  }
+  throw new Error(
+    'Defina EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ou EXPO_PUBLIC_SUPABASE_ANON_KEY no .env (veja env.example).',
+  );
+};
+
+const supabasePublicKey = getSupabasePublicKey();
 
 const isWeb = Platform.OS === 'web';
 
@@ -33,7 +49,7 @@ const getStorage = () => {
 const storage = getStorage();
 
 const createSupabaseClient = () =>
-  createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  createClient<Database>(supabaseUrl, supabasePublicKey, {
     auth: {
       ...(storage && { storage }),
       persistSession: true,
