@@ -129,7 +129,11 @@ const buildSplitInserts = (expenseId: string, splits: ExpenseSplitInput[]): Expe
 export type { ExpenseInsert, ExpenseUpdate };
 
 export const expenseService = {
-  async getById(id: string, houseId: string): Promise<Expense> {
+  /**
+   * Busca uma despesa por id e casa. Retorna `null` se não existir linha visível
+   * (inexistente, removida ou filtrada por RLS). Usa `.maybeSingle()` para evitar 406 do PostgREST quando há 0 resultados.
+   */
+  async getById(id: string, houseId: string): Promise<Expense | null> {
     const { data, error } = await supabase
       .from('expenses')
       .select(
@@ -137,10 +141,14 @@ export const expenseService = {
       )
       .eq('id', id)
       .eq('house_id', houseId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      throw error ?? new Error('Despesa não encontrada');
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return null;
     }
 
     return mapExpense(data as ExpenseRowWithRelations);
@@ -187,6 +195,9 @@ export const expenseService = {
     }
 
     const expense = await expenseService.getById(expenseRow.id, input.houseId);
+    if (!expense) {
+      throw new Error('Despesa não encontrada após criação');
+    }
 
     // Indexar despesa no RAG (async, não bloqueia)
     RAGService.addDocument({
@@ -195,7 +206,7 @@ export const expenseService = {
       doc_type: 'expense',
       metadata: {
         id: expense.id,
-        amount: expense.amount,
+        amount: Number(expense.amount),
         category: expense.category?.name ?? undefined,
       },
     }).catch((err) => console.warn('[Expense] Falha ao indexar no RAG', err));
@@ -204,7 +215,7 @@ export const expenseService = {
     if (input.splits && input.splits.length > 0) {
       const { notifyNewExpense } = await import('@/hooks/useNotifications');
       // Notificar apenas membros que não são o criador
-      const otherMembers = input.splits.filter((split) => split.userId !== input.created_by_id);
+      const otherMembers = input.splits.filter((split) => split.userId !== input.createdById);
       otherMembers.forEach((split) => {
         notifyNewExpense(expense.id, expense.description, Number(expense.amount), split.userId).catch((err) =>
           console.warn('[Expense] Falha ao enviar notificação', err)
@@ -246,7 +257,11 @@ export const expenseService = {
       }
     }
 
-    return expenseService.getById(expenseRow.id, input.houseId);
+    const updated = await expenseService.getById(expenseRow.id, input.houseId);
+    if (!updated) {
+      throw new Error('Despesa não encontrada após atualização');
+    }
+    return updated;
   },
 
   async remove(id: string, houseId: string): Promise<void> {
@@ -277,7 +292,11 @@ export const expenseService = {
       throw error ?? new Error('Falha ao atualizar status de pagamento');
     }
 
-    return expenseService.getById((data as ExpenseRowWithRelations).id, houseId);
+    const toggled = await expenseService.getById((data as ExpenseRowWithRelations).id, houseId);
+    if (!toggled) {
+      throw new Error('Despesa não encontrada após atualizar pagamento');
+    }
+    return toggled;
   },
 };
 

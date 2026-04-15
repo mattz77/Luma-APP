@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { invalidateExpenseCachesAfterDelete } from '@/lib/expenseQueryCache';
 import { expenseService, type SaveExpenseInput } from '@/services/expense.service';
+import type { Expense } from '@/types/models';
 import { useCanAccessFinances } from './useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -21,7 +23,7 @@ export const useExpenses = (houseId: string | null | undefined) => {
 };
 
 export const useExpense = (expenseId: string | null | undefined, houseId: string | null | undefined) => {
-  return useQuery({
+  return useQuery<Expense | null, Error>({
     queryKey: ['expense', expenseId, houseId],
     queryFn: () => {
       if (!expenseId || !houseId) {
@@ -62,7 +64,7 @@ export const useDeleteExpense = () => {
   return useMutation({
     mutationFn: ({ id, houseId }: { id: string; houseId: string }) => expenseService.remove(id, houseId),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['expenses', variables.houseId] });
+      invalidateExpenseCachesAfterDelete(queryClient, variables);
     },
   });
 };
