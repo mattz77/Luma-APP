@@ -1,11 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { StyleSheet, useWindowDimensions, Platform, View, ScrollView as RNScrollView, Keyboard } from 'react-native';
+import {
+  useWindowDimensions,
+  Platform,
+  View,
+  ScrollView as RNScrollView,
+  Keyboard,
+  Modal as RNModal,
+  KeyboardAvoidingView,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  FadeIn,
-  FadeOut,
   FadeInDown,
   Layout,
   SlideInDown,
@@ -19,9 +25,6 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-
 // Gluestack UI imports
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
@@ -71,6 +74,9 @@ import { Colors } from '@/constants/Colors';
 import { TagInput } from '@/components/TagInput';
 import { Toast } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
+import { LumaModalOverlay } from '@/components/ui/luma-modal-overlay';
+import { dateToIsoYmdLocal, parseIsoYmdToLocalDate } from '@/lib/dateLocale';
 
 // --- Constants & Helpers ---
 
@@ -296,7 +302,8 @@ export default function TasksScreen() {
   const [descriptionInput, setDescriptionInput] = useState('');
   const [priorityInput, setPriorityInput] = useState<TaskPriority>('MEDIUM');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
-  const [deadline, setDeadline] = useState<Date | null>(null);
+  /** `null` = sem prazo; caso contrário `YYYY-MM-DD` (dia local). */
+  const [dueDateIso, setDueDateIso] = useState<string | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
 
   // Gesture values for drag to close
@@ -405,6 +412,43 @@ export default function TasksScreen() {
   const completedCount = useMemo(() => tasks.filter(t => t.status === 'COMPLETED').length, [tasks]);
   const totalPoints = useMemo(() => tasks.reduce((acc, t) => acc + (t.status === 'COMPLETED' ? t.points : 0), 0), [tasks]);
 
+  const prazoShortcuts = useMemo(() => {
+    const t = new Date();
+    const t1 = new Date(t);
+    t1.setDate(t1.getDate() + 1);
+    const t7 = new Date(t);
+    t7.setDate(t7.getDate() + 7);
+    return [
+      { label: 'Hoje' as const, iso: dateToIsoYmdLocal(t) },
+      { label: 'Amanhã' as const, iso: dateToIsoYmdLocal(t1) },
+      { label: 'Próx. Semana' as const, iso: dateToIsoYmdLocal(t7) },
+      { label: 'Sem prazo' as const, iso: null as string | null },
+    ];
+  }, [isCreateOpen]);
+
+  const overlayRootStyle = useMemo(
+    () => ({
+      flex: 1,
+      width: '100%' as const,
+      ...(Platform.OS === 'web' ? { minHeight: screenHeight } : {}),
+    }),
+    [screenHeight]
+  );
+
+  const taskSheetWrapperStyle = useMemo(
+    () => ({
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 10,
+      justifyContent: 'flex-end' as const,
+      alignItems: 'stretch' as const,
+    }),
+    []
+  );
+
   const displayedTasks = useMemo(() => {
     if (showCompleted) {
       return tasks.filter(t => t.status === 'COMPLETED');
@@ -426,7 +470,13 @@ export default function TasksScreen() {
         title: titleInput.trim(),
         description: descriptionInput.trim() || null,
         priority: priorityInput,
-        due_date: deadline?.toISOString() || null,
+        due_date: dueDateIso
+          ? (() => {
+              const d = parseIsoYmdToLocalDate(dueDateIso);
+              d.setHours(12, 0, 0, 0);
+              return d.toISOString();
+            })()
+          : null,
         tags: [],
       });
       showToast('Tarefa criada! 🎉');
@@ -434,7 +484,7 @@ export default function TasksScreen() {
       setTitleInput('');
       setDescriptionInput('');
       setPriorityInput('MEDIUM');
-      setDeadline(null);
+      setDueDateIso(null);
       setSelectedAssigneeIds([]);
       refetch();
     } catch (error) {
@@ -534,102 +584,26 @@ export default function TasksScreen() {
             </Box>
           </ScrollView>
 
-          {/* New Task Bottom Sheet (Custom Implementation) */}
-          {isCreateOpen && (
-            <View className="absolute inset-0 z-[2000] justify-end">
-              {/* Backdrop */}
-              <Animated.View
-                entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
-                exiting={FadeOut.duration(150)}
-                className="absolute inset-0"
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 20 : 30}
-                  tint="light"
-                  style={StyleSheet.absoluteFill}
-                />
-                <View className="absolute inset-0 bg-black/15" />
-                <Pressable
-                  className="flex-1"
-                  onPress={closeModal}
-                />
-              </Animated.View>
-
-              {/* Dock Area Blur - covers dock area without blocking interactions */}
-              <Animated.View
-                entering={FadeIn.duration(Platform.OS === 'ios' ? 250 : 300)}
-                exiting={FadeOut.duration(150)}
-                className="absolute bottom-0 left-0 right-0"
-                style={{ 
-                  height: 120, // Height to cover dock area
-                  zIndex: 1500, // Above backdrop but below modal
-                  pointerEvents: 'none' // Don't block dock interactions
-                }}
-              >
-                <BlurView
-                  intensity={Platform.OS === 'ios' ? 20 : 30}
-                  tint="light"
-                  style={StyleSheet.absoluteFill}
-                />
-                {/* Gradient overlay to blend smoothly */}
-                <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
-                  locations={[0, 0.5, 1]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </Animated.View>
-
-              {/* Vignette Effect - reduzido para não competir com o modal */}
-              <Animated.View
-                entering={FadeIn.duration(400).delay(50)}
-                className="absolute inset-0"
-                pointerEvents="none"
-                style={{ zIndex: 1 }}
-              >
-                {/* Top Vignette */}
-                <LinearGradient
-                  colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0)']}
-                  locations={[0, 0.3, 1]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%' }}
-                />
-                {/* Bottom Vignette */}
-                <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.15)']}
-                  locations={[0, 0.7, 1]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%' }}
-                />
-                {/* Left Vignette */}
-                <LinearGradient
-                  colors={['rgba(0,0,0,0.10)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0)']}
-                  locations={[0, 0.4, 1]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '28%' }}
-                />
-                {/* Right Vignette */}
-                <LinearGradient
-                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.10)']}
-                  locations={[0, 0.6, 1]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '28%' }}
-                />
-              </Animated.View>
-
-              {/* Sheet Content */}
-              <GestureHandlerRootView style={{ width: '100%' }}>
+          <RNModal
+            visible={isCreateOpen}
+            transparent
+            animationType="none"
+            onRequestClose={closeModal}
+            statusBarTranslucent
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+              style={{ flex: 1 }}
+            >
+              <View className="flex-1 justify-end" style={overlayRootStyle}>
+                <LumaModalOverlay onRequestClose={closeModal} />
+                <GestureHandlerRootView style={taskSheetWrapperStyle}>
                 <GestureDetector gesture={panGesture}>
                   <Animated.View
                     entering={SlideInDown.springify()
-                      .damping(Platform.OS === 'ios' ? 18 : 20)
-                      .stiffness(Platform.OS === 'ios' ? 280 : 250)
-                      .mass(Platform.OS === 'ios' ? 0.8 : 1)}
+                      .damping(Platform.OS === 'ios' ? 22 : 24)
+                      .stiffness(Platform.OS === 'ios' ? 340 : 300)
+                      .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
                     // exiting removed to prevent conflict with manual animation
                     className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
                     style={[
@@ -689,19 +663,13 @@ export default function TasksScreen() {
                     </Input>
                   </VStack>
 
-                  {/* Deadline Section */}
+                  {/* Prazo: atalhos + calendário (mesmo padrão do modal de despesa) */}
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prazo</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                      {[
-                        { label: 'Hoje', value: new Date() },
-                        { label: 'Amanhã', value: new Date(Date.now() + 86400000) },
-                        { label: 'Próx. Semana', value: new Date(Date.now() + 7 * 86400000) },
-                        { label: 'Sem prazo', value: null }
-                      ].map((opt, i) => {
-                        const isSelected = opt.value === null
-                          ? deadline === null
-                          : deadline?.toDateString() === opt.value.toDateString();
+                      {prazoShortcuts.map((opt, i) => {
+                        const isSelected =
+                          opt.iso === null ? dueDateIso === null : dueDateIso === opt.iso;
 
                         return (
                           <Pressable
@@ -709,7 +677,7 @@ export default function TasksScreen() {
                             onPress={() => {
                               Keyboard.dismiss();
                               Haptics.selectionAsync();
-                              setDeadline(opt.value);
+                              setDueDateIso(opt.iso);
                             }}
                             className={`px-4 py-2.5 rounded-xl border ${isSelected
                               ? 'bg-[#FDE047] border-[#FDE047]'
@@ -723,6 +691,15 @@ export default function TasksScreen() {
                         );
                       })}
                     </ScrollView>
+                    <VStack space="xs">
+                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Data</Text>
+                      <DatePickerBrazilianField
+                        valueIso={dueDateIso ?? ''}
+                        onChangeIso={(iso) => setDueDateIso(iso)}
+                        placeholder="Toque para escolher no calendário"
+                        accessibilityLabel="Data de prazo da tarefa, abrir calendário"
+                      />
+                    </VStack>
                   </VStack>
 
                   <HStack space="md">
@@ -783,8 +760,9 @@ export default function TasksScreen() {
                 </Animated.View>
                 </GestureDetector>
               </GestureHandlerRootView>
-            </View>
-          )}
+              </View>
+            </KeyboardAvoidingView>
+          </RNModal>
 
           {/* Toast */}
           {toast && (
