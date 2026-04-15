@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,27 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
-import { ArrowLeft, CalendarDays, CheckCircle, Clock, User, Wallet } from 'lucide-react-native';
-import { useExpense } from '@/hooks/useExpenses';
+import { ArrowLeft, CalendarDays, CheckCircle, Clock, Trash2, User, Wallet } from 'lucide-react-native';
+import {
+  AlertDialog,
+  AlertDialogBackdrop,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+} from '@/components/ui/alert-dialog';
+import { Button, ButtonText } from '@/components/ui/button';
+import { Heading } from '@/components/ui/heading';
+import { Toast } from '@/components/ui/Toast';
+import { useDeleteExpense, useExpense } from '@/hooks/useExpenses';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useAuthStore } from '@/stores/auth.store';
 
 const formatCurrency = (value?: number | string) => {
@@ -42,13 +56,49 @@ export default function ExpenseDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const expenseId = params.id ? String(params.id) : null;
-  const { houseId } = useAuthStore();
-  const { data: expense, isLoading, error } = useExpense(expenseId, houseId);
+  const houseId = useAuthStore((s) => s.houseId);
+  const userId = useAuthStore((s) => s.user?.id);
+  const userRole = useUserRole(houseId, userId);
+  const isHouseAdmin = userRole === 'ADMIN';
+  const deleteExpenseMutation = useDeleteExpense();
+  const { data: expense, isLoading, isError, error, isSuccess } = useExpense(expenseId, houseId);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'error' } | null>(null);
 
   const isAuthorized = useMemo(() => {
     if (!expense || !houseId) return true;
     return expense.houseId === houseId;
   }, [expense, houseId]);
+
+  const showDeleteAction =
+    Boolean(isHouseAdmin && expense && isAuthorized && !isLoading && !isError);
+
+  const confirmDeleteExpense = useCallback(async () => {
+    if (!expense) return;
+    try {
+      if (Platform.OS !== 'web') {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+      await deleteExpenseMutation.mutateAsync({ id: expense.id, houseId: expense.houseId });
+      setShowDeleteAlert(false);
+      router.back();
+    } catch (err: unknown) {
+      setShowDeleteAlert(false);
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível excluir a despesa. Tente novamente.';
+      setToast({ visible: true, message, type: 'error' });
+    }
+  }, [deleteExpenseMutation, expense, router]);
+
+  const handleRequestDelete = useCallback(() => {
+    if (!expense) return;
+    setShowDeleteAlert(true);
+  }, [expense]);
+
+  const closeDeleteAlert = useCallback(() => {
+    if (deleteExpenseMutation.isPending) return;
+    setShowDeleteAlert(false);
+  }, [deleteExpenseMutation.isPending]);
 
   const statusLabel = expense?.isPaid ? 'Pago' : 'Pendente';
   const statusColor = expense?.isPaid ? Colors.primary : Colors.textSecondary;
@@ -56,6 +106,15 @@ export default function ExpenseDetailScreen() {
   const renderContent = () => {
     if (!expenseId) {
       return <Text style={styles.message}>Despesa inválida.</Text>;
+    }
+
+    if (expenseId && !houseId) {
+      return (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.message}>Carregando casa...</Text>
+        </View>
+      );
     }
 
     if (isLoading) {
@@ -67,11 +126,41 @@ export default function ExpenseDetailScreen() {
       );
     }
 
-    if (error || !expense || !isAuthorized) {
+    if (isError) {
       return (
-        <Text style={styles.message}>
-          Não foi possível encontrar esta despesa.
-        </Text>
+        <View style={styles.feedbackBlock}>
+          <Text style={styles.message}>
+            {error instanceof Error ? error.message : 'Não foi possível carregar esta despesa. Tente novamente.'}
+          </Text>
+          <Button style={styles.feedbackButton} action="primary" onPress={() => router.back()}>
+            <ButtonText>Voltar</ButtonText>
+          </Button>
+        </View>
+      );
+    }
+
+    if (isSuccess && expense === null) {
+      return (
+        <View style={styles.feedbackBlock}>
+          <Text style={styles.message}>
+            Esta despesa não existe ou não está disponível para a casa atual (pode ter sido removida ou os dados
+            ainda não sincronizaram).
+          </Text>
+          <Button style={styles.feedbackButton} action="primary" onPress={() => router.back()}>
+            <ButtonText>Voltar</ButtonText>
+          </Button>
+        </View>
+      );
+    }
+
+    if (!expense || !isAuthorized) {
+      return (
+        <View style={styles.feedbackBlock}>
+          <Text style={styles.message}>Você não tem acesso a esta despesa.</Text>
+          <Button style={styles.feedbackButton} variant="outline" action="secondary" onPress={() => router.back()}>
+            <ButtonText>Voltar</ButtonText>
+          </Button>
+        </View>
       );
     }
 
@@ -151,9 +240,57 @@ export default function ExpenseDetailScreen() {
             <ArrowLeft size={22} color={Colors.text} />
             <Text style={styles.backText}>Voltar</Text>
           </TouchableOpacity>
-          <Text style={styles.pageTitle}>Detalhes da Despesa</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.pageTitle}>Detalhes da Despesa</Text>
+            {showDeleteAction ? (
+              <TouchableOpacity
+                style={styles.deleteIconButton}
+                onPress={handleRequestDelete}
+                disabled={deleteExpenseMutation.isPending}
+                accessibilityLabel="Excluir despesa"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Trash2 size={22} color="#ef4444" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
           {renderContent()}
         </ScrollView>
+
+        <AlertDialog isOpen={showDeleteAlert} onClose={closeDeleteAlert}>
+          <AlertDialogBackdrop />
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <Heading size="lg">Excluir despesa</Heading>
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              <Text style={styles.deleteDialogBody}>
+                Deseja realmente excluir esta despesa? Essa ação não pode ser desfeita.
+              </Text>
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button variant="outline" action="secondary" onPress={closeDeleteAlert}>
+                <ButtonText>Cancelar</ButtonText>
+              </Button>
+              <Button
+                action="negative"
+                onPress={() => void confirmDeleteExpense()}
+                isDisabled={deleteExpenseMutation.isPending}
+              >
+                <ButtonText>{deleteExpenseMutation.isPending ? 'Removendo...' : 'Excluir'}</ButtonText>
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {toast ? (
+          <Toast
+            visible={toast.visible}
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => setToast(null)}
+          />
+        ) : null}
       </SafeAreaView>
     </View>
   );
@@ -180,11 +317,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 8,
+  },
   pageTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    flex: 1,
+  },
+  deleteIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
   },
   card: {
     borderRadius: 28,
@@ -293,6 +447,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.textSecondary,
     fontSize: 16,
+    lineHeight: 22,
+  },
+  feedbackBlock: {
+    gap: 16,
+    paddingVertical: 24,
+    alignItems: 'stretch',
+  },
+  feedbackButton: {
+    marginTop: 8,
+  },
+  deleteDialogBody: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    lineHeight: 22,
   },
 });
 
