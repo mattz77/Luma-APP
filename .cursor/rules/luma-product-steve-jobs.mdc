@@ -1,0 +1,51 @@
+---
+description: Ao criar telas, fluxos ou componentes mobile, seguir princípios de produto/UX (guia Steve Jobs)
+alwaysApply: false
+globs:
+  - "luma-app/**/*.tsx"
+  - "luma-app/**/*.ts"
+---
+
+# Luma — criação alinhada à experiência (Steve Jobs)
+
+**Fonte detalhada:** `luma-app/docs/Steve_jobs.md` — em dúvida ou trade-off, consultar o guia completo.
+
+Ao **criar** (nova tela, fluxo, feature de UI, componente visível ao usuário), validar mentalmente os itens abaixo antes de considerar pronto.
+
+## Processo (ordem correta)
+
+1. Qual problema do usuário estamos resolvendo?
+2. Qual experiência ideal para resolver isso?
+3. Qual tecnologia/stack encaixa nessa experiência (não o contrário)?
+
+## Os 6 pilares (resumo)
+
+- **Empatia** — necessidade real observada, não só opinião.
+- **Foco** — cortar o que não é essencial; poucas coisas excelentes.
+- **Imprimatur** — responsabilidade pela experiência ponta a ponta (fluxo + estados + erros).
+- **Amigo / especialista** — simples de usar, sólido por baixo.
+- **Emoção** — interações com feedback e tom positivo (sem ser vazio).
+- **Ação** — priorizar o que muda o jogo; medir impacto.
+
+## UI/UX — três pilares Apple
+
+- **Claridade** — propósito óbvio em poucos segundos; texto legível; ícones reconhecíveis.
+- **Consistência** — mesmos padrões de botão, cor, fonte, navegação e animação no app.
+- **Hierarquia** — ação principal primeiro (tamanho, cor, espaço, contraste).
+
+## Design e implementação
+
+- **Design é como funciona** — fluxo, performance, feedback e acessibilidade contam tanto quanto o visual.
+- **Simplicidade** — esconder complexidade do usuário; interface só com o essencial.
+- **Mobile** — gestos familiares; feedback imediato a cada ação; loading/erro claros; ≤ 3 níveis de profundidade quando possível.
+- **Performance é feature** — transições fluidas; evitar bloqueios; listas e imagens pensadas para escala.
+
+## Checklist rápido (criação)
+
+- [ ] Teste de 5 segundos: ação principal óbvia?
+- [ ] Estados: vazio, carregando, erro, sucesso tratados?
+- [ ] Alinhado ao design system Luma (tipografia, cores, ícones já usados no projeto)?
+- [ ] Acessibilidade básica (tamanhos, contraste, leitores quando aplicável)?
+- [ ] Nada foi adicionado “por ter tecnologia legal” sem resolver problema do usuário?
+
+Regras técnicas de stack (Expo, Router, Reanimated, etc.) continuam em `luma-ui-expo.mdc` e em `docs/mpc-guides/`.
