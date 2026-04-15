@@ -1,9 +1,10 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Dimensions,
   Platform,
   type ViewStyle,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -73,6 +74,11 @@ import { Colors } from '@/constants/Colors';
 import { buildDashboardActivityPreview } from '@/lib/buildActivityFeed';
 import { getBudgetUsageColor } from '@/lib/budgetUsageColor';
 import { ActivityFeedListItem } from '@/components/activity/ActivityFeedListItem';
+import { useDashboardSearchStore } from '@/stores/dashboard-search.store';
+import {
+  filterExpensesByDashboardSearch,
+  filterTasksByDashboardSearch,
+} from '@/lib/filterDashboardSearch';
 
 const { width } = Dimensions.get('window');
 
@@ -366,7 +372,7 @@ export default function Dashboard() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
-  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'briefing' | 'magic' | 'user_menu' | null>(null);
+  const [modalMode, setModalMode] = useState<'finance' | 'task' | 'chat' | 'magic' | 'user_menu' | null>(null);
 
   // Função helper para fechar o modal e limpar parâmetros
   const closeModal = () => {
@@ -379,7 +385,7 @@ export default function Dashboard() {
     setSelectedAssigneeId(null);
     setShowAssigneeSelector(false);
     // Limpar o parâmetro action da URL quando fechar qualquer modal
-    if (params.action === 'magic' || params.action === 'briefing') {
+    if (params.action === 'magic') {
       router.setParams({ action: undefined } as any);
     }
   };
@@ -389,17 +395,11 @@ export default function Dashboard() {
       setModalMode('magic');
       setMagicInput('');
       setMagicPreview(null);
-    } else if (params.action === 'briefing') {
-      setModalMode('briefing');
     } else if (params.action === undefined) {
-      // Se o parâmetro foi removido e o modal ainda está aberto, fecha o modal
-      // Mas não chama closeModal() para evitar loop, apenas fecha o estado
       if (modalMode === 'magic') {
         setModalMode(null);
         setMagicInput('');
         setMagicPreview(null);
-      } else if (modalMode === 'briefing') {
-        setModalMode(null);
       }
     }
   }, [params.action]);
@@ -432,6 +432,50 @@ export default function Dashboard() {
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
 
   const isLoading = tasksLoading || expensesLoading || membersLoading;
+
+  const [dailyBriefingText, setDailyBriefingText] = useState('');
+  const [dailyBriefingLoading, setDailyBriefingLoading] = useState(false);
+  const [dailyBriefingError, setDailyBriefingError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadDailyBriefing = useCallback(async () => {
+    if (!houseId || !userId) {
+      return;
+    }
+    setDailyBriefingLoading(true);
+    setDailyBriefingError(null);
+    try {
+      const res = await n8nClient.sendMessage({
+        house_id: houseId,
+        user_id: userId,
+        message:
+          'Gere um resumo executivo breve do dia para a gestão da minha casa (finanças e tarefas). No máximo 4 frases, tom positivo e prático, em português do Brasil.',
+        context: { intent: 'daily_briefing' },
+      });
+      setDailyBriefingText(res.response?.trim() ?? '');
+    } catch {
+      setDailyBriefingError('Não foi possível carregar o resumo. Tente novamente.');
+      setDailyBriefingText('');
+    } finally {
+      setDailyBriefingLoading(false);
+    }
+  }, [houseId, userId]);
+
+  useEffect(() => {
+    void loadDailyBriefing();
+  }, [loadDailyBriefing]);
+
+  const onDashboardRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadDailyBriefing();
+    if (houseId) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['tasks', houseId] }),
+        queryClient.invalidateQueries({ queryKey: ['expenses', houseId] }),
+      ]);
+    }
+    setRefreshing(false);
+  }, [loadDailyBriefing, queryClient, houseId]);
 
   // Atualização em tempo real
   useRealtimeTasks(houseId);
@@ -486,6 +530,19 @@ export default function Dashboard() {
     [expenses, tasks]
   );
 
+  const dashboardSearchQuery = useDashboardSearchStore((s) => s.query);
+  const searchMatchedTasks = useMemo(
+    () => filterTasksByDashboardSearch(tasks, dashboardSearchQuery),
+    [tasks, dashboardSearchQuery]
+  );
+  const searchMatchedExpenses = useMemo(
+    () => filterExpensesByDashboardSearch(expenses, dashboardSearchQuery),
+    [expenses, dashboardSearchQuery]
+  );
+  const showDashboardSearchResults = dashboardSearchQuery.trim().length > 0;
+  const searchHasNoResults =
+    showDashboardSearchResults && searchMatchedTasks.length === 0 && searchMatchedExpenses.length === 0;
+
   // --- Handlers (Mantidos) ---
   const handleMagicInput = async () => {
     if (!magicInput.trim()) return;
@@ -532,13 +589,6 @@ export default function Dashboard() {
     // ...
   };
 
-  const handleDailyBriefing = async () => {
-    setModalMode('briefing');
-    // Set param so TabBar can detect modal is open
-    router.setParams({ action: 'briefing' } as any);
-    // ...
-  };
-
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     setChatHistory(prev => [...prev, { role: 'user', text: chatInput }]);
@@ -549,7 +599,6 @@ export default function Dashboard() {
   const renderModalContent = () => {
     const isChat = modalMode === 'chat';
     const isTask = modalMode === 'task';
-    const isBriefing = modalMode === 'briefing';
     const isFinance = modalMode === 'finance';
     const isMagic = modalMode === 'magic';
 
@@ -560,7 +609,7 @@ export default function Dashboard() {
           <HStack space="sm" className="items-center">
             <Sparkles size={20} color={Colors.primary} />
             <Heading size="lg" className="text-primary-500 font-bold">
-              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isBriefing ? 'Resumo do Dia' : isMagic ? 'Criação Mágica' : 'Análise Financeira'}
+              {isChat ? 'Luma Chat' : isTask ? 'Planejador Mágico' : isMagic ? 'Criação Mágica' : 'Análise Financeira'}
             </Heading>
           </HStack>
           <Pressable onPress={closeModal}>
@@ -749,32 +798,6 @@ export default function Dashboard() {
             </VStack>
           )}
 
-          {/* Daily Briefing Modal */}
-          {isBriefing && (
-            <VStack space="md" className="flex-1 justify-center">
-              {loading ? (
-                <VStack space="sm" className="items-center py-8">
-                  <Spinner size="large" color={Colors.primary} />
-                  <Text size="sm" className="text-typography-500 mt-2">Preparando seu briefing...</Text>
-                </VStack>
-              ) : (
-                <>
-                  <Box style={styles.briefingContainer}>
-                    <LinearGradient
-                      colors={[Colors.palette.merino, 'transparent']}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <Text size="xs" className="font-bold text-typography-500 uppercase tracking-[2px] mb-4">EXECUTIVE SUMMARY</Text>
-                    <Text size="xl" className="text-typography-900 italic leading-7 font-light">"{aiResponse}"</Text>
-                  </Box>
-                  <Button variant="outline" action="primary" onPress={closeModal} className="w-full bg-primary-500/10">
-                    <ButtonText className="text-primary-500 font-bold">Fechar</ButtonText>
-                  </Button>
-                </>
-              )}
-            </VStack>
-          )}
-
           {/* Chat Modal */}
           {isChat && (
             <>
@@ -860,7 +883,17 @@ export default function Dashboard() {
         {isLoading ? (
           <DashboardSkeleton />
         ) : (
-          <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onDashboardRefresh}
+                tintColor={Colors.primary}
+              />
+            }
+          >
 
             {/* New Header */}
             <HStack space="md" className="justify-between items-center px-5 pt-5 mb-6">
@@ -934,6 +967,131 @@ export default function Dashboard() {
               </HStack>
             </Animated.View>
 
+            {/* Resumo do Dia (inline) */}
+            <Animated.View entering={FadeInDown.delay(150).springify()}>
+              <VStack space="sm" className="px-5 mb-4">
+                <HStack className="justify-between items-center mb-2">
+                  <HStack space="sm" className="items-center">
+                    <Sparkles size={18} color={Colors.primary} />
+                    <Heading size="sm" className="font-semibold text-typography-900">
+                      Resumo do Dia
+                    </Heading>
+                  </HStack>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      void loadDailyBriefing();
+                    }}
+                    hitSlop={12}
+                  >
+                    <PulsingSparkles />
+                  </Pressable>
+                </HStack>
+                {dailyBriefingLoading ? (
+                  <HStack space="md" className="items-center py-6 justify-center">
+                    <Spinner size="large" color={Colors.primary} />
+                  </HStack>
+                ) : dailyBriefingError ? (
+                  <Text size="sm" className="text-typography-500 text-center py-2">
+                    {dailyBriefingError}
+                  </Text>
+                ) : (
+                  <Box style={styles.briefingContainer}>
+                    <LinearGradient
+                      colors={[Colors.palette.merino, 'transparent']}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <Text size="xs" className="font-bold text-typography-500 uppercase tracking-[2px] mb-4">
+                      EXECUTIVE SUMMARY
+                    </Text>
+                    <Text size="lg" className="text-typography-900 italic leading-7 font-light">
+                      {dailyBriefingText ? `"${dailyBriefingText}"` : '—'}
+                    </Text>
+                  </Box>
+                )}
+              </VStack>
+            </Animated.View>
+
+            {/* Resultados da busca (TabBar) */}
+            {showDashboardSearchResults && (
+              <Animated.View entering={FadeInDown.delay(160).springify()}>
+                <VStack space="md" className="px-5 mb-6">
+                  <Heading size="sm" className="font-semibold text-typography-900">
+                    Resultados da busca
+                  </Heading>
+                  {searchHasNoResults ? (
+                    <Text size="sm" className="text-typography-500 py-2">
+                      Nenhum resultado
+                    </Text>
+                  ) : (
+                    <VStack space="md">
+                      {searchMatchedTasks.length > 0 && (
+                        <VStack space="sm">
+                          <Text size="xs" className="font-bold text-typography-500 uppercase">
+                            Tarefas
+                          </Text>
+                          {searchMatchedTasks.map((task) => (
+                            <Pressable
+                              key={task.id}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                router.push({
+                                  pathname: '/(tabs)/tasks/[id]',
+                                  params: { id: task.id },
+                                } as any);
+                              }}
+                            >
+                              <Box style={styles.searchResultRow}>
+                                <CheckCircle size={18} color={Colors.primary} />
+                                <Text size="sm" className="text-typography-900 flex-1" numberOfLines={2}>
+                                  {task.title}
+                                </Text>
+                              </Box>
+                            </Pressable>
+                          ))}
+                        </VStack>
+                      )}
+                      {searchMatchedExpenses.length > 0 && (
+                        <VStack space="sm">
+                          <Text size="xs" className="font-bold text-typography-500 uppercase">
+                            Despesas
+                          </Text>
+                          {searchMatchedExpenses.map((expense) => (
+                            <Pressable
+                              key={expense.id}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                router.push({
+                                  pathname: '/(tabs)/finances/[id]',
+                                  params: { id: expense.id },
+                                } as any);
+                              }}
+                            >
+                              <Box style={styles.searchResultRow}>
+                                <Wallet size={18} color={Colors.primary} />
+                                <VStack className="flex-1">
+                                  <Text size="sm" className="text-typography-900" numberOfLines={2}>
+                                    {expense.description}
+                                  </Text>
+                                  <Text size="xs" className="text-typography-500">
+                                    R${' '}
+                                    {Number(expense.amount).toLocaleString('pt-BR', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </Text>
+                                </VStack>
+                              </Box>
+                            </Pressable>
+                          ))}
+                        </VStack>
+                      )}
+                    </VStack>
+                  )}
+                </VStack>
+              </Animated.View>
+            )}
+
             {/* Split Section */}
             <Animated.View entering={FadeInDown.delay(200).springify()}>
               <HStack space="md" className="px-5 h-[220px] mb-8">
@@ -977,9 +1135,6 @@ export default function Dashboard() {
                 >
                   <HStack space="md" className="justify-between items-center mb-4">
                     <Heading size="md" className="text-typography-900">Luma Insight</Heading>
-                    <Pressable onPress={handleDailyBriefing}>
-                      <PulsingSparkles />
-                    </Pressable>
                   </HStack>
                   <Box style={styles.noteContent} className="flex-1">
                     <HStack space="sm" className="mb-4">
@@ -1190,7 +1345,7 @@ export default function Dashboard() {
         </Box>
       )}
 
-      {/* Overlay para outros modais (magic, finance, task, briefing, chat) */}
+      {/* Overlay para outros modais (magic, finance, task, chat) */}
       {modalMode && modalMode !== 'user_menu' && (
         <Box
           style={[StyleSheet.absoluteFill, { zIndex: 1900 }]}
@@ -1548,6 +1703,17 @@ const styles = StyleSheet.create({
   modalSecondaryButtonText: { color: Colors.primary, fontWeight: 'bold', fontSize: 14 },
 
   briefingContainer: { padding: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)', overflow: 'hidden', backgroundColor: '#FFF' },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
   briefingLabel: { color: Colors.textSecondary, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
   briefingText: { color: Colors.text, fontSize: 20, fontStyle: 'italic', lineHeight: 28, fontWeight: '300' },
   briefingCloseButton: { width: '100%', paddingVertical: 12, backgroundColor: Colors.primary + '10', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

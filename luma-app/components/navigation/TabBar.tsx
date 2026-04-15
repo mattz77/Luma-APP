@@ -1,11 +1,11 @@
-import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
+import { LayoutChangeEvent, Platform, StyleSheet, TextInput } from 'react-native';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import { useState, useEffect, useRef } from 'react';
 import { Colors } from '@/constants/Colors';
 import { SpeedDial } from '../SpeedDial';
-import { Home, Wallet, ListTodo, MessageCircle, Plus, Search, X } from 'lucide-react-native';
+import { Home, Wallet, ListTodo, MessageCircle, Plus, Search, Wand2 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
@@ -15,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
+import { useDashboardSearchStore } from '@/stores/dashboard-search.store';
+import { GlobalSearchModal } from '@/components/search/GlobalSearchModal';
 
 // --- Constants ---
 const ICON_SIZE = 24;
@@ -67,9 +69,17 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const [dockWidth, setDockWidth] = useState(0);
     const router = useRouter();
     const params = useLocalSearchParams();
+    const dashboardSearchQuery = useDashboardSearchStore((s) => s.query);
+    const setDashboardSearchQuery = useDashboardSearchStore((s) => s.setQuery);
+    const [searchExpanded, setSearchExpanded] = useState(false);
+    const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+    const searchInputRef = useRef<TextInput | null>(null);
     const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
     const [isSpeedDialVisible, setIsSpeedDialVisible] = useState(false);
     const speedDialButtonRef = useRef<React.ComponentRef<typeof Box> | null>(null);
+
+    const currentRouteName = state.routes[state.index].name;
+    const isHomeTab = currentRouteName === 'index';
 
     // Animation values
     const mainDockOpacity = useSharedValue(1);
@@ -113,29 +123,52 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         router.push('/(tabs)/luma');
     };
 
-    const handleMagicPress = () => {
+    const collapseSearch = () => {
+        searchInputRef.current?.blur();
+        setSearchExpanded(false);
+    };
+
+    const expandSearch = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        setSearchExpanded(true);
+        requestAnimationFrame(() => {
+            setTimeout(() => searchInputRef.current?.focus(), Platform.OS === 'web' ? 0 : 80);
+        });
+    };
+
+    const openSearch = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        if (isHomeTab) {
+            expandSearch();
+        } else {
+            setGlobalSearchOpen(true);
+        }
+    };
+
+    useEffect(() => {
+        if (!isHomeTab) {
+            searchInputRef.current?.blur();
+            setSearchExpanded(false);
+        }
+    }, [isHomeTab]);
+
+    const openMagicCreationModal = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // Navega para home e abre o modal de criação mágica
-        if (currentRouteName === 'index') {
-            // Se já estamos na home, força uma atualização do parâmetro
-            // Primeiro remove o parâmetro (se existir) e depois adiciona novamente
-            // Isso garante que o useEffect sempre dispare
+        const routeName = state.routes[state.index].name;
+        if (routeName === 'index') {
             router.setParams({ action: undefined } as any);
-            // Usa setTimeout para garantir que a remoção aconteça antes da adição
             setTimeout(() => {
                 router.setParams({ action: 'magic' } as any);
             }, 50);
         } else {
-            // Se estamos em outra tela, navega para home com o parâmetro
             router.push('/(tabs)/index?action=magic' as any);
         }
     };
 
     // Hide dock on Luma Chat screen OR when modals are open
-    const currentRouteName = state.routes[state.index].name;
     // Check if any modal-related params are present
     // Note: Only modals using params.action will be detected here
-    // Other modals (briefing, user_menu) may need to set params.action as well
+    // user_menu não usa params.action
     const hasModalOpen = params.action !== undefined && params.action !== null && params.action !== '';
     const shouldHideDock =
         currentRouteName?.includes('luma') ||
@@ -196,6 +229,15 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
     // Speed Dial Actions
     const speedDialActions = [
+        {
+            icon: Wand2,
+            label: 'Criação mágica',
+            onPress: () => {
+                setIsSpeedDialOpen(false);
+                openMagicCreationModal();
+            },
+            backgroundColor: Colors.primary,
+        },
         {
             icon: ListTodo,
             label: 'Nova Tarefa',
@@ -306,23 +348,67 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                     </HStack>
                 </LiquidGlassCard>
 
-                {/* Right: Magic Button */}
-                <Pressable
-                    onPress={handleMagicPress}
-                >
+                {/* Right: busca — colapsada (só lupa); expandida ao toque (placeholder "Buscar") */}
+                {!searchExpanded ? (
+                    <Pressable
+                        onPress={openSearch}
+                        accessibilityRole="button"
+                        accessibilityLabel={isHomeTab ? 'Abrir busca' : 'Abrir busca global'}
+                    >
+                        <LiquidGlassCard
+                            style={styles.searchPillCollapsed}
+                            intensity={85}
+                            tint="systemThinMaterialLight"
+                            skiaHighlight
+                        >
+                            <Box style={styles.searchPillCollapsedInner}>
+                                <Search size={24} color={Colors.text} />
+                            </Box>
+                        </LiquidGlassCard>
+                    </Pressable>
+                ) : (
                     <LiquidGlassCard
-                        style={styles.magicButton}
+                        style={styles.searchPillExpanded}
                         intensity={85}
                         tint="systemThinMaterialLight"
                         skiaHighlight
                     >
-                        <Box style={styles.magicIconContainer}>
-                            <Search size={24} color={Colors.text} />
-                        </Box>
+                        <HStack space="sm" className="items-center px-3 h-full flex-1">
+                            <Pressable
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                                    collapseSearch();
+                                }}
+                                hitSlop={8}
+                                accessibilityRole="button"
+                                accessibilityLabel="Fechar busca"
+                            >
+                                <Search size={18} color={Colors.textSecondary} />
+                            </Pressable>
+                            <TextInput
+                                ref={searchInputRef}
+                                value={dashboardSearchQuery}
+                                onChangeText={setDashboardSearchQuery}
+                                placeholder="Buscar"
+                                placeholderTextColor={Colors.textSecondary}
+                                returnKeyType="search"
+                                clearButtonMode="while-editing"
+                                style={styles.searchInput}
+                                autoCorrect={false}
+                                autoCapitalize="none"
+                                onBlur={() => {
+                                    if (!dashboardSearchQuery.trim()) {
+                                        setSearchExpanded(false);
+                                    }
+                                }}
+                            />
+                        </HStack>
                     </LiquidGlassCard>
-                </Pressable>
+                )}
 
             </Animated.View>
+
+            <GlobalSearchModal visible={globalSearchOpen} onClose={() => setGlobalSearchOpen(false)} />
         </Box>
     );
 }
@@ -347,8 +433,10 @@ const styles = StyleSheet.create({
     dockWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12, // Space between pill and magic button
-        marginBottom: 30, // Restore the bottom margin for the dock itself
+        gap: 12,
+        marginBottom: 30,
+        maxWidth: '100%',
+        paddingHorizontal: 8,
     },
     mainPill: {
         borderRadius: 32,
@@ -356,16 +444,31 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         minWidth: 200, // Ensure enough width for items
     },
-    magicButton: {
+    searchPillCollapsed: {
         width: 64,
         height: 64,
         borderRadius: 32,
-        position: 'relative',
+        justifyContent: 'center',
     },
-    magicIconContainer: {
-        ...StyleSheet.absoluteFillObject,
+    searchPillCollapsedInner: {
+        width: 64,
+        height: 64,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    searchPillExpanded: {
+        height: 64,
+        minWidth: 140,
+        maxWidth: 200,
+        borderRadius: 32,
+        justifyContent: 'center',
+    },
+    searchInput: {
+        flex: 1,
+        minHeight: 40,
+        paddingVertical: Platform.OS === 'web' ? 8 : 6,
+        fontSize: 14,
+        color: Colors.text,
     },
     iconContainer: {
         alignItems: 'center',
