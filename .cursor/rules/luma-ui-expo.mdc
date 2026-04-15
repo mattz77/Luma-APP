@@ -25,6 +25,7 @@ globs:
 ## Feedback de UI
 
 - Loading e estados de erro; **updates otimistas** quando fizer sentido (concluir tarefa, adicionar despesa).
+- **Confirmação** de ações destrutivas: Gluestack **`AlertDialog`**; **mensagens** após sucesso/erro: **`Toast`** Luma — ver [`luma-ui-modals.mdc`](.cursor/rules/luma-ui-modals.mdc).
 
 ## Animações (Reanimated v4)
 

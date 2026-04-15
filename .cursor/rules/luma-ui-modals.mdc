@@ -32,6 +32,20 @@ globs:
 - **Nova tarefa:** [`app/(tabs)/tasks/index.tsx`](luma-app/app/(tabs)/tasks/index.tsx).
 - Campos de **data** nos formulários: regra [`luma-ui-dates.mdc`](.cursor/rules/luma-ui-dates.mdc).
 
+## Confirmações e feedback (padrão Luma)
+
+### Confirmação de ação (destrutiva, irreversível ou que exige decisão explícita)
+
+- Usar sempre **Gluestack `AlertDialog`** em [`luma-app/components/ui/alert-dialog`](luma-app/components/ui/alert-dialog): `AlertDialog`, `AlertDialogBackdrop`, `AlertDialogContent`, `AlertDialogHeader`, `AlertDialogBody`, `AlertDialogFooter`, com **`Heading`** e botões **`Button` / `ButtonText`** (ex.: Cancelar `variant="outline"` `action="secondary"`; confirmar ação destrutiva `action="negative"`).
+- **Não** usar `Alert.alert` do React Native nem `window.confirm` para esse fim: na **web**, `Alert.alert` é no-op em `react-native-web`; o confirm do browser foge do design system.
+- Durante operação assíncrona: texto no botão de confirmação (ex.: “Removendo…”) e **`isDisabled`** nos botões enquanto a mutation estiver pendente; `onClose` do diálogo não deve fechar durante o loading (guardar com estado da mutation).
+- **Referências:** exclusão no modal de despesa [`ExpenseFormModal.tsx`](luma-app/components/finances/ExpenseFormModal.tsx); exclusão nos detalhes [`app/(tabs)/finances/[id].tsx`](luma-app/app/(tabs)/finances/[id].tsx).
+
+### Toast (feedback após ação, não substitui confirmação)
+
+- Para **erro ou sucesso** depois da ação (rede, validação), usar o componente [`luma-app/components/ui/Toast.tsx`](luma-app/components/ui/Toast.tsx) (padrão já usado em telas como tarefas), alinhado ao tom visual do app — **não** substituir o diálogo de confirmação por toast.
+- O **Toast** do pacote Gluestack (`@/components/ui/toast`) fica disponível no provider; preferir o **Toast Luma** acima quando a tela já segue esse padrão.
+
 ## O que evitar
 
 - Múltiplas camadas animadas separadas só para blur/vinheta sem o componente compartilhado.

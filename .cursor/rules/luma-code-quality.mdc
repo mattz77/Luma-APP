@@ -20,6 +20,8 @@ alwaysApply: true
 6. **Reanimated** — `useAnimatedStyle` com diretiva `'worklet'` onde aplicável?
 7. **Webhooks** — autenticação HMAC/JWT conforme padrão do projeto?
 8. **TDD** — para features e mudanças comportamentais relevantes: testes acordados antes da implementação; ciclo red/green verificado (ver `luma-tdd.mdc`).
+9. **Cross-platform** — mudanças de app/UI ou APIs nativas: iOS, Android e Web considerados (ver `luma-cross-platform.mdc`).
+10. **Confirmações destrutivas** — diálogo de confirmação com Gluestack `AlertDialog`, não `Alert.alert`/`window.confirm` (ver `luma-ui-modals.mdc`).
 
 ## Checklist de Pull Request
 
@@ -35,3 +37,4 @@ alwaysApply: true
 - [ ] Inputs validados contra injeção e valores inválidos.
 - [ ] Testes alinhados ao contrato da feature; ciclo red/green conferido (`luma-tdd.mdc`).
 - [ ] Testes revisados para evitar fragilidade e falsos positivos (mocks e asserts no comportamento certo).
+- [ ] Onde houver UI ou integração nativa: perspectiva cross-platform (iOS / Android / Web) conferida.

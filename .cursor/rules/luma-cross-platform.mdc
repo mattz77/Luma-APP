@@ -1,0 +1,21 @@
+---
+description: Ao criar ou alterar código, priorizar soluções que funcionem em iOS, Android e Web (Expo)
+alwaysApply: true
+---
+
+# Luma — cross-platform (Expo)
+
+## Escopo
+
+O app Luma usa **Expo**: novas telas, componentes, navegação, hooks, estilos, animações e integrações com APIs do dispositivo devem ser pensados para **iOS, Android e Web**, salvo decisão explícita de escopo restrito (documentar no PR).
+
+## Ao criar ou alterar qualquer coisa
+
+1. **Preferir** APIs e padrões **Expo / React Native** com suporte documentado nas três plataformas (ou com fallback claro no guia do projeto em `docs/mpc-guides/`).
+2. **Evitar** dependências ou APIs que funcionem só em uma plataforma sem estratégia equivalente nas outras (substituir, isolar em módulo por plataforma ou oferecer fallback de UX).
+3. **Diferenças inevitáveis** — usar `Platform.OS` / `Platform.select`, arquivos por extensão (`.web.tsx`, `.native.tsx`, `.ios.tsx`, `.android.tsx`) ou componentes do design system que já encapsulam o comportamento (ex.: liquid glass: skill `liquid-glass-luma`).
+4. **Validação** — ao planejar a mudança, perguntar: *isso compila e se comporta de forma aceitável no web e nos dois mobile?* Se não souber, sinalizar risco e o que falta testar.
+
+## Backend e regras de negócio
+
+Lógica em Supabase, Edge Functions, Prisma e payloads n8n é **naturalmente cross-platform**; ainda assim, evitar suposições de ambiente (ex.: caminhos de filesystem, headers só de mobile) sem abstração ou contrato explícito.

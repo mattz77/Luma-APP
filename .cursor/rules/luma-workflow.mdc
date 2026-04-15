@@ -9,10 +9,10 @@ alwaysApply: true
 
 1. Entender o pedido e o contexto (PRD, conversa, arquivos citados).
 2. Verificar stack e restrições em `luma-project-identity.mdc` e nas rules globais de segurança.
-3. Planejar antes de codar (arquivos, impacto em schema, rotas Expo, webhooks se houver).
+3. Planejar antes de codar (arquivos, impacto em schema, rotas Expo, webhooks se houver); considerar **cross-platform** (iOS, Android, Web), conforme `luma-cross-platform.mdc`.
 4. Escrever ou atualizar testes primeiro, conforme `luma-tdd.mdc` (cenários cobertos; red antes do green).
 5. Implementar com mudança mínima e coerente com o código existente.
-6. Validar mentalmente RLS/`house_id`, tipos e UX (loading/erro).
+6. Validar mentalmente RLS/`house_id`, tipos, UX (loading/erro) e, quando a mudança for de app/UI, impacto **cross-platform**.
 
 ## Comandos em linguagem natural (Cursor)
 
