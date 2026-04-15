@@ -93,7 +93,7 @@ const ActionButton = ({ icon: Icon, label, onClick, primary = false, delay = 0 }
       onClick={onClick}
       className={`
         w-14 h-14 rounded-2xl flex items-center justify-center
-        border border-[#FFF44F]/30 transition-transform active:scale-95
+        border border-[#FFF44F]/30 transition-transform active:scale-[0.95]
         ${primary 
           ? 'bg-[#FFF44F] border-white text-[#2C1A00]' 
           : 'bg-black/20 text-[#FFF44F] backdrop-blur-sm'}
@@ -350,7 +350,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={handleFinancialInsight}
-                  className="w-full py-2 bg-white/10 rounded-xl border border-[#FFF44F]/30 flex items-center justify-center gap-2 text-[#FFF44F] font-medium active:scale-95 transition-transform hover:bg-white/20"
+                  className="w-full py-2 bg-white/10 rounded-xl border border-[#FFF44F]/30 flex items-center justify-center gap-2 text-[#FFF44F] font-medium active:scale-[0.95] transition-transform hover:bg-white/20"
                 >
                   <Sparkles size={16} /> Analisar Gastos
                 </button>

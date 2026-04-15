@@ -28,10 +28,10 @@ const inputStyle = tva({
       underlined: 'border-0 border-b rounded-none shadow-none',
     },
     size: {
-      sm: 'min-h-8',
-      md: 'min-h-9',
-      lg: 'min-h-11',
-      xl: 'min-h-12',
+      sm: 'min-h-8 max-h-8',
+      md: 'min-h-9 max-h-9',
+      lg: 'min-h-11 max-h-11',
+      xl: 'min-h-12 max-h-12',
     },
   },
   defaultVariants: {
@@ -48,8 +48,9 @@ const inputSlotStyle = tva({
   base: 'justify-center items-center web:disabled:cursor-not-allowed',
 });
 
+/** Base sem `web:` / `ios:` com valor arbitrário — evita crash em `react-native-css` (nativeStyleMapping: path undefined). */
 const inputFieldStyle = tva({
-  base: 'flex-1 text-foreground text-sm md:text-sm py-1 h-full placeholder:text-muted-foreground  web:outline-none ios:leading-[0px] web:cursor-text web:data-[disabled=true]:cursor-not-allowed',
+  base: 'min-h-0 flex-1 text-foreground text-sm md:text-sm py-1 placeholder:text-muted-foreground',
 });
 
 type IInputProps = React.ComponentProps<typeof UIInput> &
@@ -71,7 +72,7 @@ const Input = React.forwardRef<React.ComponentRef<typeof UIInput>, IInputProps>(
         className={inputStyle({
           variant,
           size,
-          class: [className, invalidClass].filter(Boolean).join(' '),
+          class: [className ?? '', invalidClass].filter(Boolean).join(' '),
         })}
         context={{}}
       />
@@ -96,7 +97,7 @@ const InputIcon = React.forwardRef<
     <UIInput.Icon
       ref={ref}
       {...props}
-      className={inputIconStyle({ class: className })}
+      className={inputIconStyle({ class: className ?? '' })}
     />
   );
 });
@@ -113,7 +114,7 @@ const InputSlot = React.forwardRef<
       ref={ref}
       {...props}
       className={inputSlotStyle({
-        class: className,
+        class: className ?? '',
       })}
     />
   );
@@ -131,7 +132,7 @@ const InputField = React.forwardRef<
       ref={ref}
       {...props}
       className={inputFieldStyle({
-        class: className,
+        class: className ?? '',
       })}
     />
   );

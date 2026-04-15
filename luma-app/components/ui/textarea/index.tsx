@@ -33,7 +33,7 @@ const textareaStyle = tva({
 });
 
 const textareaInputStyle = tva({
-  base: 'p-2 web:outline-0 web:outline-none flex-1 text-foreground placeholder:text-foreground/60 web:cursor-text web:data-[disabled=true]:cursor-not-allowed',
+  base: 'p-2 flex-1 text-foreground placeholder:text-foreground/60',
   parentVariants: {
     size: {
       sm: 'text-sm',
@@ -58,7 +58,7 @@ const Textarea = React.forwardRef<
     <UITextarea
       ref={ref}
       {...props}
-      className={textareaStyle({ variant, class: className })}
+      className={textareaStyle({ variant, class: className ?? '' })}
       context={{ size }}
     />
   );
@@ -82,7 +82,7 @@ const TextareaInput = React.forwardRef<
         parentVariants: {
           size: parentSize,
         },
-        class: className,
+        class: className ?? '',
       })}
     />
   );
