@@ -76,7 +76,11 @@ export default function LandingPage() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.logoContainer}>
-              <Sparkles size={28} color={colors.primary[700]} />
+              <Image
+                source={require('@/assets/images/luma-icon.png')}
+                style={styles.logoMark}
+                resizeMode="contain"
+              />
               <Text style={styles.logoText}>Luma</Text>
             </View>
             <Pressable
@@ -122,7 +126,7 @@ export default function LandingPage() {
                 <View style={styles.phoneHeader}>
                   <View style={styles.phoneAvatar}>
                     <Image
-                      source={require('@/assets/illustrations/luma.png')}
+                      source={require('@/assets/images/luma-icon.png')}
                       style={styles.phoneAvatarImage}
                       resizeMode="cover"
                     />
@@ -434,6 +438,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  logoMark: {
+    width: 52,
+    height: 52,
+  },
   logoText: {
     fontSize: 24,
     fontWeight: '700',
@@ -590,9 +598,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.secondary[100],
   },
   phoneAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 57,
+    height: 57,
+    borderRadius: 28.5,
     backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',

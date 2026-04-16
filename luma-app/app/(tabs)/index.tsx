@@ -811,7 +811,7 @@ export default function Dashboard() {
                     {msg.role === 'model' && (
                       <Box style={styles.chatAvatar}>
                         <Image
-                          source={require('@/assets/illustrations/luma.png')}
+                          source={require('@/assets/images/luma-icon.png')}
                           style={styles.chatAvatarImage}
                           alt="Luma"
                         />
@@ -899,7 +899,14 @@ export default function Dashboard() {
             <HStack space="md" className="justify-between items-center px-5 pt-5 mb-6">
               <HStack space="md" className="items-center">
                 <Box style={styles.houseIconBg}>
-                  <Text style={styles.houseInitial}>{houseName.charAt(0)}</Text>
+                  <Image
+                    source={require('@/assets/images/luma-icon.png')}
+                    size="none"
+                    className="h-[62px] w-[62px]"
+                    resizeMode="contain"
+                    style={styles.houseIconImage}
+                    alt="Luma"
+                  />
                 </Box>
                 <Text size="lg" className="font-semibold text-typography-900">{houseName}</Text>
                 <ChevronDown size={16} color={Colors.textSecondary} />
@@ -1423,17 +1430,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   houseIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
   },
-  houseInitial: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 18,
+  houseIconImage: {
+    transform: [{ scale: 1.1 }],
   },
   houseName: {
     color: Colors.text,
@@ -1724,7 +1732,7 @@ const styles = StyleSheet.create({
   chatSendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   chatSendButtonDisabled: { opacity: 0.5, backgroundColor: Colors.textSecondary },
   chatBubbleContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  chatAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4, overflow: 'hidden' },
+  chatAvatar: { width: 47, height: 47, borderRadius: 23.5, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4, overflow: 'hidden' },
   chatAvatarImage: { width: '100%', height: '100%' },
   chatBubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
   chatUser: { backgroundColor: Colors.primary, borderTopRightRadius: 4 },

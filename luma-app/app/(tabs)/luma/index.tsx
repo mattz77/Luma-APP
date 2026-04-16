@@ -275,7 +275,7 @@ export default function LumaChatScreen() {
             <View style={styles.headerTitleContainer}>
               <View style={styles.headerAvatarContainer}>
                 <Image
-                  source={require('@/assets/illustrations/luma.png')}
+                  source={require('@/assets/images/luma-icon.png')}
                   style={styles.headerAvatarImage}
                   resizeMode="cover"
                 />
@@ -363,7 +363,7 @@ export default function LumaChatScreen() {
                     <View style={styles.lumaRow}>
                       <View style={styles.lumaAvatarContainer}>
                         <Image
-                          source={require('@/assets/illustrations/luma.png')}
+                          source={require('@/assets/images/luma-icon.png')}
                           style={styles.lumaAvatarImage}
                           resizeMode="cover"
                         />
@@ -389,7 +389,7 @@ export default function LumaChatScreen() {
                 >
                   <View style={styles.lumaAvatarContainer}>
                     <Image
-                      source={require('@/assets/illustrations/luma.png')}
+                      source={require('@/assets/images/luma-icon.png')}
                       style={styles.lumaAvatarImage}
                       resizeMode="cover"
                     />
@@ -514,9 +514,9 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   headerAvatarContainer: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 57,
+    height: 57,
+    borderRadius: 28.5,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -589,9 +589,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   lumaAvatarContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: Colors.primary + '10',
     alignItems: 'center',
     justifyContent: 'center',
