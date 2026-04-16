@@ -3,7 +3,10 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "test": "bun test",
+    "test": "jest",
+    "test:all": "jest",
+    "test:coverage": "jest --coverage",
+    "test:rls": "bun run test/rls/run-rls-checks.ts",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -88,7 +91,11 @@
   "devDependencies": {
     "@gluestack-ui/icon": "^0.1.27",
     "@tailwindcss/postcss": "^4.2.0",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.12",
     "n8n-mcp": "^2.22.20",
     "react-test-renderer": "19.1.0",
     "tailwindcss": "^4.2.0",

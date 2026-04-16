@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from '@jest/globals';
 import { BUDGET_USAGE_COLORS, getBudgetUsageColor } from './budgetUsageColor';
 
 describe('getBudgetUsageColor', () => {
