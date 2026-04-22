@@ -1,0 +1,207 @@
+name: CI - Luma APP
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  BUN_VERSION: '1.0.0'
+
+jobs:
+  # ========================================
+  # Job 1: Unit Tests + Coverage
+  # ========================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './luma-app/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:ci
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./luma-app/coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+
+  # ========================================
+  # Job 2: Coverage Check (file-level)
+  # ========================================
+  coverage-check:
+    name: Coverage Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './luma-app/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check test coverage
+        run: npm run test:coverage:check
+        continue-on-error: true
+
+  # ========================================
+  # Job 3: RLS Integration Tests
+  # ========================================
+  rls-tests:
+    name: RLS Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    env:
+      RLS_TEST_SUPABASE_URL: ${{ secrets.RLS_TEST_SUPABASE_URL }}
+      RLS_TEST_SUPABASE_ANON_KEY: ${{ secrets.RLS_TEST_SUPABASE_ANON_KEY }}
+      RLS_TEST_USER_A_EMAIL: ${{ secrets.RLS_TEST_USER_A_EMAIL }}
+      RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
+      RLS_TEST_USER_B_EMAIL: ${{ secrets.RLS_TEST_USER_B_EMAIL }}
+      RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
+      RLS_TEST_HOUSE_A_ID: ${{ secrets.RLS_TEST_HOUSE_A_ID }}
+      RLS_TEST_HOUSE_B_ID: ${{ secrets.RLS_TEST_HOUSE_B_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run RLS tests
+        run: bun run test:rls
+
+  # ========================================
+  # Job 4: E2E Web Tests (Playwright)
+  # ========================================
+  e2e-web:
+    name: E2E Web Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    env:
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './luma-app/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e:web -- --project=chromium
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: luma-app/playwright-report/
+          retention-days: 7
+
+  # ========================================
+  # Job 5: Lint & Type Check
+  # ========================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './luma-app/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint --if-present
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+  # ========================================
+  # Summary Job
+  # ========================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, coverage-check, lint]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "Coverage Check: ${{ needs.coverage-check.result }}"
+          echo "Lint: ${{ needs.lint.result }}"
+
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then
+            echo "::error::Unit tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.lint.result }}" == "failure" ]]; then
+            echo "::error::Lint failed"
+            exit 1
+          fi
+
+          echo "✓ All required checks passed"
