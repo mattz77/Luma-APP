@@ -16,11 +16,11 @@ export type QuerySnapshot = {
   updatePayload?: unknown;
 };
 
-type ResolvePayload = { data: unknown; error: unknown };
+type ResolvePayload = { data: unknown; error: unknown; count?: number | null };
 
 export function createSupabaseMock() {
   const snapshots: QuerySnapshot[] = [];
-  let fallbackResult: ResolvePayload = { data: null, error: null };
+  let fallbackResult: ResolvePayload = { data: null, error: null, count: null };
   const resultQueue: ResolvePayload[] = [];
 
   const invokeFunctions = new Map<
@@ -101,7 +101,7 @@ export function createSupabaseMock() {
       error: null,
     })),
     from: (table: string) => ({
-      select: () => filterBuilder(table, 'select'),
+      select: (_cols?: string, _options?: { count?: 'exact'; head?: boolean }) => filterBuilder(table, 'select'),
       insert: (payload: unknown) => ({
         select: () => filterBuilder(table, 'insert', { insertPayload: payload }),
       }),
@@ -122,6 +122,23 @@ export function createSupabaseMock() {
         return { data: null, error: null };
       }),
     },
+    storage: {
+      from: jest.fn(() => ({
+        upload: jest.fn().mockResolvedValue({ data: { path: 'test/path.jpg' }, error: null }),
+        getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/test.jpg' } }),
+        remove: jest.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+    },
+    auth: {
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      signInWithPassword: jest.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+      signUp: jest.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+      signOut: jest.fn().mockResolvedValue({ error: null }),
+      signInWithOAuth: jest.fn().mockResolvedValue({ data: { url: null, provider: null }, error: null }),
+      onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
+      resetPasswordForEmail: jest.fn().mockResolvedValue({ data: null, error: null }),
+      resend: jest.fn().mockResolvedValue({ data: null, error: null }),
+    },
   };
 
   return {
@@ -133,8 +150,12 @@ export function createSupabaseMock() {
       return [...snapshots];
     },
     /** Próxima resposta se a fila estiver vazia */
-    setNextResult(data: unknown, error: unknown = null) {
-      fallbackResult = { data, error };
+    setNextResult(data: unknown, error: unknown = null, count?: number | null) {
+      fallbackResult = { data, error, count };
+    },
+    /** Define resultado de contagem para queries com head: true */
+    setNextCountResult(count: number | null, error: unknown = null) {
+      fallbackResult = { data: null, error, count };
     },
     /** Várias respostas na ordem (insert → splits → getById, etc.) */
     enqueueResults(...results: ResolvePayload[]) {
@@ -143,12 +164,21 @@ export function createSupabaseMock() {
     reset() {
       snapshots.length = 0;
       resultQueue.length = 0;
-      fallbackResult = { data: null, error: null };
+      fallbackResult = { data: null, error: null, count: null };
       invokeFunctions.clear();
       channelMocks.channel.mockClear();
       channelMocks.removeChannel.mockClear();
       (client.functions.invoke as jest.Mock).mockClear();
       (client.rpc as jest.Mock).mockClear();
+      (client.storage.from as jest.Mock).mockClear();
+      (client.auth.getUser as jest.Mock).mockClear();
+      (client.auth.signInWithPassword as jest.Mock).mockClear();
+      (client.auth.signUp as jest.Mock).mockClear();
+      (client.auth.signOut as jest.Mock).mockClear();
+      (client.auth.signInWithOAuth as jest.Mock).mockClear();
+      (client.auth.onAuthStateChange as jest.Mock).mockClear();
+      (client.auth.resetPasswordForEmail as jest.Mock).mockClear();
+      (client.auth.resend as jest.Mock).mockClear();
     },
     registerFunctionInvoke(
       name: string,
@@ -157,6 +187,12 @@ export function createSupabaseMock() {
       invokeFunctions.set(name, impl);
     },
     channelMocks,
+    get storageMock() {
+      return client.storage;
+    },
+    get authMock() {
+      return client.auth;
+    },
   };
 }
 

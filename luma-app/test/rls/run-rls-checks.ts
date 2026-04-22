@@ -1,86 +1,84 @@
 /**
  * Suíte de integração RLS — requer Supabase real (local ou staging).
  *
- * Variáveis:
+ * Variáveis de ambiente necessárias:
  * - RLS_TEST_SUPABASE_URL
- * - RLS_TEST_SUPABASE_ANON_KEY (ou publishable)
+ * - RLS_TEST_SUPABASE_ANON_KEY (ou RLS_TEST_SUPABASE_PUBLISHABLE_KEY)
  * - RLS_TEST_USER_A_EMAIL / RLS_TEST_USER_A_PASSWORD (membro da casa A)
  * - RLS_TEST_USER_B_EMAIL / RLS_TEST_USER_B_PASSWORD (membro da casa B)
+ * - RLS_TEST_HOUSE_A_ID (ID da casa A)
+ * - RLS_TEST_HOUSE_B_ID (ID da casa B)
  *
  * Sem variáveis, encerra com código 0 e mensagem (não falha CI).
+ *
+ * Uso: npx ts-node test/rls/run-rls-checks.ts
  */
-import { createClient } from '@supabase/supabase-js';
+import { getTestConfig } from './helpers/rls-test-client';
+import { runTasksRlsChecks } from './checks/tasks.rls';
+import { runExpensesRlsChecks } from './checks/expenses.rls';
+import { runNotificationsRlsChecks } from './checks/notifications.rls';
 
-const url = process.env.RLS_TEST_SUPABASE_URL;
-const anon = process.env.RLS_TEST_SUPABASE_ANON_KEY ?? process.env.RLS_TEST_SUPABASE_PUBLISHABLE_KEY;
+interface CheckResult {
+  table: string;
+  passed: boolean;
+}
 
 async function main() {
-  if (!url?.trim() || !anon?.trim()) {
-    console.log('[RLS] Pulando: defina RLS_TEST_SUPABASE_URL e chave anon/publishable.');
+  const config = getTestConfig();
+
+  if (!config) {
+    console.log('[RLS] Pulando: defina as variáveis de ambiente para teste RLS.');
+    console.log('  Necessárias: RLS_TEST_SUPABASE_URL, RLS_TEST_SUPABASE_ANON_KEY');
+    console.log('  Necessárias: RLS_TEST_USER_A_EMAIL, RLS_TEST_USER_A_PASSWORD');
+    console.log('  Necessárias: RLS_TEST_USER_B_EMAIL, RLS_TEST_USER_B_PASSWORD');
+    console.log('  Necessárias: RLS_TEST_HOUSE_A_ID, RLS_TEST_HOUSE_B_ID');
     process.exit(0);
   }
 
-  const emailA = process.env.RLS_TEST_USER_A_EMAIL;
-  const passA = process.env.RLS_TEST_USER_A_PASSWORD;
-  const emailB = process.env.RLS_TEST_USER_B_EMAIL;
-  const passB = process.env.RLS_TEST_USER_B_PASSWORD;
+  console.log('\n========================================');
+  console.log('   RLS Integration Tests - Luma APP');
+  console.log('========================================\n');
 
-  if (!emailA || !passA || !emailB || !passB) {
-    console.log('[RLS] Pulando: defina credenciais RLS_TEST_USER_*_EMAIL / PASSWORD para dois usuários.');
+  const results: CheckResult[] = [];
+
+  try {
+    console.log('Executando checks RLS para tasks...');
+    results.push({ table: 'tasks', passed: await runTasksRlsChecks(config) });
+
+    console.log('\nExecutando checks RLS para expenses...');
+    results.push({ table: 'expenses', passed: await runExpensesRlsChecks(config) });
+
+    console.log('\nExecutando checks RLS para notifications...');
+    results.push({ table: 'notifications', passed: await runNotificationsRlsChecks(config) });
+
+  } catch (error) {
+    console.error('[RLS] Erro durante execução:', error);
+    process.exit(1);
+  }
+
+  console.log('\n========================================');
+  console.log('           RESUMO FINAL');
+  console.log('========================================');
+
+  let allPassed = true;
+  for (const r of results) {
+    const status = r.passed ? '✓' : '✗';
+    console.log(`  ${status} ${r.table}`);
+    if (!r.passed) allPassed = false;
+  }
+
+  console.log('========================================');
+
+  if (allPassed) {
+    console.log('✓ TODOS OS CHECKS RLS PASSARAM');
     process.exit(0);
-  }
-
-  const clientA = createClient(url, anon);
-  const { error: errA } = await clientA.auth.signInWithPassword({ email: emailA, password: passA });
-  if (errA) {
-    console.error('[RLS] Falha login usuário A:', errA.message);
-    process.exit(1);
-  }
-
-  const { data: sessA } = await clientA.auth.getSession();
-  const houseA = process.env.RLS_TEST_HOUSE_A_ID;
-  if (!houseA) {
-    console.log('[RLS] Opcional: RLS_TEST_HOUSE_A_ID para assert de escopo.');
-    await clientA.auth.signOut();
-    process.exit(0);
-  }
-
-  const { data: tasks, error: qErr } = await clientA.from('tasks').select('id').eq('house_id', houseA).limit(5);
-
-  if (qErr) {
-    console.error('[RLS] Query tasks como usuário A:', qErr.message);
-    await clientA.auth.signOut();
-    process.exit(1);
-  }
-
-  console.log('[RLS] Usuário A: leitura tasks na casa permitida, linhas:', tasks?.length ?? 0);
-
-  await clientA.auth.signOut();
-
-  const clientB = createClient(url, anon);
-  const { error: errB } = await clientB.auth.signInWithPassword({ email: emailB, password: passB });
-  if (errB) {
-    console.error('[RLS] Falha login usuário B:', errB.message);
-    process.exit(1);
-  }
-
-  const { data: leak, error: crossErr } = await clientB.from('tasks').select('id').eq('house_id', houseA).limit(5);
-
-  if (crossErr) {
-    console.log('[RLS] Cross-tenant: erro ao ler casa alheia (esperado em algumas políticas):', crossErr.message);
-  } else if ((leak?.length ?? 0) === 0) {
-    console.log('[RLS] Cross-tenant: nenhuma linha da casa A visível para B (OK).');
   } else {
-    console.error('[RLS] FALHA: usuário B enxergou tarefas da casa A.');
-    await clientB.auth.signOut();
+    console.log('✗ ALGUNS CHECKS FALHARAM - VERIFICAR POLÍTICAS RLS');
     process.exit(1);
   }
-
-  await clientB.auth.signOut();
-  console.log('[RLS] Checagens básicas concluídas. Sessão A:', !!sessA?.session);
 }
 
 main().catch((e) => {
-  console.error('[RLS]', e);
+  console.error('[RLS] Erro fatal:', e);
   process.exit(1);
 });
