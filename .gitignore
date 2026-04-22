@@ -66,8 +66,9 @@ analise-completa-fluxos-n8n.md
 test-results-luma-n8n.md
 luma-app/docs/
 
-# Scripts e configuracoes locais
-luma-app/scripts/
+# Scripts e configuracoes locais (exceto orquestrador versionado de relatorios de teste)
+luma-app/scripts/*
+!luma-app/scripts/run-test-report-all.ts
 luma-app/.cursor/
 # MCP Config (pode conter tokens sensíveis)
 .cursor/mcp.json

@@ -19,7 +19,7 @@
     "test:coverage:new-files": "bun run scripts/check-new-files-coverage.ts",
     "test:report": "jest --ci --coverage --json --outputFile=test-results/jest-results.json --reporters=default --reporters=jest-junit",
     "test:report:summary": "bun run scripts/generate-test-summary.ts",
-    "test:report:all": "npm run test:report && npm run test:report:summary",
+    "test:report:all": "bun run scripts/run-test-report-all.ts",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
