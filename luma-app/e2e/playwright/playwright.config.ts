@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const e2ePort = Number(process.env.E2E_WEB_PORT || 8087);
+const e2eBaseURL = process.env.E2E_BASE_URL || `http://localhost:${e2ePort}`;
+
 export default defineConfig({
   testDir: './specs',
   fullyParallel: true,
@@ -9,7 +12,7 @@ export default defineConfig({
   reporter: 'html',
 
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:8081',
+    baseURL: e2eBaseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -38,9 +41,10 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run web',
-    url: 'http://localhost:8081',
+    command: `npx expo start --web --port ${e2ePort}`,
+    url: e2eBaseURL,
+    cwd: '../..',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 300 * 1000,
   },
 });

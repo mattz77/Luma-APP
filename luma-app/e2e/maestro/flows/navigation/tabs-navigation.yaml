@@ -1,0 +1,41 @@
+# Flow: Navegacao entre tabs principais
+# Tags: navigation, tabs
+appId: com.luma.app
+---
+- launchApp
+- runFlow: ../helpers/do-login.yaml
+
+- runFlow:
+    file: ../helpers/navigate-to.yaml
+    env:
+      TARGET_TAB: tab-index
+- assertVisible:
+    id: tab-index
+
+- runFlow:
+    file: ../helpers/navigate-to.yaml
+    env:
+      TARGET_TAB: tab-tasks/index
+- assertVisible:
+    id: tab-tasks/index
+
+- runFlow:
+    file: ../helpers/navigate-to.yaml
+    env:
+      TARGET_TAB: tab-finances/index
+- assertVisible:
+    id: tab-finances/index
+
+- runFlow:
+    file: ../helpers/navigate-to.yaml
+    env:
+      TARGET_TAB: tab-house/index
+- assertVisible:
+    id: tab-house/index
+
+- runFlow:
+    file: ../helpers/navigate-to.yaml
+    env:
+      TARGET_TAB: tab-luma
+- assertVisible:
+    id: tab-luma

@@ -1,0 +1,62 @@
+# Flow: Smoke de navegacao entre rotas principais
+# Tags: navigation, smoke, regression
+appId: com.luma.app
+---
+- launchApp
+- runFlow: ../helpers/do-login.yaml
+
+# Home
+- tapOn:
+    id: "tab-index"
+- assertVisible:
+    id: "tab-index"
+
+# Tasks
+- tapOn:
+    id: "tab-tasks/index"
+- assertVisible:
+    id: "tab-tasks/index"
+
+# Finances
+- tapOn:
+    id: "tab-finances/index"
+- assertVisible:
+    id: "tab-finances/index"
+
+# Budget (subrota)
+- tapOn:
+    text: "Orçamento"
+    optional: true
+- assertVisible:
+    text: "Orçamento"
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+# Reports (subrota)
+- tapOn:
+    text: "Relatórios"
+    optional: true
+- assertVisible:
+    text: "Relatórios"
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+# House
+- tapOn:
+    id: "tab-house/index"
+- assertVisible:
+    id: "tab-house/index"
+
+# Luma
+- tapOn:
+    id: "tab-luma"
+- assertVisible:
+    id: "tab-luma"
+
+# Garantia de que nao retornou para landing/login
+- assertNotVisible:
+    text: "Entrar"

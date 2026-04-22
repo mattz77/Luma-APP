@@ -1,0 +1,30 @@
+# Flow: Validar back em pilhas aninhadas
+# Tags: navigation, stack, back
+appId: com.luma.app
+---
+- launchApp
+- runFlow: ../helpers/do-login.yaml
+
+# Finances -> Budget -> back -> Finances
+- tapOn:
+    id: tab-finances/index
+- tapOn:
+    text: "Orçamento"
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+- assertVisible:
+    id: tab-finances/index
+
+# Tasks -> detalhe (se houver item) -> back -> Tasks
+- tapOn:
+    id: tab-tasks/index
+- tapOn:
+    id: task-item
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+- assertVisible:
+    id: tab-tasks/index

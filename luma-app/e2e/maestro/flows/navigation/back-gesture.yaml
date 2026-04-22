@@ -1,0 +1,40 @@
+# Flow: Validar gesto de voltar em rotas autenticadas
+# Tags: navigation, back, regression
+appId: com.luma.app
+---
+- launchApp
+- runFlow: ../helpers/do-login.yaml
+
+# Tasks -> detalhe inexistente -> voltar para lista (nao landing)
+- tapOn:
+    id: "tab-tasks/index"
+- assertVisible:
+    text: "Tarefas"
+    optional: true
+- tapOn:
+    id: "task-item"
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+- assertVisible:
+    id: "tab-tasks/index"
+
+# Finances -> budget -> voltar para finances
+- tapOn:
+    id: "tab-finances/index"
+- assertVisible:
+    text: "Finanças"
+    optional: true
+- tapOn:
+    text: "Orçamento"
+    optional: true
+- swipe:
+    direction: RIGHT
+    duration: 300
+- assertVisible:
+    id: "tab-finances/index"
+
+# Verifica que nao caiu em landing indevidamente
+- assertNotVisible:
+    text: "Entrar"

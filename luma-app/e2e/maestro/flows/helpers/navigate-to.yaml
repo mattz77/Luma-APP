@@ -1,0 +1,10 @@
+# Helper: navegar para uma tab principal por testID
+# Uso:
+# - runFlow:
+#     file: ../helpers/navigate-to.yaml
+#     env:
+#       TARGET_TAB: tab-tasks/index
+appId: com.luma.app
+---
+- tapOn:
+    id: ${TARGET_TAB}
