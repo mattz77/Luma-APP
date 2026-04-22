@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Dimensions,
@@ -902,7 +902,7 @@ export default function Dashboard() {
                   <Image
                     source={require('@/assets/images/luma-icon.png')}
                     size="none"
-                    className="h-[62px] w-[62px]"
+                    className="h-10 w-10"
                     resizeMode="contain"
                     style={styles.houseIconImage}
                     alt="Luma"
@@ -1430,9 +1430,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   houseIconBg: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1732,7 +1732,7 @@ const styles = StyleSheet.create({
   chatSendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   chatSendButtonDisabled: { opacity: 0.5, backgroundColor: Colors.textSecondary },
   chatBubbleContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  chatAvatar: { width: 47, height: 47, borderRadius: 23.5, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4, overflow: 'hidden' },
+  chatAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 4, overflow: 'hidden' },
   chatAvatarImage: { width: '100%', height: '100%' },
   chatBubble: { maxWidth: '80%', padding: 12, borderRadius: 16 },
   chatUser: { backgroundColor: Colors.primary, borderTopRightRadius: 4 },

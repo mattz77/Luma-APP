@@ -439,8 +439,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoMark: {
-    width: 52,
-    height: 52,
+    width: 30,
+    height: 30,
   },
   logoText: {
     fontSize: 24,
@@ -598,9 +598,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.secondary[100],
   },
   phoneAvatar: {
-    width: 57,
-    height: 57,
-    borderRadius: 28.5,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',

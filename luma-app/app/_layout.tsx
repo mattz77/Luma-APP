@@ -1,5 +1,7 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+
+import { authFontsMap } from '@/lib/auth/loadAuthFonts';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -31,9 +33,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // App uses lucide-react-native, not FontAwesome - no fonts needed
-  // Using empty object to satisfy useFonts API
-  const [loaded, error] = useFonts({});
+  const [loaded, error] = useFonts(authFontsMap);
   const [fontLoadTimeout, setFontLoadTimeout] = useState(false);
   const initializeAuth = useAuthStore((state) => state.initialize);
 
@@ -89,8 +89,7 @@ export default function RootLayout() {
     });
   }, [initializeAuth]);
 
-  // Don't block app if fonts fail to load or timeout
-  // Since we're not using any custom fonts, we can proceed immediately
+  // Telas de auth usam fonte do sistema; useFonts({}) retorna rápido; fallback após timeout
   if (!loaded && !fontLoadTimeout && !error) {
     console.log('[RootLayout] Waiting for fonts to load...');
     return null;
