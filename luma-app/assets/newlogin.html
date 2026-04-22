@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Luma — Assistente Pessoal para Casas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200..700;1,9..40,200..700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========== VARIÁVEIS DE DESIGN ========== */
+    :root {
+      --bg-deep: #0C0E14;
+      --bg-surface: #13151D;
+      --bg-card: rgba(22, 25, 36, 0.85);
+      --border: rgba(212, 175, 55, 0.12);
+      --border-focus: rgba(212, 175, 55, 0.4);
+      --amber: #D4AF37;
+      --amber-light: #E8C84A;
+      --amber-glow: rgba(212, 175, 55, 0.15);
+      --amber-soft: rgba(212, 175, 55, 0.06);
+      --blue-stain: #1B3A5C;
+      --purple-stain: #4A2060;
+      --text-primary: #F0EDE5;
+      --text-secondary: rgba(240, 237, 229, 0.55);
+      --text-muted: rgba(240, 237, 229, 0.3);
+      --error: #E05252;
+      --success: #4ADE80;
+      --input-bg: rgba(255, 255, 255, 0.04);
+      --google-bg: rgba(255, 255, 255, 0.06);
+      --google-border: rgba(255, 255, 255, 0.1);
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+    }
+
+    /* ========== RESET E BASE ========== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ========== FUNDO ATMOSFÉRICO ========== */
+    .scene-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    /* Gradiente base */
+    .scene-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(212, 175, 55, 0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 35% at 20% 80%, rgba(27, 58, 92, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 35% 30% at 85% 70%, rgba(74, 32, 96, 0.12) 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg-deep) 0%, #0A0C12 100%);
+    }
+
+    /* Brilhos flutuantes — vitral */
+    .light-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      animation: orbFloat 8s ease-in-out infinite;
+    }
+
+    .light-orb:nth-child(1) {
+      width: 200px;
+      height: 200px;
+      background: rgba(212, 175, 55, 0.07);
+      top: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      animation-delay: 0s;
+    }
+
+    .light-orb:nth-child(2) {
+      width: 120px;
+      height: 120px;
+      background: rgba(27, 58, 92, 0.12);
+      bottom: 15%;
+      left: -20px;
+      animation-delay: -3s;
+      animation-duration: 10s;
+    }
+
+    .light-orb:nth-child(3) {
+      width: 100px;
+      height: 100px;
+      background: rgba(74, 32, 96, 0.1);
+      bottom: 25%;
+      right: -10px;
+      animation-delay: -5s;
+      animation-duration: 9s;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+      50% { transform: translateY(-20px) scale(1.1); opacity: 1; }
+    }
+
+    /* Partículas sutis */
+    .particles {
+      position: absolute;
+      inset: 0;
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: var(--amber);
+      border-radius: 50%;
+      opacity: 0;
+      animation: particleDrift 6s ease-in-out infinite;
+    }
+
+    .particle:nth-child(1) { left: 15%; top: 20%; animation-delay: 0s; }
+    .particle:nth-child(2) { left: 75%; top: 35%; animation-delay: -1.2s; }
+    .particle:nth-child(3) { left: 40%; top: 60%; animation-delay: -2.5s; }
+    .particle:nth-child(4) { left: 85%; top: 15%; animation-delay: -3.8s; }
+    .particle:nth-child(5) { left: 25%; top: 75%; animation-delay: -4.5s; }
+    .particle:nth-child(6) { left: 60%; top: 85%; animation-delay: -0.8s; }
+    .particle:nth-child(7) { left: 50%; top: 10%; animation-delay: -2s; width: 1.5px; height: 1.5px; }
+    .particle:nth-child(8) { left: 90%; top: 55%; animation-delay: -5.2s; width: 1px; height: 1px; }
+
+    @keyframes particleDrift {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+      30% { opacity: 0.5; }
+      50% { opacity: 0.7; transform: translateY(-15px) scale(1); }
+      70% { opacity: 0.4; }
+    }
+
+    /* ========== CONTÊINER MOBILE ========== */
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 400px;
+      height: 100vh;
+      max-height: 860px;
+      display: flex;
+      flex-direction: column;
+      padding: 0 28px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .app-shell::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ========== HEADER — ÍCONE E BOAS-VINDAS ========== */
+    .login-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: clamp(48px, 12vh, 80px);
+      margin-bottom: 36px;
+      animation: headerIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes headerIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Anel decorativo ao redor do ícone */
+    .icon-ring {
+      position: relative;
+      width: 108px;
+      height: 108px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .icon-ring::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        var(--amber) 0%,
+        rgba(27, 58, 92, 0.8) 25%,
+        rgba(74, 32, 96, 0.7) 50%,
+        var(--amber-light) 75%,
+        var(--amber) 100%
+      );
+      animation: ringRotate 12s linear infinite;
+      opacity: 0.5;
+    }
+
+    .icon-ring::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 50%;
+      background: var(--bg-deep);
+    }
+
+    @keyframes ringRotate {
+      to { transform: rotate(360deg); }
+    }
+
+    .icon-ring img {
+      position: relative;
+      z-index: 2;
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      /* Sombra dourada suave */
+      box-shadow: 
+        0 0 30px rgba(212, 175, 55, 0.15),
+        0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .app-name {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 28px;
+      letter-spacing: 0.02em;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .app-tagline {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      letter-spacing: 0.01em;
+    }
+
+    /* ========== FORMULÁRIO ========== */
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      animation: formIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+    }
+
+    @keyframes formIn {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Grupo de input */
+    .input-group {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding-left: 2px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-wrapper .input-icon {
+      position: absolute;
+      left: 14px;
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      pointer-events: none;
+      transition: color 0.3s ease;
+    }
+
+    .input-wrapper input {
+      width: 100%;
+      height: 52px;
+      padding: 0 14px 0 44px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .input-wrapper input::placeholder {
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+
+    .input-wrapper input:focus {
+      border-color: var(--border-focus);
+      background: rgba(212, 175, 55, 0.03);
+      box-shadow: 0 0 0 3px var(--amber-glow);
+    }
+
+    .input-wrapper input:focus ~ .input-icon,
+    .input-wrapper input:focus + .input-icon {
+      color: var(--amber);
+    }
+
+    /* Quando o ícone vem antes do input no DOM */
+    .input-wrapper:focus-within .input-icon {
+      color: var(--amber);
+    }
+
+    /* Toggle de visibilidade da senha */
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .toggle-password:hover {
+      color: var(--text-secondary);
+    }
+
+    .toggle-password svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Estado de erro */
+    .input-group.has-error .input-wrapper input {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(224, 82, 82, 0.1);
+    }
+
+    .input-error-msg {
+      font-size: 12px;
+      color: var(--error);
+      padding-left: 2px;
+      min-height: 0;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .input-group.has-error .input-error-msg {
+      min-height: 18px;
+    }
+
+    /* ========== BOTÃO ENTRAR ========== */
+    .btn-primary {
+      position: relative;
+      height: 52px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--amber) 0%, #C49A2E 100%);
+      color: #0C0E14;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      margin-top: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--amber-light) 0%, var(--amber) 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .btn-primary:hover::before,
+    .btn-primary:active::before {
+      opacity: 1;
+    }
+
+    .btn-primary span {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    /* Estado de loading */
+    .btn-primary.loading {
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    .btn-primary .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(12, 14, 20, 0.2);
+      border-top-color: #0C0E14;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .btn-primary.loading .spinner {
+      display: block;
+    }
+
+    .btn-primary.loading .btn-text {
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Brilho que percorre o botão */
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: none;
+      animation: btnShimmer 3s ease-in-out infinite;
+      animation-delay: 1.5s;
+    }
+
+    @keyframes btnShimmer {
+      0%, 100% { left: -100%; }
+      50% { left: 120%; }
+    }
+
+    /* ========== LINKS AUXILIARES ========== */
+    .form-links {
+      display: flex;
+      justify-content: flex-end;
+      animation: formIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+    }
+
+    .link-forgot {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--amber);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .link-forgot:hover {
+      color: var(--amber-light);
+      text-decoration: underline;
+    }
+
+    /* ========== DIVISOR ========== */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 4px 0;
+      animation: formIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider span {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    /* ========== BOTÃO GOOGLE ========== */
+    .btn-google {
+      height: 52px;
+      border: 1.5px solid var(--google-border);
+      border-radius: var(--radius-md);
+      background: var(--google-bg);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: all 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+      animation: formIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+    }
+
+    .btn-google:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .btn-google:active {
+      transform: scale(0.98);
+    }
+
+    /* Ícone "G" estilizado do Google */
+    .google-g {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Product Sans', 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      background: #fff;
+      color: transparent;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Simular o "G" colorido do Google com gradientes */
+    .google-g::before {
+      content: 'G';
+      position: absolute;
+      background: linear-gradient(135deg, #4285F4 0%, #4285F4 35%, #EA4335 35%, #EA4335 50%, #FBBC05 50%, #FBBC05 70%, #34A853 70%, #34A853 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ========== RODAPÉ — CADASTRAR ========== */
+    .login-footer {
+      margin-top: auto;
+      padding-bottom: clamp(24px, 4vh, 40px);
+      text-align: center;
+      animation: formIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+    }
+
+    .login-footer p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .link-signup {
+      color: var(--amber);
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.2s;
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .link-signup:hover {
+      color: var(--amber-light);
+      text-decoration: underline;
+    }
+
+    /* ========== TOAST / SNACKBAR ========== */
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: calc(100% - 56px);
+      max-width: 370px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-size: 13.5px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(-12px) scale(0.96);
+      animation: toastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      pointer-events: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .toast.toast-out {
+      animation: toastOut 0.3s ease forwards;
+    }
+
+    .toast .toast-icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+    }
+
+    @keyframes toastIn {
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    }
+
+    /* ========== MODAL DE ESQUECI SENHA ========== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 400px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      padding: 12px 28px 36px;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      border-top: 1px solid var(--border);
+    }
+
+    .modal-overlay.active .modal-sheet {
+      transform: translateY(0);
+    }
+
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--text-muted);
+      margin: 0 auto 24px;
+    }
+
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-form .btn-primary {
+      margin-top: 4px;
+    }
+
+    .btn-ghost {
+      height: 44px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: none;
+      color: var(--text-secondary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text-primary);
+    }
+
+    /* ========== REDUCED MOTION ========== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ========== RESPONSIVIDADE ========== */
+    @media (max-height: 680px) {
+      .login-header {
+        padding-top: 32px;
+        margin-bottom: 24px;
+      }
+
+      .icon-ring {
+        width: 88px;
+        height: 88px;
+        margin-bottom: 18px;
+      }
+
+      .icon-ring img {
+        width: 78px;
+        height: 78px;
+      }
+
+      .app-name {
+        font-size: 24px;
+      }
+
+      .login-footer {
+        padding-bottom: 20px;
+      }
+    }
+
+    @media (min-width: 401px) {
+      .app-shell {
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        box-shadow: 
+          0 24px 80px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(212, 175, 55, 0.05) inset;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fundo atmosférico -->
+  <div class="scene-bg" aria-hidden="true">
+    <div class="light-orb"></div>
+    <div class="light-orb"></div>
+    <div class="light-orb"></div>
+    <div class="particles">
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Shell principal do app -->
+  <main class="app-shell">
+
+    <!-- Cabeçalho com ícone -->
+    <header class="login-header">
+      <div class="icon-ring">
+        <img 
+          src="https://z-cdn-media.chatglm.cn/files/98ba8c3b-4861-4bb9-ba0d-8f71bd84e199.png?auth_key=1876438813-3cb85ce1235f46bf862d17a033f1f687-0-0454578b96d2de240b438c6ccfc8b4e2" 
+          alt="Ícone Luma — vitral de uma casa cercada por flores"
+          width="96" height="96"
+        >
+      </div>
+      <h1 class="app-name">Luma</h1>
+      <p class="app-tagline">Sua casa, sempre cuidada.</p>
+    </header>
+
+    <!-- Formulário de login -->
+    <form class="login-form" id="loginForm" novalidate autocomplete="on">
+      <!-- Email -->
+      <div class="input-group" id="emailGroup">
+        <label for="emailInput">E-mail</label>
+        <div class="input-wrapper">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <path d="M22 7l-10 6L2 7"/>
+          </svg>
+          <input 
+            type="email" 
+            id="emailInput" 
+            placeholder="seu@email.com" 
+            autocomplete="email"
+            required
+            aria-describedby="emailError"
+          >
+        </div>
+        <span class="input-error-msg" id="emailError" role="alert"></span>
+      </div>
+
+      <!-- Senha -->
+      <div class="input-group" id="passwordGroup">
+        <label for="passwordInput">Senha</label>
+        <div class="input-wrapper">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="3"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          <input 
+            type="password" 
+            id="passwordInput" 
+            placeholder="Sua senha" 
+            autocomplete="current-password"
+            required
+            aria-describedby="passwordError"
+          >
+          <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar senha">
+            <svg id="eyeOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="eyeClosed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+              <path d="M14.12 14.12a3 3 0 01-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <span class="input-error-msg" id="passwordError" role="alert"></span>
+      </div>
+
+      <!-- Link esqueci senha -->
+      <div class="form-links">
+        <button type="button" class="link-forgot" id="forgotBtn">Esqueci minha senha</button>
+      </div>
+
+      <!-- Botão entrar -->
+      <button type="submit" class="btn-primary" id="submitBtn">
+        <span>
+          <span class="btn-text">Entrar</span>
+          <div class="spinner"></div>
+        </span>
+      </button>
+
+      <!-- Divisor -->
+      <div class="divider">
+        <span>ou continue com</span>
+      </div>
+
+      <!-- Login com Google -->
+      <button type="button" class="btn-google" id="googleBtn">
+        <span class="google-g" aria-hidden="true">G</span>
+        Continuar com Google
+      </button>
+    </form>
+
+    <!-- Rodapé com link de cadastro -->
+    <footer class="login-footer">
+      <p>Ainda no tem conta? <button type="button" class="link-signup" id="signupBtn">Cadastre-se</button></p>
+    </footer>
+
+  </main>
+
+  <!-- Modal "Esqueci minha senha" -->
+  <div class="modal-overlay" id="forgotModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title" id="modalTitle">Recuperar senha</h2>
+      <p class="modal-desc">Informe o e-mail associado a sua conta. Enviaremos um link para redefinir sua senha.</p>
+      <form class="modal-form" id="forgotForm" novalidate>
+        <div class="input-group" id="forgotEmailGroup">
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="3"/>
+              <path d="M22 7l-10 6L2 7"/>
+            </svg>
+            <input 
+              type="email" 
+              id="forgotEmailInput" 
+              placeholder="seu@email.com" 
+              autocomplete="email"
+              required
+            >
+          </div>
+          <span class="input-error-msg" id="forgotEmailError" role="alert"></span>
+        </div>
+        <button type="submit" class="btn-primary" id="forgotSubmitBtn">
+          <span>
+            <span class="btn-text">Enviar link</span>
+            <div class="spinner"></div>
+          </span>
+        </button>
+        <button type="button" class="btn-ghost" id="forgotCancelBtn">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ========== UTILITÁRIOS ==========
+
+    /**
+     * Exibe um toast temporário na tela
+     * @param {string} message - Texto da mensagem
+     * @param {'success'|'error'|'info'} type - Tipo do toast
+     */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+
+      // Ícone SVG conforme o tipo
+      const icons = {
+        success: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>`,
+        error: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#E05252" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+        info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
+      };
+
+      toast.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+      container.appendChild(toast);
+
+      // Remover após 3.5 segundos
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, 3500);
+    }
+
+    /**
+     * Valida formato de e-mail
+     */
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    /**
+     * Define erro em um grupo de input
+     */
+    function setInputError(groupId, errorId, message) {
+      const group = document.getElementById(groupId);
+      const error = document.getElementById(errorId);
+      group.classList.add('has-error');
+      error.textContent = message;
+    }
+
+    /**
+     * Limpa erro de um grupo de input
+     */
+    function clearInputError(groupId, errorId) {
+      const group = document.getElementById(groupId);
+      const error = document.getElementById(errorId);
+      group.classList.remove('has-error');
+      error.textContent = '';
+    }
+
+    // ========== TOGGLE DE VISIBILIDADE DA SENHA ==========
+    const toggleBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('passwordInput');
+    const eyeOpen = document.getElementById('eyeOpen');
+    const eyeClosed = document.getElementById('eyeClosed');
+
+    toggleBtn.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      eyeOpen.style.display = isPassword ? 'none' : 'block';
+      eyeClosed.style.display = isPassword ? 'block' : 'none';
+      toggleBtn.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
+    });
+
+    // ========== LIMPAR ERROS AO DIGITAR ==========
+    document.getElementById('emailInput').addEventListener('input', () => {
+      clearInputError('emailGroup', 'emailError');
+    });
+
+    document.getElementById('passwordInput').addEventListener('input', () => {
+      clearInputError('passwordGroup', 'passwordError');
+    });
+
+    document.getElementById('forgotEmailInput').addEventListener('input', () => {
+      clearInputError('forgotEmailGroup', 'forgotEmailError');
+    });
+
+    // ========== SUBMIT DO LOGIN ==========
+    const loginForm = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+      let hasError = false;
+
+      // Validar e-mail
+      if (!email) {
+        setInputError('emailGroup', 'emailError', 'Informe seu e-mail.');
+        hasError = true;
+      } else if (!isValidEmail(email)) {
+        setInputError('emailGroup', 'emailError', 'E-mail inválido.');
+        hasError = true;
+      }
+
+      // Validar senha
+      if (!password) {
+        setInputError('passwordGroup', 'passwordError', 'Informe sua senha.');
+        hasError = true;
+      } else if (password.length < 6) {
+        setInputError('passwordGroup', 'passwordError', 'Mnimo de 6 caracteres.');
+        hasError = true;
+      }
+
+      if (hasError) return;
+
+      // Simular loading
+      submitBtn.classList.add('loading');
+
+      setTimeout(() => {
+        submitBtn.classList.remove('loading');
+        showToast('Bem-vindo de volta!', 'success');
+      }, 1800);
+    });
+
+    // ========== MODAL "ESQUECI SENHA" ==========
+    const forgotBtn = document.getElementById('forgotBtn');
+    const forgotModal = document.getElementById('forgotModal');
+    const forgotCancelBtn = document.getElementById('forgotCancelBtn');
+    const forgotForm = document.getElementById('forgotForm');
+    const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
+
+    function openForgotModal() {
+      forgotModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      // Focar no input após a animação
+      setTimeout(() => {
+        document.getElementById('forgotEmailInput').focus();
+      }, 400);
+    }
+
+    function closeForgotModal() {
+      forgotModal.classList.remove('active');
+      document.body.style.overflow = '';
+      document.getElementById('forgotEmailInput').value = '';
+      clearInputError('forgotEmailGroup', 'forgotEmailError');
+    }
+
+    forgotBtn.addEventListener('click', openForgotModal);
+
+    forgotCancelBtn.addEventListener('click', closeForgotModal);
+
+    // Fechar ao clicar no overlay
+    forgotModal.addEventListener('click', (e) => {
+      if (e.target === forgotModal) closeForgotModal();
+    });
+
+    // Fechar com Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && forgotModal.classList.contains('active')) {
+        closeForgotModal();
+      }
+    });
+
+    // Submit do form de recuperação
+    forgotForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('forgotEmailInput').value.trim();
+
+      if (!email) {
+        setInputError('forgotEmailGroup', 'forgotEmailError', 'Informe seu e-mail.');
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        setInputError('forgotEmailGroup', 'forgotEmailError', 'E-mail inválido.');
+        return;
+      }
+
+      // Simular envio
+      forgotSubmitBtn.classList.add('loading');
+
+      setTimeout(() => {
+        forgotSubmitBtn.classList.remove('loading');
+        closeForgotModal();
+        showToast('Link de recuperao enviado para seu e-mail.', 'success');
+      }, 1500);
+    });
+
+    // ========== BOTÃO GOOGLE ==========
+    document.getElementById('googleBtn').addEventListener('click', () => {
+      showToast('Redirecionando para o Google...', 'info');
+    });
+
+    // ========== BOTÃO CADASTRAR ==========
+    document.getElementById('signupBtn').addEventListener('click', () => {
+      showToast('Tela de cadastro em construo.', 'info');
+    });
+  </script>
+</body>
+</html>
