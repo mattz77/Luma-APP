@@ -3,20 +3,22 @@ import { Link, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
+  StyleSheet,
+  Text,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
 import { AuthInput } from '@/components/auth/AuthInput';
-import { AuthIllustration } from '@/components/auth/AuthIllustration';
+import { AuthBackground } from '@/components/auth/AuthBackground';
+import { AuthHeader } from '@/components/auth/AuthHeader';
+import { AuthPrimaryButton } from '@/components/auth/AuthPrimaryButton';
 import { VStack } from '@/components/ui/vstack';
 import { HStack } from '@/components/ui/hstack';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
-import { Box } from '@/components/ui/box';
 import { useI18n } from '@/hooks/useI18n';
+import { authFontFamilies, authTheme } from '@/lib/auth/authTheme';
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -52,7 +54,7 @@ export default function ForgotPasswordScreen() {
       setFeedbackMessage(t('auth.forgotPassword.emailSent'));
       setTimeout(() => {
         router.replace('/(auth)/login');
-      }, 1500);
+      }, 1800);
     } catch (error) {
       console.error(error);
       setIsSuccess(false);
@@ -63,91 +65,142 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-gray-100"
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 20,
-          paddingTop: Math.max(insets.top, 12) + 8,
-          paddingBottom: Math.max(insets.bottom, 24),
-        }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <AuthBackground>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
       >
-        <VStack space="md">
-          {/* Illustration */}
-          <AuthIllustration type="forgot-password" />
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: 28,
+            paddingTop: Math.max(insets.top, 16) + 8,
+            paddingBottom: Math.max(insets.bottom, 28),
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <AuthHeader brandName={t('auth.brand.name')} tagline={t('auth.brand.tagline')} />
 
-          {/* Title */}
-          <VStack space="xs" className="items-center">
-            <Heading size="2xl" bold className="text-gray-900">
-              {t('auth.forgotPassword.title')}
-            </Heading>
-            <Text size="sm" className="text-gray-500 text-center px-2 leading-5">
-              {t('auth.forgotPassword.subtitle')}
-            </Text>
-          </VStack>
+          <Text style={styles.screenTitle}>{t('auth.forgotPassword.title')}</Text>
+          <Text style={styles.screenDesc}>{t('auth.forgotPassword.subtitle')}</Text>
 
-          {/* Form */}
-          <Box className="bg-white rounded-2xl p-4 shadow-sm">
-            <VStack space="sm">
-              <AuthInput
-                label={t('auth.forgotPassword.email')}
-                value={email}
-                onChangeText={setEmail}
-                placeholder={t('auth.forgotPassword.email')}
-                type="email"
-                keyboardType="email-address"
-                error={!!feedbackMessage && !isSuccess}
-              />
+          <VStack space="md" style={styles.formInner}>
+            <AuthInput
+              variant="authDark"
+              label={t('auth.forgotPassword.email')}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('auth.forgotPassword.email')}
+              type="email"
+              keyboardType="email-address"
+              error={!!feedbackMessage && !isSuccess}
+            />
 
-              {feedbackMessage ? (
-                <Text
-                  size="sm"
-                  className={`text-center ${
-                    isSuccess ? 'text-success-600' : 'text-error-500'
-                  }`}
-                >
-                  {feedbackMessage}
-                </Text>
-              ) : null}
-
-              <Button
-                size="lg"
-                variant="solid"
-                action="primary"
-                onPress={handleResetPassword}
-                isDisabled={submitting}
-                className="bg-blue-600 min-h-12 rounded-xl"
+            {feedbackMessage ? (
+              <Text
+                style={[
+                  styles.feedback,
+                  isSuccess ? styles.feedbackOk : styles.feedbackErr,
+                ]}
               >
-                {submitting ? (
-                  <ButtonSpinner />
-                ) : (
-                  <ButtonText className="text-white text-base font-semibold">
-                    {t('auth.forgotPassword.button')}
-                  </ButtonText>
-                )}
-              </Button>
+                {feedbackMessage}
+              </Text>
+            ) : null}
 
-              <HStack space="xs" className="justify-center items-center mt-2">
-                <Text size="sm" className="text-gray-500">
-                  {t('auth.forgotPassword.rememberPassword')}
-                </Text>
-                <Link href="/(auth)/login">
-                  <Text size="sm" className="text-blue-600 font-semibold">
-                    {t('auth.forgotPassword.signIn')}
-                  </Text>
-                </Link>
-              </HStack>
-            </VStack>
-          </Box>
-        </VStack>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <AuthPrimaryButton
+              label={t('auth.forgotPassword.button')}
+              onPress={handleResetPassword}
+              loading={submitting}
+            />
+
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.ghostBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+            >
+              <Text style={styles.ghostLabel}>{t('common.cancel')}</Text>
+            </Pressable>
+
+            <HStack space="xs" style={styles.inlineFooter}>
+              <Text style={styles.footerMuted}>{t('auth.forgotPassword.rememberPassword')} </Text>
+              <Link href="/(auth)/login" asChild>
+                <Pressable accessibilityRole="link">
+                  <Text style={styles.linkSignup}>{t('auth.forgotPassword.signIn')}</Text>
+                </Pressable>
+              </Link>
+            </HStack>
+          </VStack>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </AuthBackground>
   );
 }
 
-
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  screenTitle: {
+    fontFamily: authFontFamilies.display,
+    fontSize: 22,
+    fontWeight: '700',
+    color: authTheme.textPrimary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  screenDesc: {
+    fontFamily: authFontFamilies.sans,
+    fontSize: 14,
+    fontWeight: '400',
+    color: authTheme.textSecondary,
+    lineHeight: 21,
+    marginBottom: 24,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  formInner: {
+    gap: 4,
+  },
+  feedback: {
+    fontFamily: authFontFamilies.sans,
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  feedbackOk: {
+    color: authTheme.success,
+  },
+  feedbackErr: {
+    color: authTheme.error,
+  },
+  ghostBtn: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  ghostLabel: {
+    fontFamily: authFontFamilies.sansMedium,
+    fontSize: 14,
+    fontWeight: '500',
+    color: authTheme.textSecondary,
+  },
+  inlineFooter: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  footerMuted: {
+    fontFamily: authFontFamilies.sans,
+    fontSize: 13,
+    fontWeight: '400',
+    color: authTheme.textSecondary,
+  },
+  linkSignup: {
+    fontFamily: authFontFamilies.sansSemiBold,
+    fontSize: 13,
+    fontWeight: '600',
+    color: authTheme.amber,
+  },
+});
