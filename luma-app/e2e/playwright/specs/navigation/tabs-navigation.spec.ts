@@ -37,4 +37,16 @@ test.describe('Tabs navigation', () => {
     await expect(page).toHaveURL(/\/tasks/i);
     await expect(page).not.toHaveURL(/\/landing$/i);
   });
+
+  test('ao abrir luma a partir de uma tab, voltar retorna para a tab de origem', async ({ page }) => {
+    await page.goto('/tasks');
+    await expect(page).toHaveURL(/\/tasks$/i);
+
+    await page.goto('/luma');
+    await expect(page).toHaveURL(/\/luma$/i);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/tasks$/i);
+    await expect(page).not.toHaveURL(/\/landing$/i);
+  });
 });

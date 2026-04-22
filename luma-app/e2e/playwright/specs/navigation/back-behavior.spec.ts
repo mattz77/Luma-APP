@@ -49,4 +49,42 @@ test.describe('Back navigation behavior', () => {
     await expect(page).toHaveURL(/\/finances$/i);
     await expect(page).not.toHaveURL(/\/landing$/i);
   });
+
+  test('home -> luma -> back retorna para home sem passar por landing', async ({ page }) => {
+    await page.goto('/');
+    await page.goto('/luma');
+    await expect(page).toHaveURL(/\/luma$/i);
+
+    await navigateBack(page);
+
+    await expect(page).toHaveURL(/\/$/i);
+    await expect(page).not.toHaveURL(/\/landing$/i);
+  });
+
+  test('tasks -> luma -> back retorna para tasks sem passar por landing', async ({ page }) => {
+    await page.goto('/tasks');
+    await page.goto('/luma');
+    await expect(page).toHaveURL(/\/luma$/i);
+
+    await navigateBack(page);
+
+    await expect(page).toHaveURL(/\/tasks$/i);
+    await expect(page).not.toHaveURL(/\/landing$/i);
+  });
+
+  test('back continua funcionando após primeiro retorno do luma', async ({ page }) => {
+    await page.goto('/tasks');
+    await page.goto('/luma');
+
+    await navigateBack(page);
+    await expect(page).toHaveURL(/\/tasks$/i);
+    await expect(page).not.toHaveURL(/\/landing$/i);
+
+    await page.goto('/finances');
+    await page.goto('/luma');
+    await navigateBack(page);
+
+    await expect(page).toHaveURL(/\/finances$/i);
+    await expect(page).not.toHaveURL(/\/landing$/i);
+  });
 });
