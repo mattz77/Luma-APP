@@ -102,6 +102,20 @@ export default function LumaChatScreen() {
     }
   }, []);
 
+  const handleBackPress = useCallback(() => {
+    const canGoBack = typeof (router as { canGoBack?: () => boolean }).canGoBack === 'function'
+      ? (router as { canGoBack: () => boolean }).canGoBack()
+      : false;
+
+    if (canGoBack) {
+      router.back();
+      return;
+    }
+
+    // Deep-link/abertura direta: voltar para área autenticada sem passar por landing.
+    router.replace('/(tabs)');
+  }, [router]);
+
   // Cleanup timeout ao desmontar componente
   useEffect(() => {
     return () => {
@@ -282,7 +296,7 @@ export default function LumaChatScreen() {
           <View style={styles.headerLeft}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={handleBackPress}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <ArrowLeft size={24} color={Colors.primary} />

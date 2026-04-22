@@ -43,8 +43,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
       // Evitar re-execução se pathname e housesCount não mudaram
       // Mas não bloquear se estiver na landing e precisa redirecionar
-      const needsRedirectFromLanding =
-        (normalizedPathname === '/' || normalizedPathname === '/landing') && user && houses.length > 0 && initialized;
+      const needsRedirectFromLanding = normalizedPathname === '/landing' && user && houses.length > 0 && initialized;
       if (
         !needsRedirectFromLanding &&
         lastCheckedPathnameRef.current === normalizedPathname &&
@@ -65,15 +64,23 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Se não estiver autenticado, não fazer nada (deixa o fluxo de auth funcionar)
+      // Rotas públicas que não exigem sessão ativa
+      const authRoutes = ['/login', '/register', '/forgot-password', '/verify-email', '/onboarding', '/tutorial'];
+      const isPublicRoute = normalizedPathname === '/landing' || authRoutes.some((route) => normalizedPathname.startsWith(route));
+
+      // Sem sessão, manter usuário em rotas públicas para evitar tabs no histórico inicial
       if (!user) {
+        if (!isPublicRoute && !redirectingRef.current) {
+          redirectingRef.current = true;
+          router.replace('/landing');
+          setTimeout(() => {
+            redirectingRef.current = false;
+          }, 500);
+        }
         setIsChecking(false);
         isCheckingRef.current = false;
         return;
       }
-
-      // Rotas que não precisam de verificação de onboarding
-      const authRoutes = ['/login', '/register', '/forgot-password', '/verify-email', '/onboarding', '/tutorial'];
 
       if (authRoutes.some((route) => normalizedPathname.startsWith(route))) {
         setIsChecking(false);
@@ -122,15 +129,16 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
         // 4. Se estiver na landing page ou rota root e tudo estiver ok, redirecionar para tabs
         // Também verifica se está em +not-found (que pode acontecer se a rota não for encontrada)
-        const isRootOrLanding = normalizedPathname === '/' || normalizedPathname === '/landing';
+        const isLanding = normalizedPathname === '/landing';
         const isTabsArea =
+          normalizedPathname === '/' ||
           normalizedPathname.startsWith('/tasks') ||
           normalizedPathname.startsWith('/finances') ||
           normalizedPathname.startsWith('/luma') ||
           normalizedPathname.startsWith('/house') ||
           normalizedPathname.startsWith('/profile') ||
           normalizedPathname.startsWith('/notifications');
-        const needsRedirect = isRootOrLanding && !isTabsArea && !redirectingRef.current;
+        const needsRedirect = isLanding && !redirectingRef.current;
         
         if (needsRedirect) {
           redirectingRef.current = true;
@@ -161,7 +169,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
     };
 
     checkOnboardingStatus();
-  }, [initialized, user?.id, houses.length, pathname, router]);
+  }, [initialized, user?.id, houses.length, housesLoading, pathname, router]);
 
   // Não mostrar loading se não há usuário (deixa a landing page aparecer)
   // Só mostrar loading se estiver autenticado e ainda verificando
