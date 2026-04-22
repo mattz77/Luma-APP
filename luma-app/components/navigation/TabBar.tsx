@@ -31,10 +31,11 @@ type TabBarComponentProps = {
     icon: any;
     label: string;
     color: string;
+    testID?: string;
 };
 
 // --- Helper Components ---
-const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color }: TabBarComponentProps) => {
+const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color, testID }: TabBarComponentProps) => {
     const scale = useSharedValue(INACTIVE_ICON_SCALE);
 
     useEffect(() => {
@@ -50,6 +51,7 @@ const TabBarItem = ({ active, onPress, onLongPress, icon: Icon, label, color }: 
 
     return (
         <Pressable
+            testID={testID}
             onPress={onPress}
             onLongPress={onLongPress}
             className="items-center justify-center w-11 h-11"
@@ -223,6 +225,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 icon={Icon}
                 label={label as string}
                 color={isFocused ? Colors.primary : Colors.textSecondary}
+                testID={`tab-${routeName}`}
             />
         );
     };
@@ -232,6 +235,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         {
             icon: Wand2,
             label: 'Criação mágica',
+            testID: 'fab-create-magic',
             onPress: () => {
                 setIsSpeedDialOpen(false);
                 openMagicCreationModal();
@@ -241,6 +245,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         {
             icon: ListTodo,
             label: 'Nova Tarefa',
+            testID: 'fab-create-task',
             onPress: () => {
                 setIsSpeedDialOpen(false);
                 router.push('/(tabs)/tasks?action=create');
@@ -250,6 +255,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         {
             icon: Wallet,
             label: 'Nova Despesa',
+            testID: 'fab-create-expense',
             onPress: () => {
                 setIsSpeedDialOpen(false);
                 router.push('/(tabs)/finances');
@@ -300,6 +306,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
                         {/* Center: Luma Chat */}
                         <Pressable
+                            testID="tab-luma"
                             className="w-11 h-11 items-center justify-center"
                             onPress={handleLumaPress}
                         >
@@ -319,6 +326,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                             }}
                         >
                             <Pressable
+                                testID="fab-open"
                                 className="w-11 h-11 items-center justify-center"
                                 onPress={() => {
                                     // Haptic feedback não bloqueia - executar de forma não bloqueante
@@ -351,6 +359,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 {/* Right: busca — colapsada (só lupa); expandida ao toque (placeholder "Buscar") */}
                 {!searchExpanded ? (
                     <Pressable
+                        testID="tab-search"
                         onPress={openSearch}
                         accessibilityRole="button"
                         accessibilityLabel={isHomeTab ? 'Abrir busca' : 'Abrir busca global'}
@@ -386,6 +395,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                 <Search size={18} color={Colors.textSecondary} />
                             </Pressable>
                             <TextInput
+                                testID="dashboard-search-input"
                                 ref={searchInputRef}
                                 value={dashboardSearchQuery}
                                 onChangeText={setDashboardSearchQuery}

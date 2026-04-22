@@ -24,6 +24,7 @@ export interface DatePickerBrazilianFieldProps {
   onChangeIso: (iso: string) => void;
   placeholder?: string;
   accessibilityLabel?: string;
+  testID?: string;
 }
 
 /**
@@ -34,6 +35,7 @@ export function DatePickerBrazilianField({
   onChangeIso,
   placeholder = 'DD/MM/AAAA',
   accessibilityLabel = 'Abrir calendário para escolher a data',
+  testID,
 }: DatePickerBrazilianFieldProps) {
   const insets = useSafeAreaInsets();
   const [iosOpen, setIosOpen] = useState(false);
@@ -99,6 +101,7 @@ export function DatePickerBrazilianField({
         </View>
         {createElement('input', {
           type: 'date',
+          'data-testid': testID,
           value: isoForInput,
           'aria-label': accessibilityLabel,
           onChange: (e: ChangeEvent<HTMLInputElement>) => {
@@ -128,6 +131,7 @@ export function DatePickerBrazilianField({
   return (
     <>
       <Pressable
+        testID={testID}
         onPress={openPicker}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}

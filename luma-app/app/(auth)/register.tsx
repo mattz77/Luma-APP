@@ -123,6 +123,7 @@ export default function RegisterScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.register.fullName')}
+              testID="register-name"
               value={name}
               onChangeText={setName}
               placeholder={t('auth.register.fullName')}
@@ -134,6 +135,7 @@ export default function RegisterScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.register.email')}
+              testID="register-email"
               value={email}
               onChangeText={setEmail}
               placeholder={t('auth.register.email')}
@@ -145,6 +147,7 @@ export default function RegisterScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.register.password')}
+              testID="register-password"
               value={password}
               onChangeText={setPassword}
               placeholder={t('auth.register.password')}
@@ -165,6 +168,7 @@ export default function RegisterScreen() {
 
             <AuthPrimaryButton
               label={t('auth.register.button')}
+              testID="register-submit"
               onPress={handleRegister}
               loading={loading}
             />
@@ -172,6 +176,7 @@ export default function RegisterScreen() {
             <AuthDivider label={t('auth.register.continueWith')} />
 
             <GoogleSignInButton
+              testID="auth-google"
               onPress={handleGoogleLogin}
               loading={loading}
               label={t('auth.register.googleContinue')}

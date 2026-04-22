@@ -19,6 +19,7 @@ interface GoogleSignInButtonProps {
    * `authDark`: tema do `newlogin.html` (superfície escura; ícone colorido permanece reconhecível).
    */
   variant?: GoogleSignInButtonVariant;
+  testID?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export function GoogleSignInButton({
   disabled = false,
   label,
   variant = 'authDark',
+  testID,
 }: GoogleSignInButtonProps) {
   const GoogleIcon = () => (
     <View style={{ width: 18, height: 18, marginRight: 10 }}>
@@ -63,6 +65,7 @@ export function GoogleSignInButton({
 
   return (
     <Button
+      testID={testID}
       variant="outline"
       size="lg"
       action="default"

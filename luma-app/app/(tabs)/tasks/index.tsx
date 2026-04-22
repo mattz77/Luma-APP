@@ -160,6 +160,7 @@ const BentoTaskCard = ({ task, onPress }: { task: Task, onPress: () => void }) =
   return (
     <Animated.View entering={FadeInDown.springify()} layout={Layout.springify()}>
       <Pressable
+        testID="task-item"
         onPress={onPress}
         className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] transition-all ${theme.bg}`}
       >
@@ -597,6 +598,7 @@ export default function TasksScreen() {
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
                     <Input className="h-14 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
                       <InputField
+                        testID="task-create-title"
                         placeholder="Ex: Comprar leite..."
                         value={titleInput}
                         onChangeText={setTitleInput}
@@ -710,6 +712,7 @@ export default function TasksScreen() {
                   <Box className="flex-1" />
 
                   <Button
+                    testID="task-create-submit"
                     onPress={handleSaveTask}
                     className="bg-[#FDE047] h-14 rounded-[24px] mb-32 active:scale-[0.98] shadow-lg shadow-yellow-200"
                   >

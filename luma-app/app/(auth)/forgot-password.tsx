@@ -89,6 +89,7 @@ export default function ForgotPasswordScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.forgotPassword.email')}
+              testID="forgot-email"
               value={email}
               onChangeText={setEmail}
               placeholder={t('auth.forgotPassword.email')}
@@ -110,6 +111,7 @@ export default function ForgotPasswordScreen() {
 
             <AuthPrimaryButton
               label={t('auth.forgotPassword.button')}
+              testID="forgot-submit"
               onPress={handleResetPassword}
               loading={submitting}
             />

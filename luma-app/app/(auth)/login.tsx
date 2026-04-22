@@ -124,6 +124,7 @@ export default function LoginScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.login.email')}
+              testID="login-email"
               value={email}
               onChangeText={setEmail}
               placeholder={t('auth.login.email')}
@@ -135,6 +136,7 @@ export default function LoginScreen() {
             <AuthInput
               variant="authDark"
               label={t('auth.login.password')}
+              testID="login-password"
               value={password}
               onChangeText={setPassword}
               placeholder={t('auth.login.password')}
@@ -154,6 +156,7 @@ export default function LoginScreen() {
 
             <AuthPrimaryButton
               label={t('auth.login.button')}
+              testID="login-submit"
               onPress={handleLogin}
               loading={loading}
             />
@@ -161,6 +164,7 @@ export default function LoginScreen() {
             <AuthDivider label={t('auth.login.continueWith')} />
 
             <GoogleSignInButton
+              testID="auth-google"
               onPress={handleGoogleLogin}
               loading={loading}
               label={t('auth.login.googleContinue')}

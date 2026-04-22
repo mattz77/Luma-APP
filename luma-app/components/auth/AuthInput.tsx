@@ -18,6 +18,7 @@ interface AuthInputProps {
   error?: boolean;
   /** Tema escuro do `newlogin.html` — label em caixa alta, borda âmbar, foco com brilho. */
   variant?: 'default' | 'authDark';
+  testID?: string;
 }
 
 export function AuthInput({
@@ -30,6 +31,7 @@ export function AuthInput({
   keyboardType,
   error = false,
   variant = 'default',
+  testID,
 }: AuthInputProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -81,6 +83,7 @@ export function AuthInput({
           <InputField
             value={value}
             onChangeText={onChangeText}
+            testID={testID}
             placeholder={placeholder || label}
             placeholderTextColor="rgba(240, 237, 229, 0.3)"
             multiline={false}
@@ -130,6 +133,7 @@ export function AuthInput({
         <InputField
           value={value}
           onChangeText={onChangeText}
+          testID={testID}
           placeholder={placeholder || label}
           placeholderTextColor="#9CA3AF"
           multiline={false}

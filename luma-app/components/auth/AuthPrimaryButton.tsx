@@ -8,6 +8,7 @@ type AuthPrimaryButtonProps = {
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
+  testID?: string;
 };
 
 export function AuthPrimaryButton({
@@ -15,12 +16,14 @@ export function AuthPrimaryButton({
   onPress,
   loading = false,
   disabled = false,
+  testID,
 }: AuthPrimaryButtonProps) {
   const inactive = disabled || loading;
 
   return (
     <Pressable
       onPress={onPress}
+      testID={testID}
       disabled={inactive}
       style={({ pressed }) => [
         styles.pressable,

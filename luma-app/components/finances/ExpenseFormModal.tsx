@@ -639,6 +639,7 @@ export function ExpenseFormModal({
                         <VStack space="xs" className="flex-1">
                           <FieldLabel>Data</FieldLabel>
                           <DatePickerBrazilianField
+                            testID="expense-date"
                             valueIso={expenseDateIso}
                             onChangeIso={setExpenseDateIso}
                             placeholder="DD/MM/AAAA"
@@ -882,6 +883,7 @@ export function ExpenseFormModal({
                           </Pressable>
                         )}
                         <Pressable
+                          testID="expense-submit"
                           onPress={handleSubmit}
                           disabled={isSubmitting || isUploadingImage}
                           className="flex-1 h-14 rounded-[24px] bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-lg shadow-yellow-200 active:scale-[0.98] opacity-100 disabled:opacity-60"

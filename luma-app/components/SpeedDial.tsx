@@ -27,6 +27,7 @@ interface SpeedDialAction {
   label: string;
   onPress: () => void;
   backgroundColor?: string;
+  testID?: string;
 }
 
 interface SpeedDialProps {
@@ -119,6 +120,7 @@ const SpeedDialItem = ({
         </Text>
       </Box>
       <Pressable
+        testID={action.testID}
         className="w-11 h-11 rounded-full items-center justify-center border border-[#FFF44F]/30"
         style={{
           backgroundColor: action.backgroundColor,
