@@ -11,6 +11,14 @@ import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 're
 
 import { authFontFamilies, authTheme } from '@/lib/auth/authTheme';
 
+/** Baseline do layout original (144) — usado para escalar o anel SVG. */
+const ICON_BASE = 144;
+const ICON_WRAP = 200;
+const LOGO_SIZE = ICON_WRAP - 16;
+const RING_CENTER = ICON_WRAP / 2;
+const RING_R = (68 * ICON_WRAP) / ICON_BASE;
+const RING_STROKE = (4 * ICON_WRAP) / ICON_BASE;
+
 const LOGO = require('@/assets/images/luma-icon.png');
 
 type AuthHeaderProps = {
@@ -46,7 +54,7 @@ export function AuthHeader({ brandName, tagline }: AuthHeaderProps) {
     <View style={styles.header}>
       <View style={styles.iconWrap}>
         <Animated.View style={[styles.ringLayer, ringStyle]}>
-          <Svg width={144} height={144}>
+          <Svg width={ICON_WRAP} height={ICON_WRAP}>
             <Defs>
               <SvgLinearGradient id="authRingGrad" x1="0" y1="0" x2="1" y2="1">
                 <Stop offset="0" stopColor="#D4AF37" />
@@ -56,11 +64,11 @@ export function AuthHeader({ brandName, tagline }: AuthHeaderProps) {
               </SvgLinearGradient>
             </Defs>
             <Circle
-              cx={72}
-              cy={72}
-              r={68}
+              cx={RING_CENTER}
+              cy={RING_CENTER}
+              r={RING_R}
               stroke="url(#authRingGrad)"
-              strokeWidth={4}
+              strokeWidth={RING_STROKE}
               fill="none"
               opacity={0.55}
             />
@@ -88,9 +96,9 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   iconWrap: {
-    width: 144,
-    height: 144,
-    marginBottom: 20,
+    width: ICON_WRAP,
+    height: ICON_WRAP,
+    marginBottom: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -100,9 +108,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE / 2,
     backgroundColor: authTheme.bgDeep,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
