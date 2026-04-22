@@ -3,7 +3,7 @@ import { Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'r
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Animated, { cancelAnimation, FadeInDown, Layout, useSharedValue } from 'react-native-reanimated';
+import Animated, { cancelAnimation, FadeInDown, useSharedValue } from 'react-native-reanimated';
 
 import {
   ArrowDownCircle,
@@ -194,7 +194,7 @@ const BentoExpenseCard = ({
   });
 
   return (
-    <Animated.View entering={FadeInDown.springify()} layout={Layout.springify()}>
+    <Animated.View entering={FadeInDown.springify()}>
       <Pressable
         onPress={onPress}
         className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] ${theme.bg}`}
@@ -377,7 +377,7 @@ export default function FinancesScreen() {
   return (
     <ErrorBoundary>
       <Box className="flex-1 bg-[#FDFBF7]">
-        <SafeAreaView className="flex-1" edges={['top']}>
+        <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
           {/* Header — mesmo padrão de Tarefas */}
           <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
             <VStack>
@@ -409,9 +409,9 @@ export default function FinancesScreen() {
           />
 
           <ScrollView
+            style={{ flex: 1, minHeight: 0 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
-            {...(Platform.OS === 'ios' ? { contentInsetAdjustmentBehavior: 'automatic' as const } : {})}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
             }

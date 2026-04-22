@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Platform, type TextStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AlertCircle, ArrowLeft, ChevronRight, Wallet } from 'lucide-react-native';
@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { getBudgetUsageColor } from '@/lib/budgetUsageColor';
 import { formatCurrency } from '@/lib/moneyInputBrl';
 import { ScreenGreeting } from '@/components/ScreenGreeting';
+import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 
 const TABULAR_NUMS_STYLE: TextStyle | undefined =
   Platform.OS === 'ios' ? { fontVariant: ['tabular-nums'] } : undefined;
@@ -32,6 +33,7 @@ const FieldLabel = ({ children }: { children: string }) => (
 
 export default function BudgetScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const houseId = useAuthStore((s) => s.houseId);
   const user = useAuthStore((s) => s.user);
 
@@ -95,6 +97,7 @@ export default function BudgetScreen() {
   };
 
   const greetingFirstName = user?.name?.split(' ')[0] ?? '';
+  const scrollBottomPadding = getTabScrollBottomPadding(insets.bottom);
 
   if (!houseId) {
     return (
@@ -117,7 +120,7 @@ export default function BudgetScreen() {
   return (
     <ErrorBoundary>
       <Box className="flex-1 bg-[#FDFBF7]">
-        <SafeAreaView className="flex-1" edges={['top']}>
+        <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
           <HStack className="px-6 pt-12 pb-6 items-center">
             <Pressable
               onPress={() => {
@@ -136,7 +139,11 @@ export default function BudgetScreen() {
             </VStack>
           </HStack>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView
+            style={{ flex: 1, minHeight: 0 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+          >
             <Box className="mx-6 mb-6">
               <Heading size="lg" className="font-bold text-slate-900 mb-4">
                 Limite do mês
