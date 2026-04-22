@@ -51,7 +51,7 @@ import Animated, {
 import {
   Wallet, CheckCircle, Mic, Bell, Plus, ArrowUpRight, Sparkles,
   X, Send, User, ListTodo, BrainCircuit, Wand2, MessageCircle, LogOut, Home,
-  Search, ChevronDown, Users, CheckSquare, MoreHorizontal, Cpu
+  Search, ChevronDown, Users, CheckSquare, MoreHorizontal, Cpu, Check
 } from 'lucide-react-native';
 import { LiquidGlassCard } from '../../components/ui/LiquidGlassCard';
 import { GlassCard } from '@/components/shared/GlassCard';
@@ -61,8 +61,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SpeedDial } from '../../components/SpeedDial';
 import { taskService, type TaskInsert } from '@/services/task.service';
 import { expenseService, type SaveExpenseInput } from '@/services/expense.service';
-import { useTasks } from '@/hooks/useTasks';
-import type { TaskPriority } from '@/types/models';
+import { useTasks, useUpdateTask } from '@/hooks/useTasks';
+import type { Task, TaskPriority } from '@/types/models';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
@@ -81,6 +81,14 @@ import {
 } from '@/lib/filterDashboardSearch';
 
 const { width } = Dimensions.get('window');
+
+/** Máximo de linhas no mini-card de tarefas do dashboard (legibilidade). */
+const DASHBOARD_TASK_CARD_MAX = 3;
+
+function sameDashboardTaskSlotOrder(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((id, i) => id === b[i]);
+}
 
 /**
  * Na web, `shadow*` no RN Web pode gerar atribuição inválida ao DOM (`CSSStyleDeclaration`).
@@ -437,6 +445,10 @@ export default function Dashboard() {
   const [dailyBriefingLoading, setDailyBriefingLoading] = useState(false);
   const [dailyBriefingError, setDailyBriefingError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  /** IDs das tarefas mostradas no mini-card (até `DASHBOARD_TASK_CARD_MAX`), estáveis ao concluir. */
+  const [dashboardMiniTaskIds, setDashboardMiniTaskIds] = useState<string[]>([]);
+
+  const updateTaskMutation = useUpdateTask();
 
   const loadDailyBriefing = useCallback(async () => {
     if (!houseId || !userId) {
@@ -516,8 +528,65 @@ export default function Dashboard() {
         const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
         return dateA - dateB;
       })
-      .slice(0, 3);
+      .slice(0, DASHBOARD_TASK_CARD_MAX);
   }, [tasks]);
+
+  useEffect(() => {
+    if (!houseId) {
+      setDashboardMiniTaskIds((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+
+    setDashboardMiniTaskIds((prev) => {
+      const pruned = prev.filter((id) => tasks.some((t) => t.id === id));
+      const cappedTop = topPendingTasks.slice(0, DASHBOARD_TASK_CARD_MAX).map((t) => t.id);
+
+      let next: string[];
+      if (pruned.length === 0) {
+        next = cappedTop;
+      } else {
+        const allTerminal = pruned.every((id) => {
+          const t = tasks.find((x) => x.id === id);
+          return !t || t.status === 'COMPLETED' || t.status === 'CANCELLED';
+        });
+        const hasFreshPending = topPendingTasks.some((t) => !pruned.includes(t.id));
+
+        if (allTerminal && hasFreshPending) {
+          next = cappedTop;
+        } else {
+          next = pruned;
+        }
+      }
+
+      // Evita loop infinito: filter/map geram novo array a cada run com os mesmos IDs.
+      return sameDashboardTaskSlotOrder(next, prev) ? prev : next;
+    });
+  }, [houseId, topPendingTasks, tasks]);
+
+  const handleToggleDashboardMiniTask = useCallback(
+    async (task: Task) => {
+      if (!houseId) return;
+      const nextCompleted = task.status !== 'COMPLETED';
+      try {
+        if (nextCompleted) {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+          await Haptics.selectionAsync();
+        }
+        await updateTaskMutation.mutateAsync({
+          id: task.id,
+          updates: {
+            house_id: houseId,
+            status: nextCompleted ? 'COMPLETED' : 'PENDING',
+            completed_at: nextCompleted ? new Date().toISOString() : null,
+          },
+        });
+      } catch {
+        // Cache permanece consistente; erro silencioso no card.
+      }
+    },
+    [houseId, updateTaskMutation]
+  );
 
   const recentActivity = useMemo(
     () =>
@@ -680,6 +749,7 @@ export default function Dashboard() {
                   </Text>
                   <ScrollView
                     horizontal
+                    nestedScrollEnabled={Platform.OS === 'android'}
                     showsHorizontalScrollIndicator={false}
                     style={{ maxHeight: 120 }}
                     contentContainerStyle={{ gap: 8 }}
@@ -801,7 +871,11 @@ export default function Dashboard() {
           {/* Chat Modal */}
           {isChat && (
             <>
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 16 }}>
+              <ScrollView
+                style={{ flex: 1, minHeight: 0 }}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+              >
                 {chatHistory.map((msg, idx) => (
                   <HStack
                     key={idx}
@@ -1115,13 +1189,51 @@ export default function Dashboard() {
                     </Pressable>
                   </HStack>
                   <VStack space="md" className="flex-1">
-                    {topPendingTasks.length > 0 ? (
-                      topPendingTasks.map(task => (
-                        <HStack key={task.id} space="sm" className="items-center">
-                          <Box style={styles.miniTaskCheckbox} />
-                          <Text size="sm" className="font-medium text-typography-900 flex-1" isTruncated>{task.title}</Text>
-                        </HStack>
-                      ))
+                    {dashboardMiniTaskIds.length > 0 ? (
+                      dashboardMiniTaskIds.map((taskId) => {
+                        const task = tasks.find((t) => t.id === taskId);
+                        if (!task) return null;
+                        const isCompleted = task.status === 'COMPLETED';
+                        const togglingThis =
+                          updateTaskMutation.isPending &&
+                          updateTaskMutation.variables?.id === task.id;
+                        return (
+                          <HStack key={task.id} space="sm" className="items-center">
+                            <Pressable
+                              accessibilityRole="checkbox"
+                              accessibilityState={{ checked: isCompleted, disabled: togglingThis }}
+                              hitSlop={10}
+                              disabled={togglingThis}
+                              onPress={() => void handleToggleDashboardMiniTask(task)}
+                              className="items-center justify-center"
+                            >
+                              <Box
+                                style={[
+                                  styles.miniTaskCheckbox,
+                                  isCompleted && styles.miniTaskCheckboxDone,
+                                ]}
+                                className="items-center justify-center"
+                              >
+                                {isCompleted ? (
+                                  <Check size={11} color={Colors.background} strokeWidth={3} />
+                                ) : null}
+                              </Box>
+                            </Pressable>
+                            <Text
+                              size="sm"
+                              className="font-medium text-typography-900 flex-1"
+                              isTruncated
+                              style={
+                                isCompleted
+                                  ? { textDecorationLine: 'line-through', opacity: 0.55 }
+                                  : undefined
+                              }
+                            >
+                              {task.title}
+                            </Text>
+                          </HStack>
+                        );
+                      })
                     ) : (
                       <Text size="sm" className="font-medium text-typography-900 opacity-60">Tudo feito!</Text>
                     )}
@@ -1563,6 +1675,10 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     borderWidth: 2,
     borderColor: Colors.primary + '4D',
+  },
+  miniTaskCheckboxDone: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   miniTaskText: {
     color: Colors.text,
