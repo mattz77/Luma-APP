@@ -1,0 +1,30 @@
+# Maestro E2E Configuration - Luma APP
+#
+# Documentação: https://maestro.mobile.dev/
+
+# App IDs por plataforma
+appId:
+  android: com.luma.app
+  ios: com.luma.app
+
+# Configurações de dispositivo
+device:
+  platform: android
+  name: Pixel 6
+
+# Timeouts
+timeout: 60000
+retries: 2
+
+# Diretório para screenshots em caso de falha
+onFlowError:
+  screenshot: true
+  outputDir: ./e2e/maestro/screenshots
+
+# Tags para organização de testes
+tags:
+  - smoke
+  - regression
+  - auth
+  - tasks
+  - expenses

@@ -1,0 +1,37 @@
+# Flow: Criar nova tarefa
+# Tags: tasks, smoke
+# Pré-requisito: usuário logado
+appId: com.luma.app
+---
+- launchApp
+- runFlow: flows/helpers/login.yaml
+
+# Navegar para tarefas
+- tapOn:
+    text: "Tarefas"
+
+# Abrir modal de criação
+- tapOn:
+    id: "fab-create-task"
+
+# Preencher formulário
+- tapOn:
+    text: "Título da tarefa"
+- inputText: "Tarefa de teste E2E"
+
+# Selecionar responsável (primeiro membro)
+- tapOn:
+    text: "Responsável"
+- tapOn:
+    index: 0
+    optional: true
+
+# Salvar
+- tapOn:
+    text: "Criar"
+
+# Verificar que tarefa aparece na lista
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Tarefa de teste E2E"
+    timeout: 5000

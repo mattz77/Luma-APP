@@ -1,0 +1,29 @@
+# Flow: Login com credenciais válidas
+# Tags: auth, smoke
+appId: com.luma.app
+---
+- launchApp
+
+# Verificar tela de login
+- assertVisible: "Entrar"
+- assertVisible: "E-mail"
+- assertVisible: "Senha"
+
+# Preencher credenciais
+- tapOn:
+    text: "E-mail"
+- inputText: ${E2E_TEST_EMAIL}
+
+- tapOn:
+    text: "Senha"
+- inputText: ${E2E_TEST_PASSWORD}
+
+# Submeter
+- tapOn:
+    text: "Entrar"
+
+# Aguardar navegação e verificar dashboard
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Tarefas"
+    timeout: 10000

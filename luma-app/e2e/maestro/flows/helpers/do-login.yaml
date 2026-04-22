@@ -1,0 +1,15 @@
+# Helper: Executar login
+appId: com.luma.app
+---
+- tapOn:
+    text: "E-mail"
+- inputText: ${E2E_TEST_EMAIL}
+
+- tapOn:
+    text: "Senha"
+- inputText: ${E2E_TEST_PASSWORD}
+
+- tapOn:
+    text: "Entrar"
+
+- waitForAnimationToEnd

@@ -1,0 +1,12 @@
+# Helper: Login reutilizável
+# Use com: runFlow: flows/helpers/login.yaml
+appId: com.luma.app
+---
+# Verificar se já está logado
+- runFlow:
+    when:
+      visible: "Entrar"
+    file: helpers/do-login.yaml
+
+# Aguardar dashboard carregar
+- waitForAnimationToEnd

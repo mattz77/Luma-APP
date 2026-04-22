@@ -1,0 +1,25 @@
+# Flow: Login com credenciais inválidas
+# Tags: auth, negative
+appId: com.luma.app
+---
+- launchApp
+
+# Verificar tela de login
+- assertVisible: "Entrar"
+
+# Tentar login com senha errada
+- tapOn:
+    text: "E-mail"
+- inputText: "invalid@test.com"
+
+- tapOn:
+    text: "Senha"
+- inputText: "wrongpassword123"
+
+- tapOn:
+    text: "Entrar"
+
+# Deve mostrar mensagem de erro
+- assertVisible:
+    text: "credenciais"
+    timeout: 5000
