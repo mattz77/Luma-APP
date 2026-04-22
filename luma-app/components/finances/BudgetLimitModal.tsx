@@ -47,7 +47,6 @@ export function BudgetLimitModal({
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
-  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const [draftCentsDigits, setDraftCentsDigits] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -166,7 +165,6 @@ export function BudgetLimitModal({
               </Text>
 
               <ScrollView
-                ref={scrollRef}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{
@@ -199,13 +197,6 @@ export function BudgetLimitModal({
                         onChangeText={(text) => {
                           setDraftCentsDigits((prev) => parseMoneyInputToCentsDigits(text, prev));
                           setLocalError(null);
-                        }}
-                        onFocus={() => {
-                          if (Platform.OS === 'ios') {
-                            setTimeout(() => {
-                              scrollRef.current?.scrollToEnd({ animated: true });
-                            }, 120);
-                          }
                         }}
                         keyboardType="decimal-pad"
                         editable={!isSubmitting}

@@ -94,6 +94,8 @@ export function GlobalSearchModal({ visible, onClose }: GlobalSearchModalProps) 
   };
 
   const maxH = Dimensions.get('window').height * 0.85;
+  /** Uma única altura para a lista — evita combinar `maxHeight` do card + do scroll (saltos com teclado/KAV). */
+  const resultsScrollMaxHeight = useMemo(() => Math.min(Math.max(maxH - 200, 160), 440), [maxH]);
 
   return (
     <RNModal
@@ -189,7 +191,7 @@ export function GlobalSearchModal({ visible, onClose }: GlobalSearchModalProps) 
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: Math.min(maxH - 220, 440) }}
+                style={{ maxHeight: resultsScrollMaxHeight }}
                 contentContainerStyle={{ paddingBottom: 8, gap: 12 }}
               >
                 {!hasQuery ? (
