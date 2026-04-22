@@ -8,7 +8,8 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),
   useSegments: () => [],
-  Link: 'Link',
+  Link: ({ children }: { children: unknown }) => children,
+  Redirect: () => null,
   Stack: { Screen: 'Screen' },
   Tabs: { Screen: 'Screen' },
 }));

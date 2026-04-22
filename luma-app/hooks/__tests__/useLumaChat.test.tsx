@@ -33,6 +33,7 @@ describe('useLumaChat', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (RAGService.hybridSearch as jest.Mock).mockResolvedValue([]);
+    (RAGService.addDocument as jest.Mock).mockResolvedValue(null);
     (n8nClient.sendMessage as jest.Mock).mockResolvedValue({
       success: true,
       response: 'Resposta',

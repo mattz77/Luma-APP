@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 
 import { useExpenses } from '@/hooks/useExpenses';
 import { supabaseTest } from '@/test/supabase-test-registry';
+import { useCanAccessFinances } from '@/hooks/useUserRole';
 
 jest.mock('@/stores/auth.store', () => ({
   useAuthStore: (selector: (s: { user: { id: string } | null }) => unknown) =>
@@ -55,6 +56,7 @@ function createWrapper() {
 describe('useExpenses', () => {
   beforeEach(() => {
     supabaseTest.reset();
+    (useCanAccessFinances as jest.Mock).mockReturnValue(true);
   });
 
   test('carrega despesas quando pode acessar finanças', async () => {

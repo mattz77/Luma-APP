@@ -1,4 +1,5 @@
 import { taskService } from '@/services/task.service';
+import { RAGService } from '@/services/rag.service';
 import { supabaseTest } from '@/test/supabase-test-registry';
 
 jest.mock('@/services/rag.service', () => ({
@@ -36,6 +37,7 @@ describe('taskService', () => {
   beforeEach(() => {
     supabaseTest.reset();
     jest.clearAllMocks();
+    (RAGService.addDocument as jest.Mock).mockResolvedValue(null);
   });
 
   test('getById aplica eq id e house_id', async () => {

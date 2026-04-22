@@ -27,6 +27,13 @@ export function createSupabaseMock() {
     string,
     (body?: unknown) => Promise<{ data: unknown; error: unknown }>
   >();
+  const invokeDefaultImplementation = async (name: string, options?: { body?: unknown }) => {
+    const fn = invokeFunctions.get(name);
+    if (fn) {
+      return fn(options?.body);
+    }
+    return { data: null, error: null };
+  };
 
   const channelMocks = {
     channel: jest.fn(() => ({
@@ -114,13 +121,7 @@ export function createSupabaseMock() {
     channel: channelMocks.channel,
     removeChannel: channelMocks.removeChannel,
     functions: {
-      invoke: jest.fn(async (name: string, options?: { body?: unknown }) => {
-        const fn = invokeFunctions.get(name);
-        if (fn) {
-          return fn(options?.body);
-        }
-        return { data: null, error: null };
-      }),
+      invoke: jest.fn(invokeDefaultImplementation),
     },
     storage: {
       from: jest.fn(() => ({
@@ -169,6 +170,7 @@ export function createSupabaseMock() {
       channelMocks.channel.mockClear();
       channelMocks.removeChannel.mockClear();
       (client.functions.invoke as jest.Mock).mockClear();
+      (client.functions.invoke as jest.Mock).mockImplementation(invokeDefaultImplementation);
       (client.rpc as jest.Mock).mockClear();
       (client.storage.from as jest.Mock).mockClear();
       (client.auth.getUser as jest.Mock).mockClear();

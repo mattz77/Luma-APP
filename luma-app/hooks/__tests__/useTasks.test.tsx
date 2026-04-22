@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 
 import { useTasks, useCreateTask } from '@/hooks/useTasks';
+import { RAGService } from '@/services/rag.service';
 import { supabaseTest } from '@/test/supabase-test-registry';
 
 function createWrapper() {
@@ -46,6 +47,7 @@ jest.mock('@/hooks/useNotifications', () => ({
 describe('useTasks', () => {
   beforeEach(() => {
     supabaseTest.reset();
+    (RAGService.addDocument as jest.Mock).mockResolvedValue(null);
   });
 
   test('retorna lista quando houseId definido', async () => {
