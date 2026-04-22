@@ -2,6 +2,10 @@ export type SupportedLocale = 'pt-BR' | 'en-US' | 'es-ES';
 
 export interface Translations {
   auth: {
+    brand: {
+      name: string;
+      tagline: string;
+    };
     login: {
       title: string;
       subtitle: string;
@@ -12,6 +16,7 @@ export interface Translations {
       noAccount: string;
       signUp: string;
       continueWith: string;
+      googleContinue: string;
     };
     register: {
       title: string;
@@ -25,6 +30,7 @@ export interface Translations {
       privacyLink: string;
       button: string;
       continueWith: string;
+      googleContinue: string;
       alreadyHaveAccount: string;
       signIn: string;
       fieldsRequired: string;

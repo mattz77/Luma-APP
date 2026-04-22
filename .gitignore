@@ -78,3 +78,6 @@ luma-app/supabase/
 luma-app/gluestack-mcp
 .wslconfig
 
+luma-branding-2.png
+.gitignore
+luma-branding.png

@@ -2,6 +2,10 @@ import type { Translations } from '../types';
 
 export const enUS: Translations = {
   auth: {
+    brand: {
+      name: 'Luma',
+      tagline: 'Your home, always cared for.',
+    },
     login: {
       title: 'Sign In',
       subtitle: 'Enter your email and password to continue',
@@ -10,8 +14,9 @@ export const enUS: Translations = {
       forgotPassword: 'Forgot password',
       button: 'Sign In',
       noAccount: "Don't have an account?",
-      signUp: 'Sign Up',
-      continueWith: 'Or Continue with',
+      signUp: 'Sign up',
+      continueWith: 'or continue with',
+      googleContinue: 'Continue with Google',
     },
     register: {
       title: 'Sign Up',
@@ -24,17 +29,19 @@ export const enUS: Translations = {
       and: 'and',
       privacyLink: 'Privacy Policy',
       button: 'Create Account',
-      continueWith: 'Or Continue with',
+      continueWith: 'or continue with',
+      googleContinue: 'Continue with Google',
       alreadyHaveAccount: 'Already have an Account?',
       signIn: 'Sign in',
       fieldsRequired: 'Please provide name, email and a secure password.',
     },
     forgotPassword: {
-      title: 'Forget Password',
-      subtitle: "Don't worry it happens. Please enter the address associate with your account",
+      title: 'Reset password',
+      subtitle:
+        'Enter the email associated with your account. We will send you a link to reset your password.',
       email: 'Email address',
-      button: 'Send OTP',
-      rememberPassword: 'You remember you password?',
+      button: 'Send link',
+      rememberPassword: 'Remember your password?',
       signIn: 'Sign in',
       emailRequired: 'Enter your registered email to receive the link.',
       emailSent: 'Email sent! Check your inbox to reset your password.',

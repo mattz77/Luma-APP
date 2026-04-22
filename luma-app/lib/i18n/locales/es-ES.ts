@@ -2,6 +2,10 @@ import type { Translations } from '../types';
 
 export const esES: Translations = {
   auth: {
+    brand: {
+      name: 'Luma',
+      tagline: 'Tu hogar, siempre cuidado.',
+    },
     login: {
       title: 'Iniciar Sesión',
       subtitle: 'Ingresa tu correo electrónico y contraseña para continuar',
@@ -9,9 +13,10 @@ export const esES: Translations = {
       password: 'Contraseña',
       forgotPassword: 'Olvidé mi contraseña',
       button: 'Iniciar Sesión',
-      noAccount: '¿No tienes una cuenta?',
-      signUp: 'Registrarse',
-      continueWith: 'O continúa con',
+      noAccount: '¿Aún no tienes cuenta?',
+      signUp: 'Regístrate',
+      continueWith: 'o continúa con',
+      googleContinue: 'Continuar con Google',
     },
     register: {
       title: 'Registrarse',
@@ -24,16 +29,18 @@ export const esES: Translations = {
       and: 'y',
       privacyLink: 'Política de Privacidad',
       button: 'Crear Cuenta',
-      continueWith: 'O continúa con',
+      continueWith: 'o continúa con',
+      googleContinue: 'Continuar con Google',
       alreadyHaveAccount: '¿Ya tienes una cuenta?',
       signIn: 'Iniciar Sesión',
       fieldsRequired: 'Por favor proporciona nombre, correo y una contraseña segura.',
     },
     forgotPassword: {
-      title: 'Olvidé mi Contraseña',
-      subtitle: 'No te preocupes, sucede. Por favor ingresa el correo asociado a tu cuenta',
+      title: 'Recuperar contraseña',
+      subtitle:
+        'Indica el correo asociado a tu cuenta. Te enviaremos un enlace para restablecerla.',
       email: 'Correo electrónico',
-      button: 'Enviar Enlace',
+      button: 'Enviar enlace',
       rememberPassword: '¿Recordaste tu contraseña?',
       signIn: 'Iniciar Sesión',
       emailRequired: 'Ingresa el correo registrado para recibir el enlace.',

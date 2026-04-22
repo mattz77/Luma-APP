@@ -2,16 +2,21 @@ import type { Translations } from '../types';
 
 export const ptBR: Translations = {
   auth: {
+    brand: {
+      name: 'Luma',
+      tagline: 'Sua casa, sempre cuidada.',
+    },
     login: {
       title: 'Entrar',
       subtitle: 'Digite seu e-mail e senha para continuar',
       email: 'E-mail',
       password: 'Senha',
-      forgotPassword: 'Esqueci a senha',
+      forgotPassword: 'Esqueci minha senha',
       button: 'Entrar',
-      noAccount: 'Não tem uma conta?',
-      signUp: 'Cadastrar',
-      continueWith: 'Ou continue com',
+      noAccount: 'Ainda não tem conta?',
+      signUp: 'Cadastre-se',
+      continueWith: 'ou continue com',
+      googleContinue: 'Continuar com Google',
     },
     register: {
       title: 'Cadastrar',
@@ -24,16 +29,18 @@ export const ptBR: Translations = {
       and: 'e',
       privacyLink: 'Política de Privacidade',
       button: 'Criar Conta',
-      continueWith: 'Ou continue com',
+      continueWith: 'ou continue com',
+      googleContinue: 'Continuar com Google',
       alreadyHaveAccount: 'Já tem uma conta?',
       signIn: 'Entrar',
       fieldsRequired: 'Informe nome, e-mail e uma senha segura.',
     },
     forgotPassword: {
-      title: 'Esqueci a Senha',
-      subtitle: 'Não se preocupe, isso acontece. Digite o e-mail associado à sua conta',
+      title: 'Recuperar senha',
+      subtitle:
+        'Informe o e-mail associado à sua conta. Enviaremos um link para redefinir sua senha.',
       email: 'E-mail',
-      button: 'Enviar Link',
+      button: 'Enviar link',
       rememberPassword: 'Lembrou sua senha?',
       signIn: 'Entrar',
       emailRequired: 'Digite o e-mail cadastrado para receber o link.',
