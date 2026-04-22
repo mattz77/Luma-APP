@@ -1,8 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const appRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const appRoot = process.cwd();
 
 function runNpmScript(script: 'test:report' | 'test:report:summary'): number {
   const result = spawnSync('npm', ['run', script], {
@@ -13,6 +10,6 @@ function runNpmScript(script: 'test:report' | 'test:report:summary'): number {
   return result.status ?? 1;
 }
 
-const first = runNpmScript('test:report');
-if (first !== 0) process.exit(first);
-process.exit(runNpmScript('test:report:summary'));
+const reportExit = runNpmScript('test:report');
+runNpmScript('test:report:summary');
+process.exit(reportExit);

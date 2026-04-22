@@ -166,6 +166,48 @@ jobs:
           retention-days: 7
 
   # ========================================
+  # Job 4b: E2E Navigation (Playwright)
+  # ========================================
+  e2e-web-navigation:
+    name: E2E Web Navigation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: ./luma-app
+
+    env:
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './luma-app/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run navigation E2E tests
+        run: npm run test:e2e:web:navigation
+
+      - name: Upload navigation report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-navigation
+          path: luma-app/playwright-report/
+          retention-days: 7
+
+  # ========================================
   # Job 5: Lint & Type Check
   # ========================================
   lint:
@@ -201,7 +243,7 @@ jobs:
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, coverage-check, lint]
+    needs: [unit-tests, coverage-check, lint, e2e-web-navigation]
     if: always()
 
     steps:
@@ -210,6 +252,7 @@ jobs:
           echo "Unit Tests: ${{ needs.unit-tests.result }}"
           echo "Coverage Check: ${{ needs.coverage-check.result }}"
           echo "Lint: ${{ needs.lint.result }}"
+          echo "E2E Web Navigation: ${{ needs.e2e-web-navigation.result }}"
 
           if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then
             echo "::error::Unit tests failed"
@@ -218,6 +261,11 @@ jobs:
 
           if [[ "${{ needs.lint.result }}" == "failure" ]]; then
             echo "::error::Lint failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.e2e-web-navigation.result }}" == "failure" ]]; then
+            echo "::error::E2E navigation failed"
             exit 1
           fi
 

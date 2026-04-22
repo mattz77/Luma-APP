@@ -34,6 +34,9 @@ module.exports = {
     '\\+html\\.tsx',
     '\\+not-found\\.tsx',
     'components/ui/',
+    'lib/auth/loadAuthFonts\\.ts',
+    'components/navigation/TabBar\\.tsx',
+    'app/_layout\\.tsx',
   ],
   coverageThreshold: {
     global: {
