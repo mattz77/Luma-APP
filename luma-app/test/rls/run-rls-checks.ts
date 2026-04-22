@@ -17,6 +17,7 @@ import { getTestConfig } from './helpers/rls-test-client';
 import { runTasksRlsChecks } from './checks/tasks.rls';
 import { runExpensesRlsChecks } from './checks/expenses.rls';
 import { runNotificationsRlsChecks } from './checks/notifications.rls';
+import { runAuthFlowsChecks } from './checks/auth-flows';
 
 interface CheckResult {
   table: string;
@@ -50,6 +51,9 @@ async function main() {
 
     console.log('\nExecutando checks RLS para notifications...');
     results.push({ table: 'notifications', passed: await runNotificationsRlsChecks(config) });
+
+    console.log('\nExecutando checks de auth flows...');
+    results.push({ table: 'auth-flows', passed: await runAuthFlowsChecks(config) });
 
   } catch (error) {
     console.error('[RLS] Erro durante execução:', error);
