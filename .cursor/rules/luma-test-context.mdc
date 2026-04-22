@@ -10,8 +10,9 @@ alwaysApply: true
 Antes de **qualquer** ação relacionada a testes (unitário, integração, RLS, E2E, CI de testes), o agente **deve**:
 
 1. Ler `docs/TESTES_AUTOMATIZADOS.md` por completo.
-2. Confirmar no raciocínio interno quais comandos/scripts e convenções do projeto se aplicam.
-3. Só então executar comandos de teste, criar testes novos ou alterar infraestrutura de testes.
+2. Ler também `test-results/latest-summary.md` (quando existir) para entender o último estado da suíte.
+3. Confirmar no raciocínio interno quais comandos/scripts e convenções do projeto se aplicam.
+4. Só então executar comandos de teste, criar testes novos ou alterar infraestrutura de testes.
 
 ## Quando esta regra se aplica
 
@@ -23,3 +24,20 @@ Antes de **qualquer** ação relacionada a testes (unitário, integração, RLS,
 ## Atualização de documentação
 
 Se o agente adicionar/alterar fluxo, script, pasta, convenção ou requisito de testes, deve também atualizar `docs/TESTES_AUTOMATIZADOS.md` no mesmo trabalho para manter o contexto confiável para os próximos agentes.
+
+## Scripts obrigatórios a considerar
+
+- `npm run test:report`
+- `npm run test:report:summary`
+- `npm run test:report:all`
+- `npm run test:coverage:check`
+- `npm run test:coverage:new-files`
+- `npm run test:generate -- <arquivo>`
+
+## Regra de consistência
+
+Qualquer alteração em testes, mocks, cobertura, hooks de automação ou CI **deve** incluir no mesmo trabalho:
+
+1. Atualização de `docs/TESTES_AUTOMATIZADOS.md`.
+2. Verificação se `test-results/latest-summary.md` precisa ser regenerado.
+3. Atualização desta regra (`.cursor/rules/luma-test-context.mdc`) caso surjam novos comandos/fluxos.
