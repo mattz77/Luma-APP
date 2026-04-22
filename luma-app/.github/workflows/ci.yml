@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests with coverage
-        run: npm run test:ci
+      - name: Run unit tests + reports
+        run: npm run test:report:all
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v4
@@ -43,6 +43,23 @@ jobs:
           files: ./luma-app/coverage/lcov.info
           flags: unittests
           fail_ci_if_error: false
+
+      - name: Upload test-results artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: luma-app/test-results/**
+          retention-days: 14
+
+      - name: Append latest summary to job summary
+        if: always()
+        run: |
+          if [ -f test-results/latest-summary.md ]; then
+            cat test-results/latest-summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "latest-summary.md não foi gerado." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ========================================
   # Job 2: Coverage Check (file-level)
