@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "Validando cobertura de novos arquivos..."
+bun run scripts/check-new-files-coverage.ts
