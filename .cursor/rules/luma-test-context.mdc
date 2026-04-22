@@ -1,0 +1,25 @@
+---
+description: Obriga leitura do contexto de testes antes de executar, criar ou alterar qualquer teste automatizado
+alwaysApply: true
+---
+
+# Luma — contexto obrigatório de testes
+
+## Regra principal
+
+Antes de **qualquer** ação relacionada a testes (unitário, integração, RLS, E2E, CI de testes), o agente **deve**:
+
+1. Ler `docs/TESTES_AUTOMATIZADOS.md` por completo.
+2. Confirmar no raciocínio interno quais comandos/scripts e convenções do projeto se aplicam.
+3. Só então executar comandos de teste, criar testes novos ou alterar infraestrutura de testes.
+
+## Quando esta regra se aplica
+
+- Execução de testes (`npm test`, `test:ci`, `test:rls`, `test:e2e:*`, etc.)
+- Criação/edição de arquivos em `services/**/__tests__`, `hooks/**/__tests__`, `stores/**/__tests__`, `lib/**/__tests__`, `components/**/__tests__`
+- Mudanças em `test/**`, `e2e/**`, `.github/workflows/**` com foco em testes
+- Ajustes em cobertura, mocks, helpers de teste e scripts de verificação
+
+## Atualização de documentação
+
+Se o agente adicionar/alterar fluxo, script, pasta, convenção ou requisito de testes, deve também atualizar `docs/TESTES_AUTOMATIZADOS.md` no mesmo trabalho para manter o contexto confiável para os próximos agentes.
