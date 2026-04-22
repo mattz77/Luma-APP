@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Platform, TouchableOpacity } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icon';
 import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { VStack } from '@/components/ui/vstack';
+
+import { authFontFamilies, authTheme } from '@/lib/auth/authTheme';
 
 interface AuthInputProps {
   label: string;
@@ -14,6 +16,8 @@ interface AuthInputProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   error?: boolean;
+  /** Tema escuro do `newlogin.html` — label em caixa alta, borda âmbar, foco com brilho. */
+  variant?: 'default' | 'authDark';
 }
 
 export function AuthInput({
@@ -25,8 +29,10 @@ export function AuthInput({
   autoCapitalize = 'none',
   keyboardType,
   error = false,
+  variant = 'default',
 }: AuthInputProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [focused, setFocused] = useState(false);
   const isPassword = type === 'password';
 
   const getIcon = () => {
@@ -36,6 +42,77 @@ export function AuthInput({
   };
 
   const IconComponent = getIcon();
+
+  if (variant === 'authDark') {
+    const borderColor = error
+      ? authTheme.error
+      : focused
+        ? authTheme.borderFocus
+        : authTheme.border;
+    const iconClass = error
+      ? 'text-[#E05252]'
+      : focused
+        ? 'text-[#D4AF37]'
+        : 'text-[rgba(240,237,229,0.3)]';
+
+    return (
+      <VStack space="xs" className="mb-2">
+        <Text style={styles.darkLabel}>{label}</Text>
+        <Input
+          variant="outline"
+          size="xl"
+          isInvalid={error}
+          className="min-h-[52px] max-h-[52px] rounded-[14px] border-[1.5px] px-0 overflow-hidden"
+          style={{
+            backgroundColor: focused ? 'rgba(212, 175, 55, 0.03)' : authTheme.inputBg,
+            borderColor,
+            shadowColor: focused ? authTheme.amber : 'transparent',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.35 : 0,
+            shadowRadius: focused ? 6 : 0,
+            elevation: 0,
+          }}
+        >
+          <InputSlot className="pl-3.5">
+            <InputIcon>
+              <Icon as={IconComponent} size="md" className={iconClass} />
+            </InputIcon>
+          </InputSlot>
+          <InputField
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder || label}
+            placeholderTextColor="rgba(240, 237, 229, 0.3)"
+            multiline={false}
+            textAlignVertical={Platform.OS === 'android' ? 'center' : undefined}
+            secureTextEntry={isPassword && !showPassword}
+            autoCapitalize={autoCapitalize}
+            keyboardType={keyboardType || (type === 'email' ? 'email-address' : 'default')}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            className="text-[15px] py-0"
+            style={{ color: authTheme.textPrimary, fontFamily: authFontFamilies.sans }}
+          />
+          {isPassword && (
+            <InputSlot className="pr-3">
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <InputIcon>
+                  <Icon
+                    as={showPassword ? EyeOff : Eye}
+                    size="md"
+                    className="text-[rgba(240,237,229,0.3)]"
+                  />
+                </InputIcon>
+              </TouchableOpacity>
+            </InputSlot>
+          )}
+        </Input>
+      </VStack>
+    );
+  }
 
   return (
     <VStack space="xs" className="mb-2">
@@ -47,7 +124,7 @@ export function AuthInput({
       >
         <InputSlot className="pl-3">
           <InputIcon>
-            <Icon as={IconComponent} size={18} className="text-gray-500" />
+            <Icon as={IconComponent} size="md" className="text-gray-500" />
           </InputIcon>
         </InputSlot>
         <InputField
@@ -71,7 +148,7 @@ export function AuthInput({
               <InputIcon>
                 <Icon
                   as={showPassword ? EyeOff : Eye}
-                  size={18}
+                  size="md"
                   className="text-gray-500"
                 />
               </InputIcon>
@@ -82,3 +159,16 @@ export function AuthInput({
     </VStack>
   );
 }
+
+const styles = StyleSheet.create({
+  darkLabel: {
+    fontFamily: authFontFamilies.sansMedium,
+    fontSize: 12.5,
+    fontWeight: '500' as const,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: authTheme.textSecondary,
+    paddingLeft: 2,
+    marginBottom: 6,
+  },
+});
