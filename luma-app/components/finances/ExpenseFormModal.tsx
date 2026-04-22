@@ -190,6 +190,13 @@ export function ExpenseFormModal({
     [screenHeight, insets.bottom]
   );
 
+  /** Folga para alça + título + margens; `ScrollView` com `flex:1` dentro de pai só com `maxHeight` vira altura 0 no iOS. */
+  const sheetScrollMaxHeight = useMemo(() => {
+    const sheetCap = screenHeight * 0.92;
+    const headerReserve = 180;
+    return Math.max(280, sheetCap - headerReserve - Math.max(insets.bottom, 8));
+  }, [screenHeight, insets.bottom]);
+
   /** Preenche o overlay para justifyContent flex-end ancorar o sheet na base */
   const sheetWrapperStyle = useMemo(
     () => ({
@@ -572,20 +579,25 @@ export function ExpenseFormModal({
             </Animated.View>
 
             <GestureHandlerRootView style={sheetWrapperStyle}>
-              <GestureDetector gesture={panGesture}>
-                <Animated.View
-                  entering={SlideInDown.springify()
-                    .damping(Platform.OS === 'ios' ? 22 : 24)
-                    .stiffness(Platform.OS === 'ios' ? 340 : 300)
-                    .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
-                  className="w-full shadow-2xl"
-                  style={[sheetOuterStyle, modalAnimatedStyle]}
-                >
-                  <View className="w-full items-center pt-2 pb-2">
+              <Animated.View
+                entering={SlideInDown.springify()
+                  .damping(Platform.OS === 'ios' ? 22 : 24)
+                  .stiffness(Platform.OS === 'ios' ? 340 : 300)
+                  .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
+                className="w-full shadow-2xl"
+                style={[sheetOuterStyle, modalAnimatedStyle]}
+              >
+                <GestureDetector gesture={panGesture}>
+                  <View
+                    className="w-full items-center pt-2 pb-2"
+                    accessibilityRole="button"
+                    accessibilityLabel="Arrastar para fechar"
+                  >
                     <View className="w-12 h-1 bg-slate-200 rounded-full" />
                   </View>
+                </GestureDetector>
 
-                  <HStack className="justify-between items-center px-8 mb-4">
+                <HStack className="justify-between items-center px-8 mb-4">
                     <Pressable onPress={Keyboard.dismiss}>
                       <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">
                         {title}
@@ -600,6 +612,7 @@ export function ExpenseFormModal({
                   </HStack>
 
                   <ScrollView
+                    style={{ maxHeight: sheetScrollMaxHeight }}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     onScrollBeginDrag={Keyboard.dismiss}
@@ -727,6 +740,7 @@ export function ExpenseFormModal({
                         <FieldLabel>Dividir com</FieldLabel>
                         <ScrollView
                           horizontal
+                          nestedScrollEnabled={Platform.OS === 'android'}
                           showsHorizontalScrollIndicator={false}
                           contentContainerStyle={{ gap: 8 }}
                         >
@@ -899,8 +913,7 @@ export function ExpenseFormModal({
                       </HStack>
                     </VStack>
                   </ScrollView>
-                </Animated.View>
-              </GestureDetector>
+              </Animated.View>
             </GestureHandlerRootView>
           </View>
         </KeyboardAvoidingView>

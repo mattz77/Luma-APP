@@ -460,7 +460,7 @@ export default function TasksScreen() {
   return (
     <ErrorBoundary>
       <Box className="flex-1 bg-[#FDFBF7]">
-        <SafeAreaView className="flex-1" edges={['top']}>
+        <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
 
           {/* Header */}
           <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
@@ -494,6 +494,7 @@ export default function TasksScreen() {
           />
 
           <ScrollView
+            style={{ flex: 1, minHeight: 0 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: getTabScrollBottomPadding(bottom) }}
           >
@@ -559,7 +560,6 @@ export default function TasksScreen() {
                   <LumaModalOverlay onRequestClose={closeModal} />
                 </Animated.View>
                 <GestureHandlerRootView style={taskSheetWrapperStyle}>
-                <GestureDetector gesture={panGesture}>
                   <Animated.View
                     entering={SlideInDown.springify()
                       .damping(Platform.OS === 'ios' ? 22 : 24)
@@ -568,15 +568,22 @@ export default function TasksScreen() {
                     // exiting removed to prevent conflict with manual animation
                     className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
                     style={[
-                      { backgroundColor: '#FFFFFF' }, // Force white background
-                      modalAnimatedStyle
+                      { backgroundColor: '#FFFFFF', flexDirection: 'column' }, // Force white background
+                      modalAnimatedStyle,
                     ]}
                   >
-                <View className="w-full items-center mb-6" style={{ paddingVertical: 8 }}>
-                  <View className="w-12 h-1 bg-slate-200 rounded-full" />
-                </View>
+                    <GestureDetector gesture={panGesture}>
+                      <View
+                        className="w-full items-center mb-6"
+                        style={{ paddingVertical: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Arrastar para fechar"
+                      >
+                        <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                      </View>
+                    </GestureDetector>
 
-                <HStack className="justify-between items-center mb-6">
+                    <HStack className="justify-between items-center mb-6">
                   <Pressable onPress={Keyboard.dismiss}>
                     <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">Nova Tarefa</Heading>
                   </Pressable>
@@ -588,11 +595,12 @@ export default function TasksScreen() {
                   </Pressable>
                 </HStack>
 
-                <ScrollView 
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                  onScrollBeginDrag={Keyboard.dismiss}
-                >
+                    <ScrollView
+                      style={{ flex: 1, minHeight: 0 }}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      onScrollBeginDrag={Keyboard.dismiss}
+                    >
                   <VStack space="lg" className="flex-1">
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
@@ -628,7 +636,12 @@ export default function TasksScreen() {
                   {/* Prazo: atalhos + calendário (mesmo padrão do modal de despesa) */}
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prazo</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    <ScrollView
+                      horizontal
+                      nestedScrollEnabled={Platform.OS === 'android'}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}
+                    >
                       {prazoShortcuts.map((opt, i) => {
                         const isSelected =
                           opt.iso === null ? dueDateIso === null : dueDateIso === opt.iso;
@@ -718,11 +731,10 @@ export default function TasksScreen() {
                   >
                     <ButtonText className="text-slate-900 font-bold text-md">Salvar Tarefa</ButtonText>
                   </Button>
-                </VStack>
-                </ScrollView>
-                </Animated.View>
-                </GestureDetector>
-              </GestureHandlerRootView>
+                    </VStack>
+                    </ScrollView>
+                  </Animated.View>
+                </GestureHandlerRootView>
               </View>
             </KeyboardAvoidingView>
           </RNModal>
