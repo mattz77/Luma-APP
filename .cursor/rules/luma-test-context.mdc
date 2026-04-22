@@ -33,6 +33,7 @@ Se o agente adicionar/alterar fluxo, script, pasta, convenção ou requisito de 
 - `npm run test:coverage:check`
 - `npm run test:coverage:new-files`
 - `npm run test:generate -- <arquivo>`
+- `npm run test:e2e:web:navigation`
 
 ## Regra de consistência
 
