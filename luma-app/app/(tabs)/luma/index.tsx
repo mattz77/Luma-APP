@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   StyleSheet,
   Text,
@@ -10,7 +12,7 @@ import {
   TouchableOpacity,
   View,
   StatusBar,
-  Image
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -58,6 +60,8 @@ export default function LumaChatScreen() {
   const userName = useAuthStore((state: any) => state.user?.name ?? 'Você');
   const userAvatarUrl = useAuthStore((state: any) => state.user?.avatarUrl ?? null);
   const flatListRef = useRef<FlatList>(null);
+  /** Só faz auto-scroll ao fim quando o usuário já está perto do fim (evita \"puxar\" a lista ao ler histórico). */
+  const stickToBottomRef = useRef(true);
   const isSendingRef = useRef(false); // Proteção contra múltiplas execuções
   const lastSentMessageRef = useRef<string>(''); // Rastrear última mensagem enviada
   const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Timeout para reset
@@ -80,10 +84,23 @@ export default function LumaChatScreen() {
   }, [preset, message]);
 
   useEffect(() => {
-    if (conversations && conversations.length > 0) {
+    if (conversations && conversations.length > 0 && stickToBottomRef.current) {
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [conversations]);
+
+  const handleMessagesScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    const threshold = 80;
+    stickToBottomRef.current =
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - threshold;
+  }, []);
+
+  const scrollToEndIfSticking = useCallback(() => {
+    if (stickToBottomRef.current) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }
+  }, []);
 
   // Cleanup timeout ao desmontar componente
   useEffect(() => {
@@ -149,8 +166,7 @@ export default function LumaChatScreen() {
     
     try {
       await sendMessage(messageToSend);
-      // Optimistic update or wait for realtime is handled by hooks, 
-      // but we scroll to bottom
+      stickToBottomRef.current = true;
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
       console.error('[handleSend] Erro ao enviar:', error);
@@ -307,8 +323,9 @@ export default function LumaChatScreen() {
             keyExtractor={(item) => item.id}
             refreshing={isRefetching}
             onRefresh={refetch}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={scrollToEndIfSticking}
+            onScroll={handleMessagesScroll}
+            scrollEventThrottle={16}
             contentContainerStyle={[styles.messagesList, { paddingBottom: bottom + 100 }]}
             showsVerticalScrollIndicator={false}
             renderItem={({ item, index }) => {
@@ -325,11 +342,7 @@ export default function LumaChatScreen() {
               const time = new Date(item.created_at || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
               return (
-                <Animated.View
-                  style={styles.messageRow}
-                  entering={FadeInUp.delay(index * 50).springify()}
-                  layout={Layout.springify()}
-                >
+                <Animated.View style={styles.messageRow} entering={FadeInUp.delay(index * 50).springify()}>
                   {/* User Message - Rendered FIRST */}
                   {item.message && (
                     <View style={styles.userRow}>
