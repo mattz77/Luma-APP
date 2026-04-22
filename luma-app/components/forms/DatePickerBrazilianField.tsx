@@ -25,6 +25,8 @@ export interface DatePickerBrazilianFieldProps {
   placeholder?: string;
   accessibilityLabel?: string;
   testID?: string;
+  /** Fundo suave (#F0F2F5) para alinhar com inputs dos modais de formulário. */
+  tone?: 'default' | 'soft';
 }
 
 /**
@@ -36,6 +38,7 @@ export function DatePickerBrazilianField({
   placeholder = 'DD/MM/AAAA',
   accessibilityLabel = 'Abrir calendário para escolher a data',
   testID,
+  tone = 'default',
 }: DatePickerBrazilianFieldProps) {
   const insets = useSafeAreaInsets();
   const [iosOpen, setIosOpen] = useState(false);
@@ -79,13 +82,18 @@ export function DatePickerBrazilianField({
     setIosOpen(true);
   }, [applyDate, valueIso]);
 
+  const fieldSurfaceClass =
+    tone === 'soft'
+      ? 'border border-slate-200/80 bg-[#F0F2F5]'
+      : 'border border-slate-200 bg-white';
+
   if (Platform.OS === 'web') {
     const isoForInput = /^\d{4}-\d{2}-\d{2}$/.test(valueIso.trim().slice(0, 10))
       ? valueIso.trim().slice(0, 10)
       : '';
 
     return (
-      <View className="relative h-14 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <View className={`relative h-14 w-full overflow-hidden rounded-2xl ${fieldSurfaceClass}`}>
         <View
           className="pointer-events-none absolute inset-0 z-0 flex-row items-center justify-between px-3"
           accessibilityElementsHidden
@@ -135,7 +143,7 @@ export function DatePickerBrazilianField({
         onPress={openPicker}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        className="h-14 w-full flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 active:bg-slate-50"
+        className={`h-14 w-full flex-row items-center justify-between rounded-2xl px-3 active:opacity-90 ${fieldSurfaceClass}`}
       >
         <Text
           className={`flex-1 text-base font-medium ${displayText ? 'text-slate-900' : 'text-slate-400'}`}

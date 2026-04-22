@@ -25,6 +25,10 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'SUCCESS' },
 }));
 
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
+}));
+
 jest.mock('react-native-reanimated', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Reanimated = require('react-native-reanimated/mock');
@@ -193,8 +197,8 @@ describe('ExpenseFormModal', () => {
       const valueInput = screen.getByLabelText('Valor da despesa em reais');
       fireEvent.changeText(valueInput, '10000'); // R$ 100,00
 
-      const memberButtons = screen.getAllByText('User 2');
-      fireEvent.press(memberButtons[0]);
+      fireEvent.press(screen.getByLabelText('Adicionar pessoa à divisão'));
+      fireEvent.press(screen.getByText('+ User 2'));
 
       const user1ShareInput = screen.getByLabelText('Cota em reais de User 1');
       fireEvent.changeText(user1ShareInput, '3000'); // R$ 30,00
@@ -316,8 +320,8 @@ describe('ExpenseFormModal', () => {
       expect(screen.getByLabelText('Cota em reais de User 1')).toBeTruthy();
       expect(screen.queryByLabelText('Cota em reais de User 2')).toBeNull();
 
-      const memberButtons = screen.getAllByText('User 2');
-      fireEvent.press(memberButtons[0]);
+      fireEvent.press(screen.getByLabelText('Adicionar pessoa à divisão'));
+      fireEvent.press(screen.getByText('+ User 2'));
 
       expect(screen.getByLabelText('Cota em reais de User 2')).toBeTruthy();
     });
@@ -328,8 +332,8 @@ describe('ExpenseFormModal', () => {
       const valueInput = screen.getByLabelText('Valor da despesa em reais');
       fireEvent.changeText(valueInput, '10000'); // R$ 100,00
 
-      const memberButtons = screen.getAllByText('User 2');
-      fireEvent.press(memberButtons[0]);
+      fireEvent.press(screen.getByLabelText('Adicionar pessoa à divisão'));
+      fireEvent.press(screen.getByText('+ User 2'));
 
       const distributeButton = screen.getByText('Distribuir igualmente');
       fireEvent.press(distributeButton);

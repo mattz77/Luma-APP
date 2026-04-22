@@ -13,6 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeInDown,
   Layout,
@@ -34,7 +35,6 @@ import { VStack } from '@/components/ui/vstack';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { Heading } from '@/components/ui/heading';
-import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
 import { Pressable } from '@/components/ui/pressable';
 import { ScrollView } from '@/components/ui/scroll-view';
 import { FlatList } from '@/components/ui/flat-list';
@@ -247,18 +247,23 @@ export default function TasksScreen() {
   /** `null` = sem prazo; caso contrário `YYYY-MM-DD` (dia local). */
   const [dueDateIso, setDueDateIso] = useState<string | null>(null);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' } | null>(null);
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
 
   // Gesture values for drag to close
   const translateY = useSharedValue(0);
-  const { height: screenHeight } = useWindowDimensions();
+  const { width: windowWidth, height: screenHeight } = useWindowDimensions();
 
   const openCreateModal = useCallback(() => {
     cancelAnimation(translateY);
     translateY.value = 0;
     requestAnimationFrame(() => {
+      if (user?.id) {
+        setSelectedAssigneeIds([user.id]);
+      }
+      setShowAssigneePicker(false);
       setCreateOpen(true);
     });
-  }, [translateY]);
+  }, [translateY, user?.id]);
 
   // Handle 'create' action from global dock
   useEffect(() => {
@@ -271,6 +276,7 @@ export default function TasksScreen() {
   useEffect(() => {
     if (isCreateOpen) {
       translateY.value = 0;
+      setShowAssigneePicker(false);
     }
   }, [isCreateOpen]);
 
@@ -396,6 +402,33 @@ export default function TasksScreen() {
     []
   );
 
+  const TASK_SHEET_SIDE_GUTTER = 16;
+  const taskSheetCardStyle = useMemo(
+    () => ({
+      width: Math.max(0, windowWidth - TASK_SHEET_SIDE_GUTTER * 2),
+      alignSelf: 'center' as const,
+      marginBottom: Math.max(bottom, 16) + 16,
+      maxHeight: screenHeight * 0.88,
+      flexDirection: 'column' as const,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 40,
+      overflow: 'hidden' as const,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 14,
+    }),
+    [windowWidth, screenHeight, bottom]
+  );
+
+  const taskScrollMaxHeight = useMemo(() => {
+    const bottomReserve = Math.max(bottom, 16) + 16 + 24;
+    const sheetCap = screenHeight * 0.88;
+    const headerReserve = 200;
+    return Math.max(220, sheetCap - headerReserve - bottomReserve);
+  }, [screenHeight, bottom]);
+
   const displayedTasks = useMemo(() => {
     if (showCompleted) {
       return tasks.filter(t => t.status === 'COMPLETED');
@@ -439,11 +472,10 @@ export default function TasksScreen() {
     }
   };
 
-  const toggleAssignee = (userId: string) => {
-    Haptics.selectionAsync();
-    setSelectedAssigneeIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
+  const selectAssignee = (userId: string) => {
+    void Haptics.selectionAsync();
+    setSelectedAssigneeIds([userId]);
+    setShowAssigneePicker(false);
   };
 
   if (!houseId) {
@@ -565,17 +597,11 @@ export default function TasksScreen() {
                       .damping(Platform.OS === 'ios' ? 22 : 24)
                       .stiffness(Platform.OS === 'ios' ? 340 : 300)
                       .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
-                    // exiting removed to prevent conflict with manual animation
-                    className="bg-white rounded-t-[40px] p-8 h-[90%] w-full shadow-2xl"
-                    style={[
-                      { backgroundColor: '#FFFFFF', flexDirection: 'column' }, // Force white background
-                      modalAnimatedStyle,
-                    ]}
+                    style={[taskSheetCardStyle, modalAnimatedStyle]}
                   >
                     <GestureDetector gesture={panGesture}>
                       <View
-                        className="w-full items-center mb-6"
-                        style={{ paddingVertical: 8 }}
+                        className="w-full items-center pt-2 pb-1"
                         accessibilityRole="button"
                         accessibilityLabel="Arrastar para fechar"
                       >
@@ -583,34 +609,35 @@ export default function TasksScreen() {
                       </View>
                     </GestureDetector>
 
-                    <HStack className="justify-between items-center mb-6">
+                    <HStack className="justify-between items-center px-6 mb-4">
                   <Pressable onPress={Keyboard.dismiss}>
-                    <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">Nova Tarefa</Heading>
+                    <Heading size="2xl" className="font-bold text-[#0f172a] tracking-tight">Nova Tarefa</Heading>
                   </Pressable>
                   <Pressable
                     onPress={closeModal}
-                    className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
+                    className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
                   >
-                    <X size={16} className="text-slate-900" />
+                    <X size={18} color="#0f172a" />
                   </Pressable>
                 </HStack>
 
                     <ScrollView
-                      style={{ flex: 1, minHeight: 0 }}
+                      style={{ maxHeight: taskScrollMaxHeight }}
                       keyboardShouldPersistTaps="handled"
                       showsVerticalScrollIndicator={false}
                       onScrollBeginDrag={Keyboard.dismiss}
+                      contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
                     >
                   <VStack space="lg" className="flex-1">
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
-                    <Input className="h-14 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
+                    <Input className="h-14 border-0 bg-[#F0F2F5] rounded-2xl">
                       <InputField
                         testID="task-create-title"
                         placeholder="Ex: Comprar leite..."
                         value={titleInput}
                         onChangeText={setTitleInput}
-                        className="text-lg font-medium text-slate-900"
+                        className="text-lg font-medium text-slate-900 px-4"
                         placeholderTextColor="#94a3b8"
                         // No iOS, evitamos abrir o teclado junto com a animação do modal
                         autoFocus={Platform.OS !== 'ios'}
@@ -620,14 +647,14 @@ export default function TasksScreen() {
 
                   <VStack space="xs">
                     <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Descrição</Text>
-                    <Input className="h-24 border border-slate-200 bg-white rounded-2xl focus:border-[#FDE047] focus:border-2">
+                    <Input className="h-24 border-0 bg-[#F0F2F5] rounded-2xl">
                       <InputField
                         placeholder="Adicione detalhes..."
                         value={descriptionInput}
                         onChangeText={setDescriptionInput}
                         multiline
                         textAlignVertical="top"
-                        className="py-3 text-sm text-slate-900 leading-5"
+                        className="py-3 px-4 text-sm text-slate-900 leading-5"
                         placeholderTextColor="#94a3b8"
                       />
                     </Input>
@@ -651,12 +678,12 @@ export default function TasksScreen() {
                             key={i}
                             onPress={() => {
                               Keyboard.dismiss();
-                              Haptics.selectionAsync();
+                              void Haptics.selectionAsync();
                               setDueDateIso(opt.iso);
                             }}
-                            className={`px-4 py-2.5 rounded-xl border ${isSelected
+                            className={`px-4 py-2.5 rounded-full border ${isSelected
                               ? 'bg-[#FDE047] border-[#FDE047]'
-                              : 'bg-slate-50 border-slate-100'
+                              : 'bg-white border-slate-200'
                               }`}
                           >
                             <Text className={`text-xs font-bold ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>
@@ -673,6 +700,7 @@ export default function TasksScreen() {
                         onChangeIso={(iso) => setDueDateIso(iso)}
                         placeholder="Toque para escolher no calendário"
                         accessibilityLabel="Data de prazo da tarefa, abrir calendário"
+                        tone="soft"
                       />
                     </VStack>
                   </VStack>
@@ -680,17 +708,22 @@ export default function TasksScreen() {
                   <HStack space="md">
                     <VStack space="xs" className="flex-1">
                       <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prioridade</Text>
-                      <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                      <HStack className="bg-[#F0F2F5] p-1 rounded-2xl">
                         {(['MEDIUM', 'HIGH'] as TaskPriority[]).map(p => (
                           <Pressable
                             key={p}
                             onPress={() => {
                               Keyboard.dismiss();
+                              void Haptics.selectionAsync();
                               setPriorityInput(p);
                             }}
-                            className={`flex-1 py-2.5 rounded-xl items-center ${priorityInput === p ? 'bg-white shadow-sm border border-slate-100' : ''}`}
+                            className={`flex-1 py-2.5 rounded-xl items-center ${
+                              priorityInput === p
+                                ? 'bg-[#FDE047] border border-yellow-300/80 shadow-sm shadow-yellow-200/80'
+                                : ''
+                            }`}
                           >
-                            <Text className={`text-xs font-bold ${priorityInput === p ? 'text-slate-900' : 'text-slate-400'}`}>
+                            <Text className={`text-xs font-bold ${priorityInput === p ? 'text-slate-900' : 'text-slate-500'}`}>
                               {PRIORITY_LABELS[p]}
                             </Text>
                           </Pressable>
@@ -698,39 +731,106 @@ export default function TasksScreen() {
                       </HStack>
                     </VStack>
 
-                    <VStack space="xs" className="flex-1">
+                    <VStack space="xs" className="flex-1 min-w-0">
                       <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Atribuir a</Text>
-                      <HStack space="sm" className="items-center h-[50px]">
-                        <Pressable className="w-10 h-10 rounded-full bg-white border border-dashed border-slate-300 items-center justify-center active:border-[#FDE047] active:bg-[#FDE047]/10">
-                          <Plus size={18} className="text-slate-400" />
+                      <VStack space="sm">
+                      <HStack space="sm" className="items-center min-h-[50px]">
+                        <Pressable
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            void Haptics.selectionAsync();
+                            setShowAssigneePicker((v) => !v);
+                          }}
+                          accessibilityLabel="Escolher outra pessoa"
+                          className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-slate-300 items-center justify-center shrink-0 active:border-[#FDE047] active:bg-[#FDE047]/10"
+                        >
+                          <Plus size={20} color="#64748b" />
                         </Pressable>
-                        {members.slice(0, 2).map(m => (
-                          <Pressable 
-                            key={m.userId} 
+                        <ScrollView
+                          horizontal
+                          nestedScrollEnabled={Platform.OS === 'android'}
+                          showsHorizontalScrollIndicator={false}
+                          className="flex-1 min-w-0"
+                          contentContainerStyle={{ gap: 10, alignItems: 'center', paddingVertical: 2 }}
+                        >
+                        {members.map((m) => {
+                          const selected = selectedAssigneeIds[0] === m.userId;
+                          return (
+                          <Pressable
+                            key={m.userId}
                             onPress={() => {
                               Keyboard.dismiss();
-                              toggleAssignee(m.userId);
+                              selectAssignee(m.userId);
                             }}
                           >
-                            <Avatar size="sm" className={`border-2 ${selectedAssigneeIds.includes(m.userId) ? 'border-[#FDE047]' : 'border-white'}`}>
+                            <Avatar size="sm" className={`border-2 ${selected ? 'border-[#FDE047]' : 'border-white'}`}>
                               <AvatarFallbackText>{m.user.name?.charAt(0)}</AvatarFallbackText>
-                              {m.user.avatarUrl && <AvatarImage source={{ uri: m.user.avatarUrl }} />}
+                              {m.user.avatarUrl ? <AvatarImage source={{ uri: m.user.avatarUrl }} /> : null}
                             </Avatar>
                           </Pressable>
-                        ))}
+                        );
+                        })}
+                        </ScrollView>
                       </HStack>
+                      {showAssigneePicker && members.some((m) => m.userId !== selectedAssigneeIds[0]) ? (
+                        <ScrollView
+                          horizontal
+                          nestedScrollEnabled={Platform.OS === 'android'}
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 8 }}
+                        >
+                          {members
+                            .filter((m) => m.userId !== selectedAssigneeIds[0])
+                            .map((m) => {
+                              const label = m.user.name ?? m.user.email ?? 'Membro';
+                              return (
+                                <Pressable
+                                  key={m.userId}
+                                  onPress={() => selectAssignee(m.userId)}
+                                  className="px-3 py-2 rounded-full bg-[#F0F2F5] border border-slate-200/80"
+                                >
+                                  <Text className="text-xs font-bold text-slate-600" numberOfLines={1}>
+                                    {label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                        </ScrollView>
+                      ) : null}
+                      </VStack>
                     </VStack>
                   </HStack>
 
-                  <Box className="flex-1" />
-
-                  <Button
+                  <Pressable
                     testID="task-create-submit"
                     onPress={handleSaveTask}
-                    className="bg-[#FDE047] h-14 rounded-[24px] mb-32 active:scale-[0.98] shadow-lg shadow-yellow-200"
+                    disabled={createTaskMutation.isPending}
+                    className="rounded-[24px] overflow-hidden mb-8 mt-2 active:scale-[0.98] opacity-100 disabled:opacity-60"
+                    style={{
+                      height: 56,
+                      shadowColor: '#b45309',
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.22,
+                      shadowRadius: 10,
+                      elevation: 8,
+                    }}
                   >
-                    <ButtonText className="text-slate-900 font-bold text-md">Salvar Tarefa</ButtonText>
-                  </Button>
+                    <LinearGradient
+                      colors={['#FDE68A', '#EAB308', '#CA8A04']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        height: 56,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 16,
+                      }}
+                    >
+                      <Text className="text-white font-bold text-base">
+                        {createTaskMutation.isPending ? 'Salvando...' : 'Salvar Tarefa'}
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
                     </VStack>
                     </ScrollView>
                   </Animated.View>

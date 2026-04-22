@@ -26,8 +26,16 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const lastCheckedHousesCountRef = useRef<number>(-1);
   const redirectingRef = useRef(false); // Previne múltiplos redirecionamentos
 
+  const normalizePath = (value?: string | null) => {
+    if (!value) return '/';
+    const cleaned = value.endsWith('/') && value.length > 1 ? value.slice(0, -1) : value;
+    return cleaned || '/';
+  };
+
   useEffect(() => {
     const checkOnboardingStatus = async () => {
+      const normalizedPathname = normalizePath(pathname);
+
       // Proteção contra execuções múltiplas
       if (isCheckingRef.current) {
         return;
@@ -35,10 +43,11 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
       // Evitar re-execução se pathname e housesCount não mudaram
       // Mas não bloquear se estiver na landing e precisa redirecionar
-      const needsRedirectFromLanding = (pathname === '/' || pathname === '/landing') && user && houses.length > 0 && initialized;
+      const needsRedirectFromLanding =
+        (normalizedPathname === '/' || normalizedPathname === '/landing') && user && houses.length > 0 && initialized;
       if (
         !needsRedirectFromLanding &&
-        lastCheckedPathnameRef.current === pathname &&
+        lastCheckedPathnameRef.current === normalizedPathname &&
         lastCheckedHousesCountRef.current === houses.length &&
         initialized &&
         (user ? houses.length > 0 : true)
@@ -47,7 +56,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       }
 
       isCheckingRef.current = true;
-      lastCheckedPathnameRef.current = pathname;
+      lastCheckedPathnameRef.current = normalizedPathname;
       lastCheckedHousesCountRef.current = houses.length;
       
       // Aguardar inicialização do auth
@@ -64,16 +73,9 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       }
 
       // Rotas que não precisam de verificação de onboarding
-      const authRoutes = [
-        '/(auth)/login',
-        '/(auth)/register',
-        '/(auth)/forgot-password',
-        '/(auth)/verify-email',
-        '/(auth)/onboarding',
-        '/(auth)/tutorial',
-      ];
+      const authRoutes = ['/login', '/register', '/forgot-password', '/verify-email', '/onboarding', '/tutorial'];
 
-      if (authRoutes.some((route) => pathname?.startsWith(route))) {
+      if (authRoutes.some((route) => normalizedPathname.startsWith(route))) {
         setIsChecking(false);
         isCheckingRef.current = false;
         return;
@@ -100,7 +102,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         
         if (houses.length === 0) {
           // Não tem casa, verificar se está na tela de criação
-          if (!pathname?.includes('/house')) {
+          if (!normalizedPathname.includes('/house')) {
             router.replace('/(tabs)/house');
           }
           setIsChecking(false);
@@ -120,9 +122,15 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
 
         // 4. Se estiver na landing page ou rota root e tudo estiver ok, redirecionar para tabs
         // Também verifica se está em +not-found (que pode acontecer se a rota não for encontrada)
-        const isRootOrLanding = pathname === '/' || pathname === '/landing';
-        const isNotFound = pathname === null || pathname === undefined || pathname === '';
-        const needsRedirect = (isRootOrLanding || isNotFound) && !pathname?.startsWith('/(tabs)') && !redirectingRef.current;
+        const isRootOrLanding = normalizedPathname === '/' || normalizedPathname === '/landing';
+        const isTabsArea =
+          normalizedPathname.startsWith('/tasks') ||
+          normalizedPathname.startsWith('/finances') ||
+          normalizedPathname.startsWith('/luma') ||
+          normalizedPathname.startsWith('/house') ||
+          normalizedPathname.startsWith('/profile') ||
+          normalizedPathname.startsWith('/notifications');
+        const needsRedirect = isRootOrLanding && !isTabsArea && !redirectingRef.current;
         
         if (needsRedirect) {
           redirectingRef.current = true;
@@ -138,7 +146,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
         }
         
         // Reset redirecting flag se já estamos em tabs
-        if (pathname?.startsWith('/(tabs)')) {
+        if (isTabsArea) {
           redirectingRef.current = false;
         }
 

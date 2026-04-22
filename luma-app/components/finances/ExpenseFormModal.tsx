@@ -22,7 +22,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Camera, Coins, Image as ImageIcon, Plus, Tag, X } from 'lucide-react-native';
 
 import type { Expense, ExpenseCategory, HouseMemberWithUser } from '@/types/models';
 import { pickImageFromGallery, takePhoto, uploadImageToStorage, deleteImageFromStorage } from '@/lib/storage';
@@ -49,6 +50,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { Image } from '@/components/ui/image';
 import { Pressable } from '@/components/ui/pressable';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
+import {
+  Avatar,
+  AvatarFallbackText,
+  AvatarImage,
+} from '@/components/ui/avatar';
 import {
   AlertDialog,
   AlertDialogBackdrop,
@@ -102,6 +108,10 @@ function BrlCentOverlayInput(props: {
   textAlign: 'left' | 'right' | 'center';
   accessibilityLabel: string;
   editable?: boolean;
+  /** Ícone de moedas à esquerda (campo valor total no modal de despesa). */
+  showCoinsIcon?: boolean;
+  /** Fundo suave como no redesign (#F0F2F5). */
+  softSurface?: boolean;
 }) {
   const {
     centsDigits,
@@ -112,14 +122,42 @@ function BrlCentOverlayInput(props: {
     textAlign,
     accessibilityLabel,
     editable = true,
+    showCoinsIcon = false,
+    softSurface = false,
   } = props;
   const display = centsDigitsToDisplay(centsDigits) || 'R$ 0,00';
+  const padLeft = showCoinsIcon ? 44 : 12;
+  const padRight = 12;
+  const surfaceClass = softSurface
+    ? 'border border-slate-200/80 bg-[#F0F2F5]'
+    : 'border border-slate-200 bg-white';
 
   return (
-    <View className={`border border-slate-200 bg-white overflow-hidden relative w-full ${roundedClassName}`} style={{ minHeight }}>
+    <View
+      className={`overflow-hidden relative w-full ${roundedClassName} ${surfaceClass}`}
+      style={{ minHeight }}
+    >
+      {showCoinsIcon ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 12,
+            top: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            zIndex: 1,
+          }}
+        >
+          <Coins size={22} color="#64748b" />
+        </View>
+      ) : null}
       <View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFillObject, { justifyContent: 'center', paddingHorizontal: 12 }]}
+        style={[
+          StyleSheet.absoluteFillObject,
+          { justifyContent: 'center', paddingLeft: padLeft, paddingRight: padRight },
+        ]}
       >
         <Text
           className="font-semibold text-slate-900"
@@ -146,6 +184,8 @@ function BrlCentOverlayInput(props: {
           fontSize,
           textAlign,
           color: '#0f172a',
+          paddingLeft: padLeft,
+          paddingRight: padRight,
         }}
       />
     </View>
@@ -171,30 +211,38 @@ export function ExpenseFormModal({
   onCreateCategory,
   sheetTranslateY,
 }: ExpenseFormModalProps) {
-  const { height: screenHeight } = useWindowDimensions();
+  const { width: windowWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const internalTranslateY = useSharedValue(0);
   const translateY = sheetTranslateY ?? internalTranslateY;
 
-  /** Bottom sheet: largura total, altura máxima ~92% — empurrado pra base pelo wrapper (funciona na web) */
+  /** Card flutuante: largura explícita + centralização (evita `w-full` + marginHorizontal assimétrico no Yoga). */
+  const SHEET_SIDE_GUTTER = 16;
   const sheetOuterStyle = useMemo(
     () => ({
-      width: '100%' as const,
-      maxHeight: screenHeight * 0.92,
+      width: Math.max(0, windowWidth - SHEET_SIDE_GUTTER * 2),
+      alignSelf: 'center' as const,
+      marginBottom: Math.max(insets.bottom, 16) + 16,
+      maxHeight: screenHeight * 0.88,
+      flexDirection: 'column' as const,
       backgroundColor: '#FFFFFF',
-      borderTopLeftRadius: 40,
-      borderTopRightRadius: 40,
-      paddingBottom: Math.max(insets.bottom, 8),
+      borderRadius: 40,
       overflow: 'hidden' as const,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 14,
     }),
-    [screenHeight, insets.bottom]
+    [windowWidth, screenHeight, insets.bottom]
   );
 
-  /** Folga para alça + título + margens; `ScrollView` com `flex:1` dentro de pai só com `maxHeight` vira altura 0 no iOS. */
+  /** Folga para alça + título + margens; `ScrollView` com `maxHeight` explícito no iOS. */
   const sheetScrollMaxHeight = useMemo(() => {
-    const sheetCap = screenHeight * 0.92;
+    const bottomReserve = Math.max(insets.bottom, 16) + 16 + 24;
+    const sheetCap = screenHeight * 0.88;
     const headerReserve = 180;
-    return Math.max(280, sheetCap - headerReserve - Math.max(insets.bottom, 8));
+    return Math.max(240, sheetCap - headerReserve - bottomReserve);
   }, [screenHeight, insets.bottom]);
 
   /** Preenche o overlay para justifyContent flex-end ancorar o sheet na base */
@@ -239,6 +287,7 @@ export function ExpenseFormModal({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showInvalidMemberAlert, setShowInvalidMemberAlert] = useState(false);
+  const [showSplitMemberPicker, setShowSplitMemberPicker] = useState(false);
 
   const isEditMode = mode === 'edit' && Boolean(initialExpense);
 
@@ -371,6 +420,7 @@ export function ExpenseFormModal({
     setErrorMessage(null);
     setIsAddingCategory(false);
     setNewCategoryName('');
+    setShowSplitMemberPicker(false);
   }, [visible, isEditMode, initialExpense, categories, currentUserId]);
 
   const handleToggleMember = (memberId: string) => {
@@ -584,7 +634,7 @@ export function ExpenseFormModal({
                   .damping(Platform.OS === 'ios' ? 22 : 24)
                   .stiffness(Platform.OS === 'ios' ? 340 : 300)
                   .mass(Platform.OS === 'ios' ? 0.75 : 0.85)}
-                className="w-full shadow-2xl"
+                className="shadow-2xl"
                 style={[sheetOuterStyle, modalAnimatedStyle]}
               >
                 <GestureDetector gesture={panGesture}>
@@ -597,9 +647,9 @@ export function ExpenseFormModal({
                   </View>
                 </GestureDetector>
 
-                <HStack className="justify-between items-center px-8 mb-4">
+                <HStack className="justify-between items-center px-6 mb-3">
                     <Pressable onPress={Keyboard.dismiss}>
-                      <Heading size="2xl" className="font-bold text-slate-900 tracking-tight">
+                      <Heading size="2xl" className="font-bold text-[#0f172a] tracking-tight">
                         {title}
                       </Heading>
                     </Pressable>
@@ -616,17 +666,17 @@ export function ExpenseFormModal({
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     onScrollBeginDrag={Keyboard.dismiss}
-                    contentContainerStyle={{ paddingHorizontal: 32, paddingBottom: 24 }}
+                    contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
                   >
                     <VStack space="lg" className="pb-8">
                       <VStack space="xs">
                         <FieldLabel>Descrição</FieldLabel>
-                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                        <Input className="h-14 border-0 bg-[#F0F2F5] rounded-2xl">
                           <InputField
                             value={description}
                             onChangeText={setDescription}
                             placeholder="Ex: Mercado do mês"
-                            className="text-lg font-medium text-slate-900 px-3"
+                            className="text-lg font-medium text-slate-900 px-4"
                             placeholderTextColor="#94a3b8"
                           />
                         </Input>
@@ -647,6 +697,8 @@ export function ExpenseFormModal({
                             textAlign="center"
                             accessibilityLabel="Valor da despesa em reais"
                             editable={!isSubmitting}
+                            showCoinsIcon
+                            softSurface
                           />
                         </VStack>
                         <VStack space="xs" className="flex-1">
@@ -657,12 +709,13 @@ export function ExpenseFormModal({
                             onChangeIso={setExpenseDateIso}
                             placeholder="DD/MM/AAAA"
                             accessibilityLabel="Data da despesa, abrir calendário"
+                            tone="soft"
                           />
                         </VStack>
                       </HStack>
 
-                      <HStack className="items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5">
-                        <Text className="text-slate-900 font-bold text-sm">Marcar como pago</Text>
+                      <HStack className="items-center justify-between bg-[#F0F2F5] rounded-full px-4 py-3.5">
+                        <Text className="text-[#0f172a] font-bold text-sm">Marcar como pago</Text>
                         <Switch value={isPaid} onValueChange={setIsPaid} />
                       </HStack>
 
@@ -678,14 +731,14 @@ export function ExpenseFormModal({
                                   Haptics.selectionAsync();
                                   setCategoryId(category.id);
                                 }}
-                                className={`px-4 py-2.5 rounded-xl border ${
+                                className={`px-4 py-2.5 rounded-full border ${
                                   selected
                                     ? 'bg-[#FDE047] border-[#FDE047]'
-                                    : 'bg-slate-50 border-slate-100'
+                                    : 'bg-[#F0F2F5] border-transparent'
                                 }`}
                               >
                                 <Text
-                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-500'}`}
+                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-600'}`}
                                 >
                                   {category.name}
                                 </Text>
@@ -697,9 +750,10 @@ export function ExpenseFormModal({
                               Haptics.selectionAsync();
                               setIsAddingCategory(true);
                             }}
-                            className="px-4 py-2.5 rounded-xl border border-dashed border-slate-300 bg-white items-center justify-center"
+                            className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#F0F2F5] border border-slate-200/80"
                           >
-                            <Text className="text-xs font-bold text-slate-500">+ Nova</Text>
+                            <Tag size={14} color="#64748b" />
+                            <Text className="text-xs font-bold text-slate-600">+ Nova</Text>
                           </Pressable>
                         </HStack>
                       </VStack>
@@ -738,36 +792,80 @@ export function ExpenseFormModal({
 
                       <VStack space="xs">
                         <FieldLabel>Dividir com</FieldLabel>
-                        <ScrollView
-                          horizontal
-                          nestedScrollEnabled={Platform.OS === 'android'}
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={{ gap: 8 }}
-                        >
-                          {members.map((member) => {
-                            const selected = selectedMembers.includes(member.userId);
-                            return (
-                              <Pressable
-                                key={member.id}
-                                onPress={() => {
-                                  Haptics.selectionAsync();
-                                  handleToggleMember(member.userId);
-                                }}
-                                className={`px-4 py-2.5 rounded-xl border ${
-                                  selected
-                                    ? 'bg-[#FDE047] border-[#FDE047]'
-                                    : 'bg-slate-50 border-slate-100'
-                                }`}
-                              >
-                                <Text
-                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-500'}`}
+                        <HStack space="sm" className="items-center flex-wrap">
+                          <Pressable
+                            onPress={() => {
+                              void Haptics.selectionAsync();
+                              setShowSplitMemberPicker((v) => !v);
+                            }}
+                            accessibilityLabel="Adicionar pessoa à divisão"
+                            className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-slate-300 items-center justify-center active:border-[#FDE047] active:bg-[#FDE047]/15"
+                          >
+                            <Plus size={20} color="#64748b" />
+                          </Pressable>
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled={Platform.OS === 'android'}
+                            showsHorizontalScrollIndicator={false}
+                            className="flex-1 min-w-0"
+                            contentContainerStyle={{ gap: 8, alignItems: 'center', paddingVertical: 2 }}
+                          >
+                            {selectedMembers.map((memberId) => {
+                              const member = memberLookup.get(memberId);
+                              if (!member) return null;
+                              const label = member.user.name ?? member.user.email ?? 'Membro';
+                              return (
+                                <Pressable
+                                  key={memberId}
+                                  onPress={() => {
+                                    void Haptics.selectionAsync();
+                                    handleToggleMember(memberId);
+                                  }}
+                                  className="flex-row items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[#FDE047] border border-yellow-300/80"
                                 >
-                                  {member.user.name ?? member.user.email}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </ScrollView>
+                                  <Avatar size="sm" className="border-2 border-white">
+                                    <AvatarFallbackText>{label.charAt(0)}</AvatarFallbackText>
+                                    {member.user.avatarUrl ? (
+                                      <AvatarImage source={{ uri: member.user.avatarUrl }} />
+                                    ) : null}
+                                  </Avatar>
+                                  <Text className="text-xs font-bold text-slate-900" numberOfLines={1}>
+                                    {label}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+                        </HStack>
+                        {showSplitMemberPicker ? (
+                          <ScrollView
+                            horizontal
+                            nestedScrollEnabled={Platform.OS === 'android'}
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 8, paddingTop: 4 }}
+                          >
+                            {members
+                              .filter((m) => !selectedMembers.includes(m.userId))
+                              .map((member) => {
+                                const label = member.user.name ?? member.user.email ?? 'Membro';
+                                return (
+                                  <Pressable
+                                    key={member.id}
+                                    onPress={() => {
+                                      void Haptics.selectionAsync();
+                                      handleToggleMember(member.userId);
+                                      setShowSplitMemberPicker(false);
+                                    }}
+                                    className="px-4 py-2.5 rounded-full bg-[#F0F2F5] border border-slate-200/80"
+                                  >
+                                    <Text className="text-xs font-bold text-slate-600" numberOfLines={1}>
+                                      + {label}
+                                    </Text>
+                                  </Pressable>
+                                );
+                              })}
+                          </ScrollView>
+                        ) : null}
                       </VStack>
 
                       {selectedMembers.length > 0 && (
@@ -777,20 +875,31 @@ export function ExpenseFormModal({
                               Valores individuais
                             </Text>
                             <Pressable onPress={handleDistributeEqually}>
-                              <Text className="text-xs font-bold text-yellow-600">Distribuir igualmente</Text>
+                              <Text className="text-xs font-bold text-blue-600">Distribuir igualmente</Text>
                             </Pressable>
                           </HStack>
+                          <VStack space="sm" className="bg-[#F0F2F5] rounded-2xl p-3">
                           {selectedMembers.map((memberId) => {
                             const member = memberLookup.get(memberId);
                             if (!member) return null;
                             return (
                               <HStack
                                 key={memberId}
-                                className="items-center justify-between bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3"
+                                className="items-center justify-between bg-white/90 border border-slate-200/60 rounded-xl px-3 py-2.5"
                               >
-                                <Text className="text-slate-900 font-medium flex-1" numberOfLines={1}>
-                                  {member.user.name ?? member.user.email}
-                                </Text>
+                                <HStack space="sm" className="items-center flex-1 min-w-0">
+                                  <Avatar size="sm" className="border border-slate-200">
+                                    <AvatarFallbackText>
+                                      {(member.user.name ?? member.user.email ?? 'M').charAt(0)}
+                                    </AvatarFallbackText>
+                                    {member.user.avatarUrl ? (
+                                      <AvatarImage source={{ uri: member.user.avatarUrl }} />
+                                    ) : null}
+                                  </Avatar>
+                                  <Text className="text-slate-900 font-medium flex-1" numberOfLines={1}>
+                                    {member.user.name ?? member.user.email}
+                                  </Text>
+                                </HStack>
                                 <View className="w-[110px]">
                                   <BrlCentOverlayInput
                                     centsDigits={shareCentsDigits[memberId] ?? ''}
@@ -807,24 +916,26 @@ export function ExpenseFormModal({
                                     textAlign="right"
                                     accessibilityLabel={`Cota em reais de ${member.user.name ?? member.user.email ?? 'membro'}`}
                                     editable={!isSubmitting}
+                                    softSurface
                                   />
                                 </View>
                               </HStack>
                             );
                           })}
+                          </VStack>
                         </VStack>
                       )}
 
                       <VStack space="xs">
                         <FieldLabel>Notas</FieldLabel>
-                        <Textarea className="border border-slate-200 bg-white rounded-2xl min-h-[100px]">
+                        <Textarea className="border-0 bg-[#F0F2F5] rounded-2xl min-h-[100px]">
                           <TextareaInput
                             value={notes}
                             onChangeText={setNotes}
                             placeholder="Observações adicionais"
                             multiline
                             textAlignVertical="top"
-                            className="py-3 px-3 text-sm text-slate-900 leading-5"
+                            className="py-3 px-4 text-sm text-slate-900 leading-5"
                             placeholderTextColor="#94a3b8"
                           />
                         </Textarea>
@@ -848,7 +959,7 @@ export function ExpenseFormModal({
                             <Pressable
                               onPress={handlePickImage}
                               disabled={isUploadingImage}
-                              className="flex-1 flex-row items-center justify-center gap-2 h-12 border border-slate-200 bg-white rounded-2xl active:bg-slate-50"
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F0F2F5] rounded-2xl active:opacity-90"
                             >
                               <ImageIcon size={18} color="#0f172a" />
                               <Text className="text-slate-900 font-bold text-sm">Galeria</Text>
@@ -856,7 +967,7 @@ export function ExpenseFormModal({
                             <Pressable
                               onPress={handleTakePhoto}
                               disabled={isUploadingImage}
-                              className="flex-1 flex-row items-center justify-center gap-2 h-12 border border-slate-200 bg-slate-50 rounded-2xl active:bg-slate-100"
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F0F2F5] rounded-2xl active:opacity-90"
                             >
                               <Camera size={18} color="#0f172a" />
                               <Text className="text-slate-900 font-bold text-sm">Câmera</Text>
@@ -891,24 +1002,44 @@ export function ExpenseFormModal({
                         ) : (
                           <Pressable
                             onPress={closeModal}
-                            className="flex-1 h-14 rounded-[24px] border border-slate-200 bg-white items-center justify-center active:bg-slate-50"
+                            className="flex-1 h-14 rounded-[24px] bg-[#E8EDF2] items-center justify-center active:opacity-90"
                           >
-                            <Text className="text-slate-900 font-bold">Cancelar</Text>
+                            <Text className="text-[#0f172a] font-bold">Cancelar</Text>
                           </Pressable>
                         )}
                         <Pressable
                           testID="expense-submit"
                           onPress={handleSubmit}
                           disabled={isSubmitting || isUploadingImage}
-                          className="flex-1 h-14 rounded-[24px] bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-lg shadow-yellow-200 active:scale-[0.98] opacity-100 disabled:opacity-60"
+                          className="flex-1 rounded-[24px] overflow-hidden opacity-100 disabled:opacity-60 active:scale-[0.98]"
+                          style={{
+                            height: 56,
+                            shadowColor: '#b45309',
+                            shadowOffset: { width: 0, height: 6 },
+                            shadowOpacity: 0.25,
+                            shadowRadius: 10,
+                            elevation: 8,
+                          }}
                         >
-                          <Text className="text-slate-900 font-bold text-base">
-                            {isSubmitting
-                              ? 'Salvando...'
-                              : isEditMode
-                                ? 'Salvar'
-                                : 'Adicionar despesa'}
-                          </Text>
+                          <LinearGradient
+                            colors={['#FDE68A', '#EAB308', '#CA8A04']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={{
+                              height: 56,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              paddingHorizontal: 12,
+                            }}
+                          >
+                            <Text className="text-white font-bold text-base">
+                              {isSubmitting
+                                ? 'Salvando...'
+                                : isEditMode
+                                  ? 'Salvar'
+                                  : 'Adicionar despesa'}
+                            </Text>
+                          </LinearGradient>
                         </Pressable>
                       </HStack>
                     </VStack>
