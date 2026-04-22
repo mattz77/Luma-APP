@@ -77,7 +77,6 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
     const searchInputRef = useRef<TextInput | null>(null);
     const [isSpeedDialOpen, setIsSpeedDialOpen] = useState(false);
-    const [isSpeedDialVisible, setIsSpeedDialVisible] = useState(false);
     const speedDialButtonRef = useRef<React.ComponentRef<typeof Box> | null>(null);
 
     const currentRouteName = state.routes[state.index].name;
@@ -108,7 +107,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     // Animação de rotação do botão + para X
     useEffect(() => {
         plusRotation.value = withTiming(isSpeedDialOpen ? 45 : 0, {
-            duration: 200,
+            duration: 180,
         });
     }, [isSpeedDialOpen]);
 
@@ -280,7 +279,6 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             <SpeedDial
                 isOpen={isSpeedDialOpen}
                 onClose={() => setIsSpeedDialOpen(false)}
-                onCloseAnimationComplete={() => setIsSpeedDialVisible(false)}
                 actions={speedDialActions}
                 buttonRef={speedDialButtonRef}
             />
@@ -332,7 +330,6 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                     // Haptic feedback não bloqueia - executar de forma não bloqueante
                                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
                                     if (!isSpeedDialOpen) {
-                                        setIsSpeedDialVisible(true);
                                         setIsSpeedDialOpen(true);
                                     } else {
                                         setIsSpeedDialOpen(false);
