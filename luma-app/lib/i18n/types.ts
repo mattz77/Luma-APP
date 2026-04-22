@@ -38,13 +38,35 @@ export interface Translations {
     forgotPassword: {
       title: string;
       subtitle: string;
+      subtitleStep1: string;
+      subtitleStep2: string;
+      subtitleStep3: string;
+      stepLabel: string;
       email: string;
+      code: string;
+      codePlaceholder: string;
+      newPassword: string;
+      confirmPassword: string;
       button: string;
+      buttonSendCode: string;
+      buttonVerifyCode: string;
+      buttonResetPassword: string;
+      resendCode: string;
       rememberPassword: string;
       signIn: string;
       emailRequired: string;
       emailSent: string;
       emailError: string;
+      codeSent: string;
+      codeRequestError: string;
+      codeInvalid: string;
+      codeVerified: string;
+      codeVerifyError: string;
+      verificationMissing: string;
+      passwordTooShort: string;
+      passwordMismatch: string;
+      passwordUpdated: string;
+      passwordUpdateError: string;
     };
   };
   common: {
