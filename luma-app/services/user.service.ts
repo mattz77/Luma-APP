@@ -11,6 +11,7 @@ export interface UserUpdate {
   name?: string;
   avatar_url?: string | null;
   phone?: string | null;
+  birth_date?: string | null; // ISO YYYY-MM-DD
 }
 
 export interface User {
@@ -19,8 +20,73 @@ export interface User {
   name: string | null;
   avatar_url: string | null;
   phone: string | null;
+  birth_date: string | null; // ISO YYYY-MM-DD
+  is_minor: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserGameProfile {
+  id: string;
+  user_id: string;
+  xp: number;
+  level: number;
+  streak_days: number;
+  last_activity: string | null;
+  badges: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Calcula idade em anos a partir de birth_date ISO (YYYY-MM-DD). */
+export function computeAge(birthDateIso: string | null): number | null {
+  if (!birthDateIso) return null;
+  const b = new Date(birthDateIso + 'T00:00:00');
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
+/** Persiste birth_date em public.users; trigger DB recalcula is_minor. */
+export async function setUserBirthDate(userId: string, birthDateIso: string): Promise<User> {
+  return updateUser(userId, { birth_date: birthDateIso });
+}
+
+/** Cria UserGameProfile do menor (idempotente). No-op se !is_minor. */
+export async function ensureGameProfileForMinor(userId: string): Promise<UserGameProfile | null> {
+  const user = await getUser(userId);
+  if (!user?.is_minor) return null;
+
+  const { data: existing } = await supabase
+    .from('user_game_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existing) return existing as UserGameProfile;
+
+  const { data, error } = await supabase
+    .from('user_game_profiles')
+    .insert({ user_id: userId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as UserGameProfile;
+}
+
+export async function getGameProfile(userId: string): Promise<UserGameProfile | null> {
+  const { data, error } = await supabase
+    .from('user_game_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as UserGameProfile) ?? null;
 }
 
 /**

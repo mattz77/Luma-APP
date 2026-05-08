@@ -6,6 +6,7 @@ interface LumaMessagePayload {
   house_id: string;
   user_id: string;
   message: string;
+  is_minor?: boolean;
   context?: Record<string, unknown>;
 }
 
@@ -36,10 +37,11 @@ export const n8nClient = {
       context: {
         ...(payload.context ?? {}),
         message_id: messageId, // ID único para idempotência
+        is_minor: payload.is_minor ?? false, // gating de gamificação no orquestrador
       },
     };
 
-    const url = `${n8nWebhookBaseUrl}/webhook/luma-chat-enhanced`;
+    const url = `${n8nWebhookBaseUrl}/webhook/luma-orchestrator`;
     const maxAttempts = 1; // Desabilitar retry - idempotência no n8n
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {

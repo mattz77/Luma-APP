@@ -12,12 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
+import { setUserBirthDate, ensureGameProfileForMinor, computeAge } from '@/services/user.service';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AuthInput } from '@/components/auth/AuthInput';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { AuthHeader } from '@/components/auth/AuthHeader';
 import { AuthPrimaryButton } from '@/components/auth/AuthPrimaryButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
+import { DatePickerBrazilianField } from '@/components/forms/DatePickerBrazilianField';
 import { VStack } from '@/components/ui/vstack';
 import { HStack } from '@/components/ui/hstack';
 import { useI18n } from '@/hooks/useI18n';
@@ -30,6 +32,7 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthDate, setBirthDate] = useState(''); // YYYY-MM-DD
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const signUp = useAuthStore((state) => state.signUp);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
@@ -60,14 +63,33 @@ export default function RegisterScreen() {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
 
-    if (!trimmedName || !trimmedEmail || !password) {
+    if (!trimmedName || !trimmedEmail || !password || !birthDate) {
       setErrorMessage(t('auth.register.fieldsRequired'));
+      return;
+    }
+
+    const age = computeAge(birthDate);
+    if (age === null || age < 0 || age > 120) {
+      setErrorMessage('Data de nascimento inválida.');
       return;
     }
 
     try {
       setErrorMessage(null);
-      await signUp(trimmedEmail, password, trimmedName);
+      await signUp(trimmedEmail, password, trimmedName, birthDate);
+
+      // Best-effort: persiste birth_date em public.users + cria game profile se menor.
+      // Pode falhar se a row do trigger ainda não existe — re-tentado no primeiro login.
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user?.id) {
+          await setUserBirthDate(userData.user.id, birthDate);
+          await ensureGameProfileForMinor(userData.user.id);
+        }
+      } catch (syncErr) {
+        console.warn('[Register] Sync birth_date pendente:', syncErr);
+      }
+
       router.replace({
         pathname: '/(auth)/verify-email',
         params: { email: trimmedEmail },
@@ -155,6 +177,15 @@ export default function RegisterScreen() {
               error={!!errorMessage}
             />
 
+            <Text style={styles.fieldLabel}>Data de nascimento</Text>
+            <DatePickerBrazilianField
+              valueIso={birthDate}
+              onChangeIso={setBirthDate}
+              placeholder="DD/MM/AAAA"
+              testID="register-birth-date"
+              tone="soft"
+            />
+
             {errorMessage ? (
               <Text style={styles.errorText}>{errorMessage}</Text>
             ) : null}
@@ -217,6 +248,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: authTheme.error,
     paddingLeft: 2,
+  },
+  fieldLabel: {
+    fontFamily: authFontFamilies.sansMedium,
+    fontSize: 13,
+    color: authTheme.textSecondary,
+    paddingLeft: 2,
+    marginTop: 4,
   },
   terms: {
     fontFamily: authFontFamilies.sans,

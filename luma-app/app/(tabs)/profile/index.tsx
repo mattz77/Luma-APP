@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { ArrowLeft, ChevronLeft, User, Mail, Phone, Save, LogOut } from 'lucide-react-native';
+import { ArrowLeft, ChevronLeft, User, Mail, Phone, Save, LogOut, Cake, Trophy, Flame, Star } from 'lucide-react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { ProfilePhotoUpload } from '@/components/profile/ProfilePhotoUpload';
-import { updateUser, getUser } from '@/services/user.service';
+import { updateUser, getUser, getGameProfile, computeAge, type UserGameProfile } from '@/services/user.service';
 import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 import { Box } from '@/components/ui/box';
 import { VStack } from '@/components/ui/vstack';
@@ -38,6 +38,9 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [birthDate, setBirthDate] = useState<string | null>(null);
+  const [isMinor, setIsMinor] = useState(false);
+  const [gameProfile, setGameProfile] = useState<UserGameProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
@@ -63,6 +66,13 @@ export default function ProfileScreen() {
         setName(userData.name || '');
         setPhone(userData.phone || '');
         setAvatarUrl(userData.avatar_url);
+        setBirthDate(userData.birth_date);
+        setIsMinor(!!userData.is_minor);
+
+        if (userData.is_minor) {
+          const gp = await getGameProfile(user.id).catch(() => null);
+          setGameProfile(gp);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados do usuário:', error);
@@ -210,6 +220,27 @@ export default function ProfileScreen() {
 
                 <VStack className="gap-2">
                   <HStack className="items-center gap-2">
+                    <Cake size={20} color="#0f172a" />
+                    <Text className="text-sm font-semibold text-slate-900">
+                      Data de nascimento
+                    </Text>
+                  </HStack>
+                  <Input className="h-14 border border-slate-200 bg-slate-100 rounded-2xl opacity-90">
+                    <InputField
+                      value={
+                        birthDate
+                          ? `${birthDate.slice(8, 10)}/${birthDate.slice(5, 7)}/${birthDate.slice(0, 4)}` +
+                            (computeAge(birthDate) !== null ? `  •  ${computeAge(birthDate)} anos` : '')
+                          : 'Não informada'
+                      }
+                      editable={false}
+                      className="text-base text-slate-500 px-3"
+                    />
+                  </Input>
+                </VStack>
+
+                <VStack className="gap-2">
+                  <HStack className="items-center gap-2">
                     <Phone size={20} color="#0f172a" />
                     <Text className="text-sm font-semibold text-slate-900">Telefone</Text>
                   </HStack>
@@ -240,6 +271,45 @@ export default function ProfileScreen() {
                   )}
                 </Pressable>
               </Box>
+
+              {isMinor ? (
+                <Box className="mx-6 mb-5 p-6 bg-gradient-to-br from-amber-50 to-yellow-100 rounded-[32px] border border-amber-200 shadow-sm">
+                  <HStack className="items-center gap-2 mb-4">
+                    <Trophy size={22} color="#b45309" />
+                    <Heading size="lg" className="font-bold text-amber-900">
+                      Conquistas
+                    </Heading>
+                  </HStack>
+                  <HStack className="justify-between mb-4">
+                    <VStack className="items-center flex-1">
+                      <Star size={20} color="#b45309" />
+                      <Text className="text-2xl font-bold text-amber-900 mt-1">
+                        {gameProfile?.xp ?? 0}
+                      </Text>
+                      <Text className="text-xs text-amber-700">XP</Text>
+                    </VStack>
+                    <VStack className="items-center flex-1">
+                      <Trophy size={20} color="#b45309" />
+                      <Text className="text-2xl font-bold text-amber-900 mt-1">
+                        {gameProfile?.level ?? 1}
+                      </Text>
+                      <Text className="text-xs text-amber-700">Nível</Text>
+                    </VStack>
+                    <VStack className="items-center flex-1">
+                      <Flame size={20} color="#dc2626" />
+                      <Text className="text-2xl font-bold text-amber-900 mt-1">
+                        {gameProfile?.streak_days ?? 0}
+                      </Text>
+                      <Text className="text-xs text-amber-700">Dias seguidos</Text>
+                    </VStack>
+                  </HStack>
+                  <Text className="text-xs text-amber-800 leading-5">
+                    {gameProfile?.badges?.length
+                      ? `🎖️ ${gameProfile.badges.length} conquista${gameProfile.badges.length > 1 ? 's' : ''} desbloqueada${gameProfile.badges.length > 1 ? 's' : ''}`
+                      : 'Complete tarefas para ganhar XP e desbloquear conquistas!'}
+                  </Text>
+                </Box>
+              ) : null}
 
               <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
                 <HStack className="items-center gap-2 mb-2">
