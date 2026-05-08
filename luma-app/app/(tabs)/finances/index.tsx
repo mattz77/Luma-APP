@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'react-native';
+import { FlatList, Platform, RefreshControl, useWindowDimensions, type TextStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +23,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { Heading } from '@/components/ui/heading';
 import { Pressable } from '@/components/ui/pressable';
-import { ScrollView } from '@/components/ui/scroll-view';
+// ScrollView removed — FlatList used for expense list (virtualization)
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useExpenses, useCreateExpense } from '@/hooks/useExpenses';
@@ -176,7 +176,7 @@ const themeForExpense = (expense: Expense): keyof typeof THEMES => {
   return n % 2 === 0 ? 'lavender' : 'yellow';
 };
 
-const BentoExpenseCard = ({
+const BentoExpenseCard = React.memo(function BentoExpenseCard({
   expense,
   formatCurrency,
   onPress,
@@ -184,7 +184,7 @@ const BentoExpenseCard = ({
   expense: Expense;
   formatCurrency: (v: number) => string;
   onPress: () => void;
-}) => {
+}) {
   const themeKey = themeForExpense(expense);
   const theme = THEMES[themeKey];
   const categoryLabel = expense.category?.name ?? 'Geral';
@@ -252,7 +252,7 @@ const BentoExpenseCard = ({
       </Pressable>
     </Animated.View>
   );
-};
+});
 
 export default function FinancesScreen() {
   const router = useRouter();
@@ -360,6 +360,159 @@ export default function FinancesScreen() {
   const greetingFirstName = user?.name?.split(' ')[0] ?? '';
   const scrollBottomPadding = getTabScrollBottomPadding(insets.bottom);
 
+  const renderExpenseItem = useCallback(
+    ({ item }: { item: Expense }) => (
+      <BentoExpenseCard
+        expense={item}
+        formatCurrency={formatCurrency}
+        onPress={() => {
+          Haptics.selectionAsync();
+          router.push({
+            pathname: '/(tabs)/finances/[id]',
+            params: { id: item.id },
+          } as any);
+        }}
+      />
+    ),
+    [formatCurrency, router]
+  );
+
+  const keyExtractor = useCallback((item: Expense) => item.id, []);
+
+  const ListHeader = useMemo(
+    () => (
+      <>
+        {/* Header */}
+        <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
+          <VStack>
+            <ScreenGreeting firstName={greetingFirstName} variant="ola" />
+            <HStack space="xs" className="items-center">
+              <Heading size="xl" className="font-bold text-slate-900">
+                Finanças · {formatDayAndMonthLongLocal()}
+              </Heading>
+              <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+            </HStack>
+          </VStack>
+          <HStack space="sm">
+            <Pressable
+              onPress={handleOpenExpenseModal}
+              className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
+            >
+              <Plus size={20} className="text-slate-900" />
+            </Pressable>
+            <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
+              <Search size={18} className="text-slate-900" />
+            </Pressable>
+          </HStack>
+        </Box>
+
+        <AnimatedDateStrip
+          translateY={sheetTranslateY}
+          screenHeight={windowHeight}
+          isModalOpen={isExpenseModalVisible}
+        />
+
+        <FinanceStatsWidget
+          total={summary.total}
+          paid={summary.paid}
+          pending={summary.pending}
+          budgetProgress={budgetProgress}
+          hasBudget={hasBudget}
+          budgetAmountFormatted={budgetAmountFormatted}
+          formatCurrency={formatCurrency}
+        />
+
+        {/* Ações */}
+        <Box className="px-6 mb-6">
+          <HStack space="md">
+            <Pressable
+              onPress={handleOpenExpenseModal}
+              className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
+            >
+              <Plus size={20} color="#0f172a" />
+              <Text className="text-slate-900 font-bold text-[15px]">Nova despesa</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(tabs)/finances/budget' as any)}
+              className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
+            >
+              <PieChart size={20} color="#0f172a" />
+              <Text className="text-slate-900 font-bold text-[14px]">Orçamento</Text>
+            </Pressable>
+          </HStack>
+        </Box>
+
+        {/* Filtros */}
+        <Box className="px-6 mb-4">
+          <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
+            {(
+              [
+                { key: 'all' as const, label: 'Todas' },
+                { key: 'paid' as const, label: 'Pagas' },
+                { key: 'pending' as const, label: 'Pendentes' },
+              ] as const
+            ).map(({ key, label }) => {
+              const active = selectedFilter === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSelectedFilter(key);
+                  }}
+                  className={`flex-1 py-2.5 rounded-xl items-center ${active ? 'bg-white shadow-sm border border-slate-100' : ''}`}
+                >
+                  <Text className={`text-xs font-bold ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </HStack>
+        </Box>
+
+        {/* Histórico heading */}
+        <Box className="px-6">
+          <HStack className="justify-between items-center mb-2">
+            <Heading size="xl" className="font-bold text-slate-900">
+              Histórico
+            </Heading>
+            <Text className="text-sm text-slate-400 font-medium">
+              {filteredExpenses.length} {filteredExpenses.length === 1 ? 'item' : 'itens'}
+            </Text>
+          </HStack>
+        </Box>
+
+        {/* Skeletons durante carregamento */}
+        {isLoading && (
+          <Box className="px-6">
+            <VStack space="md">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="w-full h-[200px] rounded-[32px]" />
+              ))}
+            </VStack>
+          </Box>
+        )}
+      </>
+    ),
+    [
+      greetingFirstName,
+      handleOpenExpenseModal,
+      sheetTranslateY,
+      windowHeight,
+      isExpenseModalVisible,
+      summary,
+      budgetProgress,
+      hasBudget,
+      budgetAmountFormatted,
+      formatCurrency,
+      router,
+      selectedFilter,
+      filteredExpenses.length,
+      isLoading,
+    ]
+  );
+
   if (!houseId) {
     return (
       <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
@@ -378,146 +531,30 @@ export default function FinancesScreen() {
     <ErrorBoundary>
       <Box className="flex-1 bg-[#FDFBF7]">
         <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
-          {/* Header — mesmo padrão de Tarefas */}
-          <Box className="px-6 pt-12 pb-6 flex-row justify-between items-center">
-            <VStack>
-              <ScreenGreeting firstName={greetingFirstName} variant="ola" />
-              <HStack space="xs" className="items-center">
-                <Heading size="xl" className="font-bold text-slate-900">
-                  Finanças · {formatDayAndMonthLongLocal()}
-                </Heading>
-                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
-              </HStack>
-            </VStack>
-            <HStack space="sm">
-              <Pressable
-                onPress={handleOpenExpenseModal}
-                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
-              >
-                <Plus size={20} className="text-slate-900" />
-              </Pressable>
-              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
-                <Search size={18} className="text-slate-900" />
-              </Pressable>
-            </HStack>
-          </Box>
-
-          <AnimatedDateStrip
-            translateY={sheetTranslateY}
-            screenHeight={windowHeight}
-            isModalOpen={isExpenseModalVisible}
-          />
-
-          <ScrollView
-            style={{ flex: 1, minHeight: 0 }}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
-            }
-          >
-            <FinanceStatsWidget
-              total={summary.total}
-              paid={summary.paid}
-              pending={summary.pending}
-              budgetProgress={budgetProgress}
-              hasBudget={hasBudget}
-              budgetAmountFormatted={budgetAmountFormatted}
-              formatCurrency={formatCurrency}
-            />
-
-            {/* Ações — estilo bento / botões da experiência Tarefas */}
-            <Box className="px-6 mb-6">
-              <HStack space="md">
-                <Pressable
-                  onPress={handleOpenExpenseModal}
-                  className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
-                >
-                  <Plus size={20} color="#0f172a" />
-                  <Text className="text-slate-900 font-bold text-[15px]">Nova despesa</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => router.push('/(tabs)/finances/budget' as any)}
-                  className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
-                >
-                  <PieChart size={20} color="#0f172a" />
-                  <Text className="text-slate-900 font-bold text-[14px]">Orçamento</Text>
-                </Pressable>
-              </HStack>
-            </Box>
-
-            {/* Filtros — segmentado como chips da tela de tarefas */}
-            <Box className="px-6 mb-4">
-              <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
-                {(
-                  [
-                    { key: 'all' as const, label: 'Todas' },
-                    { key: 'paid' as const, label: 'Pagas' },
-                    { key: 'pending' as const, label: 'Pendentes' },
-                  ] as const
-                ).map(({ key, label }) => {
-                  const active = selectedFilter === key;
-                  return (
-                    <Pressable
-                      key={key}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setSelectedFilter(key);
-                      }}
-                      className={`flex-1 py-2.5 rounded-xl items-center ${active ? 'bg-white shadow-sm border border-slate-100' : ''}`}
-                    >
-                      <Text className={`text-xs font-bold ${active ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </HStack>
-            </Box>
-
-            <Box className="px-6 space-y-4">
-              <HStack className="justify-between items-center mb-2">
-                <Heading size="xl" className="font-bold text-slate-900">
-                  Histórico
-                </Heading>
-                <Text className="text-sm text-slate-400 font-medium">
-                  {filteredExpenses.length} {filteredExpenses.length === 1 ? 'item' : 'itens'}
-                </Text>
-              </HStack>
-
-              {isLoading ? (
-                <VStack space="md">
-                  {[1, 2].map((i) => (
-                    <Skeleton key={i} className="w-full h-[200px] rounded-[32px]" />
-                  ))}
-                </VStack>
-              ) : (
-                filteredExpenses.map((expense) => (
-                  <BentoExpenseCard
-                    key={expense.id}
-                    expense={expense}
-                    formatCurrency={formatCurrency}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      router.push({
-                        pathname: '/(tabs)/finances/[id]',
-                        params: { id: expense.id },
-                      } as any);
-                    }}
-                  />
-                ))
-              )}
-
-              {filteredExpenses.length === 0 && !isLoading && (
-                <Box className="py-10 items-center opacity-50">
+          <FlatList
+            data={isLoading ? [] : filteredExpenses}
+            keyExtractor={keyExtractor}
+            renderItem={renderExpenseItem}
+            ListHeaderComponent={ListHeader}
+            ListEmptyComponent={
+              !isLoading ? (
+                <Box className="px-6 py-10 items-center opacity-50">
                   <Wallet size={48} color="#cbd5e1" />
                   <Text className="text-slate-400 mt-4 font-medium text-center">
                     Nenhuma despesa neste filtro.
                   </Text>
                 </Box>
-              )}
-            </Box>
-          </ScrollView>
+              ) : null
+            }
+            contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
+            }
+            style={{ flex: 1, minHeight: 0 }}
+            ItemSeparatorComponent={null}
+            removeClippedSubviews
+          />
 
           <ExpenseFormModal
             visible={isExpenseModalVisible}
