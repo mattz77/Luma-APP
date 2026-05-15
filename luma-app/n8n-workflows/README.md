@@ -44,7 +44,10 @@ POST /webhook/luma-orchestrator
    - `cGyItSRsdZNgckJD` (Financial Summary Tool)
    - `0PIUT3hZLLDhxmmJ` (Create Expense Tool)
    - `YwDx7YchL6xmZYhg` (House Members Tool)
-5. **Ollama**: workflow usa `llama3.1:8b-instruct-q4_K_M` (mesmo do anterior). Substitua para outro modelo se necessário.
+5. **LLM (Google Gemini)**:
+   - Primary: `models/gemini-flash-latest` (classifier + specialists)
+   - Fallback: `models/gemma-4-31b-it` (mesmo padrão do workflow `Briefing Generator` — id `LlYkFapJwe2ywBDP`)
+   - Credencial n8n: `googlePalmApi` id `me7BXMU2YlBLpm9Y` ("Google Gemini(PaLM) Api account"). Ajuste se sua instância usar outro id.
 
 ## Migração do app
 

@@ -52,14 +52,20 @@
     },
     {
       "parameters": {
-        "model": "llama3.1:8b-instruct-q4_K_M",
-        "options": { "temperature": 0, "numCtx": 2048, "keepAlive": "5m" }
+        "modelName": "models/gemini-flash-latest",
+        "options": { "temperature": 0, "maxOutputTokens": 16 }
       },
       "id": "classifier-llm",
-      "name": "Classifier LLM (Ollama)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "name": "Classifier LLM (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [640, 240]
+      "position": [640, 240],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     },
     {
       "parameters": {
@@ -109,14 +115,37 @@
 
     {
       "parameters": {
-        "model": "llama3.1:8b-instruct-q4_K_M",
-        "options": { "temperature": 0.5, "topP": 0.9, "keepAlive": "5m", "lowVram": true, "numCtx": 4096 }
+        "modelName": "models/gemini-flash-latest",
+        "options": { "temperature": 0.5, "topP": 0.9, "maxOutputTokens": 1024 }
       },
       "id": "specialist-llm",
-      "name": "Specialist LLM (Ollama)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "name": "Specialist LLM (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
-      "position": [1480, 80]
+      "position": [1480, 80],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemma-4-31b-it",
+        "options": { "temperature": 0.5, "topP": 0.9, "maxOutputTokens": 1024 }
+      },
+      "id": "specialist-llm-fallback",
+      "name": "Specialist LLM Fallback (Gemma)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1480, -80],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     },
 
     {
@@ -354,7 +383,7 @@
   "connections": {
     "Webhook (luma-orchestrator)": { "main": [[{ "node": "Extract Context", "type": "main", "index": 0 }]] },
     "Extract Context":             { "main": [[{ "node": "Classify Intent", "type": "main", "index": 0 }]] },
-    "Classifier LLM (Ollama)":     { "ai_languageModel": [[{ "node": "Classify Intent", "type": "ai_languageModel", "index": 0 }]] },
+    "Classifier LLM (Gemini)":     { "ai_languageModel": [[{ "node": "Classify Intent", "type": "ai_languageModel", "index": 0 }]] },
     "Classify Intent":             { "main": [[{ "node": "Normalize Intent", "type": "main", "index": 0 }]] },
     "Normalize Intent":            { "main": [[{ "node": "Route by Intent",  "type": "main", "index": 0 }]] },
 
@@ -369,7 +398,7 @@
       ]
     },
 
-    "Specialist LLM (Ollama)": {
+    "Specialist LLM (Gemini)": {
       "ai_languageModel": [[
         { "node": "Tasks Agent",    "type": "ai_languageModel", "index": 0 },
         { "node": "Finances Agent", "type": "ai_languageModel", "index": 0 },
