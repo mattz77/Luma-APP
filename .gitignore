@@ -81,3 +81,10 @@ luma-app/gluestack-mcp
 
 luma-branding-2.png
 luma-branding.png
+
+# Ferramentas de outros agentes (manter só ecossistema Cursor versionado)
+.agents/
+.claude/
+.continue/
+.windsurf/
+skills-lock.json
