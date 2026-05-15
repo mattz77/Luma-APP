@@ -19,13 +19,15 @@ datasource db {
 // ========================================
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
+  id            String    @id @default(uuid())
+  email         String    @unique
   name          String?
   avatar_url    String?
   phone         String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  birth_date    DateTime? @db.Date
+  is_minor      Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
   last_login_at DateTime?
 
   // Relations
@@ -36,8 +38,27 @@ model User {
   conversations  Conversation[]
   task_comments  TaskComment[]
   notifications  Notification[]
+  game_profile   UserGameProfile?
 
+  @@index([is_minor])
   @@map("users")
+}
+
+model UserGameProfile {
+  id            String    @id @default(uuid())
+  user_id       String    @unique
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streak_days   Int       @default(0)
+  last_activity DateTime?
+  badges        String[]  @default([])
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([xp])
+  @@map("user_game_profiles")
 }
 
 // ========================================

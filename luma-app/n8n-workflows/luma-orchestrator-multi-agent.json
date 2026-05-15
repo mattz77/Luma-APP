@@ -1,0 +1,430 @@
+{
+  "name": "Luma - Orchestrator Multi-Agent",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": "",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": [
+    { "name": "Main Agent" },
+    { "name": "Multi-Agent" }
+  ],
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "luma-orchestrator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook (luma-orchestrator)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 400],
+      "webhookId": "luma-orchestrator"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "house_id",   "name": "house_id",   "value": "={{ $json.body?.house_id ?? $json.house_id }}",   "type": "string" },
+            { "id": "user_id",    "name": "user_id",    "value": "={{ $json.body?.user_id ?? $json.user_id }}",    "type": "string" },
+            { "id": "message",    "name": "message",    "value": "={{ $json.body?.message ?? $json.message }}",    "type": "string" },
+            { "id": "is_minor",   "name": "is_minor",   "value": "={{ $json.body?.context?.is_minor ?? $json.context?.is_minor ?? false }}", "type": "boolean" },
+            { "id": "session_id", "name": "session_id", "value": "={{ ($json.body?.house_id ?? $json.house_id) + '_' + ($json.body?.user_id ?? $json.user_id) }}", "type": "string" },
+            { "id": "chatInput",  "name": "chatInput",  "value": "={{ $json.body?.message ?? $json.message }}",    "type": "string" },
+            { "id": "message_id", "name": "message_id", "value": "={{ $json.body?.context?.message_id ?? $json.context?.message_id ?? $now.toMillis() }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "extract-context",
+      "name": "Extract Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [420, 400]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-latest",
+        "options": { "temperature": 0, "maxOutputTokens": 16 }
+      },
+      "id": "classifier-llm",
+      "name": "Classifier LLM (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [640, 240],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensagem do usuário: \"{{ $json.message }}\"\n\nClassifique a intenção em UMA das categorias abaixo. Responda APENAS o token, sem texto adicional:\n\n- TASKS      (criar/listar/concluir tarefa, lembrete, atribuir)\n- FINANCES   (despesa, gasto, valor R$, orçamento, conta, fatura)\n- HOUSE      (membros da casa, papéis, quem mora)\n- PROFILE    (perfil, idade, conquistas, XP, nível, gamificação)\n- GENERAL    (saudação, dúvida sobre o app, ajuda genérica sobre a Luma)\n- OUT_OF_SCOPE (qualquer coisa fora de gestão de casa: política, código, receitas, notícias, piadas, conversa aleatória)\n\nResposta:",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "Você é um classificador de intenções da Luma, assistente exclusiva de gestão doméstica. Sua única tarefa é retornar UM dos tokens listados. Nunca responda outra coisa."
+        }
+      },
+      "id": "classifier-agent",
+      "name": "Classify Intent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza saída do classifier para tokens válidos\nconst raw = ($input.first().json.output || '').toString().toUpperCase().trim();\nconst valid = ['TASKS','FINANCES','HOUSE','PROFILE','GENERAL','OUT_OF_SCOPE'];\nconst found = valid.find(v => raw.includes(v)) || 'OUT_OF_SCOPE';\nconst ctx = $('Extract Context').item.json;\nreturn { json: { ...ctx, intent: found } };"
+      },
+      "id": "normalize-intent",
+      "name": "Normalize Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1020, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "conditions": [{ "id": "r1", "leftValue": "={{ $json.intent }}", "rightValue": "TASKS",    "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "tasks" },
+            { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "conditions": [{ "id": "r2", "leftValue": "={{ $json.intent }}", "rightValue": "FINANCES", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "finances" },
+            { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "conditions": [{ "id": "r3", "leftValue": "={{ $json.intent }}", "rightValue": "HOUSE",    "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "house" },
+            { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "conditions": [{ "id": "r4", "leftValue": "={{ $json.intent }}", "rightValue": "PROFILE",  "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "profile" },
+            { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "conditions": [{ "id": "r5", "leftValue": "={{ $json.intent }}", "rightValue": "GENERAL",  "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "general" }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": { "renameFallbackOutput": "out_of_scope" }
+      },
+      "id": "switch-intent",
+      "name": "Route by Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1240, 400]
+    },
+
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-latest",
+        "options": { "temperature": 0.5, "topP": 0.9, "maxOutputTokens": 1024 }
+      },
+      "id": "specialist-llm",
+      "name": "Specialist LLM (Gemini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1480, 80],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemma-4-31b-it",
+        "options": { "temperature": 0.5, "topP": 0.9, "maxOutputTokens": 1024 }
+      },
+      "id": "specialist-llm-fallback",
+      "name": "Specialist LLM Fallback (Gemma)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1480, -80],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "me7BXMU2YlBLpm9Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a Luma 🏠 atuando no domínio TAREFAS.\n\nContexto:\n- House ID: {{ $json.house_id }}\n- User ID: {{ $json.user_id }}\n- É menor de idade? {{ $json.is_minor ? 'sim' : 'não' }}\n\nResponsabilidades:\n- Listar, criar, atribuir e marcar tarefas como concluídas.\n- Use SEMPRE as tools `get_tasks` e `create_task`.\n- Se a mensagem não for sobre tarefas, responda \"DELEGATE:OUT_OF_DOMAIN\".\n- Se {{ $json.is_minor }} = true e a tarefa for marcada como concluída, mencione pontos ganhos (+10 XP). Caso contrário, NÃO mencione gamificação.\n\nRegras:\n- Crie IMEDIATAMENTE com defaults: priority=MEDIUM, assigned_to_id=created_by_id, due_date=null se não informado.\n- Não pergunte antes de criar — crie e depois sugira ajustes.\n- Formato de data legível: \"15 de novembro\".\n- Português BR, tom amigável e curto."
+        }
+      },
+      "id": "agent-tasks",
+      "name": "Tasks Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1480, 240]
+    },
+    {
+      "parameters": {
+        "workflowId": "L64eapJkSiGVqk8M",
+        "name": "get_tasks",
+        "description": "Lista tarefas ativas da casa",
+        "workflowInputs": { "mappingMode": "defineBelow", "value": { "house_id": "={{ $json.house_id }}" } }
+      },
+      "id": "tool-get-tasks",
+      "name": "Tool: Get Tasks",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [1680, 380]
+    },
+    {
+      "parameters": {
+        "workflowId": "BNClJiGssddwxd4l",
+        "name": "create_task",
+        "description": "Cria nova tarefa (defaults: priority=MEDIUM, assigned_to_id=created_by_id)",
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {} }
+      },
+      "id": "tool-create-task",
+      "name": "Tool: Create Task",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [1820, 380]
+    },
+
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a Luma 💰 atuando no domínio FINANÇAS.\n\nContexto:\n- House ID: {{ $json.house_id }}\n- User ID: {{ $json.user_id }}\n\nResponsabilidades:\n- Resumo financeiro, gastos por categoria, criar despesa, análise comparativa.\n- Use SEMPRE as tools `get_financial_summary` e `create_expense`.\n- Se mensagem não for sobre finanças, responda \"DELEGATE:OUT_OF_DOMAIN\".\n\nRegras:\n- Formato monetário PT-BR: R$ 1.234,56.\n- Crie despesa imediatamente com defaults: category=\"Outros\" se não informada, expense_date=hoje.\n- Não invente valores — sempre use as tools para buscar dados reais.\n- Português BR, tom amigável e curto."
+        }
+      },
+      "id": "agent-finances",
+      "name": "Finances Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1480, 540]
+    },
+    {
+      "parameters": {
+        "workflowId": "cGyItSRsdZNgckJD",
+        "name": "get_financial_summary",
+        "description": "Resumo financeiro: despesas + orçamento + análise",
+        "workflowInputs": { "mappingMode": "defineBelow", "value": { "house_id": "={{ $json.house_id }}" } }
+      },
+      "id": "tool-financial-summary",
+      "name": "Tool: Financial Summary",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [1680, 680]
+    },
+    {
+      "parameters": {
+        "workflowId": "0PIUT3hZLLDhxmmJ",
+        "name": "create_expense",
+        "description": "Registra nova despesa (defaults: category=Outros, date=hoje)",
+        "workflowInputs": { "mappingMode": "defineBelow", "value": {} }
+      },
+      "id": "tool-create-expense",
+      "name": "Tool: Create Expense",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [1820, 680]
+    },
+
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a Luma 👥 atuando no domínio CASA / MEMBROS.\n\nContexto:\n- House ID: {{ $json.house_id }}\n- User ID: {{ $json.user_id }}\n\nResponsabilidades:\n- Listar membros, papéis, status, ranking de produtividade.\n- Use SEMPRE a tool `get_house_members`.\n- Se mensagem não for sobre membros/casa, responda \"DELEGATE:OUT_OF_DOMAIN\".\n\nRegras:\n- Português BR, tom amigável.\n- Mencione papéis (ADMIN/MEMBER/VIEWER) e data de entrada quando relevante."
+        }
+      },
+      "id": "agent-house",
+      "name": "House Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1480, 840]
+    },
+    {
+      "parameters": {
+        "workflowId": "YwDx7YchL6xmZYhg",
+        "name": "get_house_members",
+        "description": "Lista membros ativos da casa com papéis",
+        "workflowInputs": { "mappingMode": "defineBelow", "value": { "house_id": "={{ $json.house_id }}" } }
+      },
+      "id": "tool-house-members",
+      "name": "Tool: House Members",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [1680, 980]
+    },
+
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a Luma ✨ atuando no domínio PERFIL.\n\nContexto:\n- User ID: {{ $json.user_id }}\n- É menor de idade? {{ $json.is_minor ? 'sim' : 'não' }}\n\nResponsabilidades:\n- Falar sobre o perfil do usuário, idade, conquistas, XP, nível.\n- IMPORTANTE: gamificação (XP, nível, badges, streak) **só existe para menores de idade**.\n  - Se {{ $json.is_minor }} = false: responda que conquistas estão disponíveis para usuários menores de 18 anos. Não invente XP.\n  - Se {{ $json.is_minor }} = true: incentive a completar tarefas para ganhar XP.\n- Para edição de dados (nome, telefone, foto), oriente o usuário a abrir a aba Perfil no app — não tente alterar via chat.\n\nRegras:\n- Português BR, tom acolhedor e curto."
+        }
+      },
+      "id": "agent-profile",
+      "name": "Profile Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1480, 1120]
+    },
+
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=Você é a Luma 🏠. Domínio: dúvidas gerais sobre o app (capacidades, ajuda, saudação).\n\nResponda em até 3 linhas, em português BR, listando suas capacidades:\n- 📋 Tarefas\n- 💰 Finanças\n- 👥 Casa\n- ✨ Perfil\n\nNão use tools. Não responda perguntas fora desses domínios."
+        }
+      },
+      "id": "agent-general",
+      "name": "General Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1480, 1320]
+    },
+
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "out", "name": "output", "value": "Posso ajudar com tarefas, finanças, gestão da casa e perfil. Para outros assuntos, prefiro não responder para manter o foco. 😊", "type": "string" }
+          ]
+        }
+      },
+      "id": "out-of-scope-response",
+      "name": "Out of Scope Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1480, 1500]
+    },
+
+    {
+      "parameters": { "mode": "passThrough", "options": {} },
+      "id": "merge-responses",
+      "name": "Merge Responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [2080, 800]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const raw = ($input.first().json.output || '').toString();\n// Remove function-call leftovers\nlet clean = raw.replace(/<function[^>]*>.*?<\\/function>/gis, '');\nclean = clean.replace(/\\{[^}]*\"input\"[^}]*\\}/gi, '');\nclean = clean.replace(/\\s+/g, ' ').trim();\nclean = clean.replace(/\\s+([.,!?])/g, '$1');\nif (!clean || clean.length < 2) clean = raw;\n// Detecta delegação inválida do specialist\nif (/DELEGATE:OUT_OF_DOMAIN/i.test(clean)) {\n  clean = 'Posso ajudar com tarefas, finanças, gestão da casa e perfil. Para outros assuntos, prefiro não responder para manter o foco. 😊';\n}\nconst ctx = $('Extract Context').item.json;\nreturn { json: { success: true, response: clean, metadata: { session_id: ctx.session_id, intent: $('Normalize Intent').item.json.intent, message_id: ctx.message_id, model: 'llama3.1:8b' } } };"
+      },
+      "id": "clean-response",
+      "name": "Clean Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 800]
+    },
+
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "house_id", "fieldValue": "={{ $('Extract Context').item.json.house_id }}" },
+            { "fieldId": "user_id",  "fieldValue": "={{ $('Extract Context').item.json.user_id }}" },
+            { "fieldId": "message",  "fieldValue": "={{ $('Extract Context').item.json.message }}" },
+            { "fieldId": "response", "fieldValue": "={{ $json.response }}" },
+            { "fieldId": "metadata", "fieldValue": "={{ JSON.stringify($json.metadata) }}" }
+          ]
+        }
+      },
+      "id": "save-conversation",
+      "name": "Save Conversation",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2520, 700],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, response: $('Clean Response').item.json.response, metadata: $('Clean Response').item.json.metadata }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "application/json" },
+              { "name": "Access-Control-Allow-Origin", "value": "*" }
+            ]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to App",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [2740, 800]
+    },
+
+    {
+      "parameters": {
+        "content": "## Luma — Orchestrator Multi-Agent\n\n**Webhook:** POST /webhook/luma-orchestrator\n\n**Fluxo:**\n1. Extract Context (house_id, user_id, message, is_minor)\n2. Classifier LLM → token único: TASKS|FINANCES|HOUSE|PROFILE|GENERAL|OUT_OF_SCOPE\n3. Switch by intent → 1 dos 5 agentes especialistas (ou rejeição)\n4. Cada specialist: contexto enxuto, system prompt curto, só tools do seu domínio\n5. Merge → Clean → Save Conversation → Respond\n\n**Guard rails:**\n- Classifier tem token OUT_OF_SCOPE para qualquer coisa fora do projeto\n- Specialists retornam DELEGATE:OUT_OF_DOMAIN se receberem algo errado (defesa em profundidade)\n- Profile Agent gateia gamificação por is_minor\n\n**Tools reusadas (IDs do workflow anterior):**\n- get_tasks: L64eapJkSiGVqk8M\n- create_task: BNClJiGssddwxd4l\n- get_financial_summary: cGyItSRsdZNgckJD\n- create_expense: 0PIUT3hZLLDhxmmJ\n- get_house_members: YwDx7YchL6xmZYhg\n\n**Substitua:** PLACEHOLDER_SUPABASE_CRED pelo ID da credencial Supabase no seu n8n.",
+        "height": 480,
+        "width": 460,
+        "color": 4
+      },
+      "id": "sticky-doc",
+      "name": "Doc",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-100, 100]
+    }
+  ],
+  "connections": {
+    "Webhook (luma-orchestrator)": { "main": [[{ "node": "Extract Context", "type": "main", "index": 0 }]] },
+    "Extract Context":             { "main": [[{ "node": "Classify Intent", "type": "main", "index": 0 }]] },
+    "Classifier LLM (Gemini)":     { "ai_languageModel": [[{ "node": "Classify Intent", "type": "ai_languageModel", "index": 0 }]] },
+    "Classify Intent":             { "main": [[{ "node": "Normalize Intent", "type": "main", "index": 0 }]] },
+    "Normalize Intent":            { "main": [[{ "node": "Route by Intent",  "type": "main", "index": 0 }]] },
+
+    "Route by Intent": {
+      "main": [
+        [{ "node": "Tasks Agent",    "type": "main", "index": 0 }],
+        [{ "node": "Finances Agent", "type": "main", "index": 0 }],
+        [{ "node": "House Agent",    "type": "main", "index": 0 }],
+        [{ "node": "Profile Agent",  "type": "main", "index": 0 }],
+        [{ "node": "General Agent",  "type": "main", "index": 0 }],
+        [{ "node": "Out of Scope Response", "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Specialist LLM (Gemini)": {
+      "ai_languageModel": [[
+        { "node": "Tasks Agent",    "type": "ai_languageModel", "index": 0 },
+        { "node": "Finances Agent", "type": "ai_languageModel", "index": 0 },
+        { "node": "House Agent",    "type": "ai_languageModel", "index": 0 },
+        { "node": "Profile Agent",  "type": "ai_languageModel", "index": 0 },
+        { "node": "General Agent",  "type": "ai_languageModel", "index": 0 }
+      ]]
+    },
+
+    "Tool: Get Tasks":         { "ai_tool": [[{ "node": "Tasks Agent",    "type": "ai_tool", "index": 0 }]] },
+    "Tool: Create Task":       { "ai_tool": [[{ "node": "Tasks Agent",    "type": "ai_tool", "index": 0 }]] },
+    "Tool: Financial Summary": { "ai_tool": [[{ "node": "Finances Agent", "type": "ai_tool", "index": 0 }]] },
+    "Tool: Create Expense":    { "ai_tool": [[{ "node": "Finances Agent", "type": "ai_tool", "index": 0 }]] },
+    "Tool: House Members":     { "ai_tool": [[{ "node": "House Agent",    "type": "ai_tool", "index": 0 }]] },
+
+    "Tasks Agent":            { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+    "Finances Agent":         { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+    "House Agent":            { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+    "Profile Agent":          { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+    "General Agent":          { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+    "Out of Scope Response":  { "main": [[{ "node": "Merge Responses", "type": "main", "index": 0 }]] },
+
+    "Merge Responses":  { "main": [[{ "node": "Clean Response", "type": "main", "index": 0 }]] },
+    "Clean Response":   { "main": [[
+      { "node": "Save Conversation", "type": "main", "index": 0 },
+      { "node": "Respond to App",    "type": "main", "index": 0 }
+    ]] }
+  }
+}

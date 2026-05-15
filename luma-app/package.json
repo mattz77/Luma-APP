@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:all": "jest",
     "test:changed": "jest --onlyChanged --passWithNoTests",

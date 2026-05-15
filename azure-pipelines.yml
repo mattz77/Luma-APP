@@ -1,0 +1,179 @@
+# Azure Pipelines — Luma APP
+#
+# Pré-requisitos no Azure DevOps:
+#   1. Variable group "luma-secrets" (Project Settings → Library) com:
+#        - EXPO_TOKEN              (token EAS, geração: https://expo.dev/accounts/[acct]/settings/access-tokens)
+#        - EXPO_PUBLIC_SUPABASE_URL
+#        - EXPO_PUBLIC_SUPABASE_ANON_KEY
+#        - EXPO_PUBLIC_N8N_WEBHOOK_URL
+#   2. Service connection "github-luma" (caso queira espelhar artefatos no GH).
+#   3. Branch policy em `main` exigindo este pipeline verde + 1 reviewer.
+#
+# Estratégia:
+#   - validate roda em todo PR e push.
+#   - build_preview roda em PRs e push em `develop` → EAS profile "preview".
+#   - build_production roda apenas em push em `main` → EAS profile "production".
+#   - EAS Build executa nos servidores Expo (sem agente Android/iOS no Azure).
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - luma-app/**
+      - azure-pipelines.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  - group: luma-secrets
+  - name: BUN_VERSION
+    value: '1.1.34'
+  - name: NODE_VERSION
+    value: '20.x'
+  - name: WORKDIR
+    value: 'luma-app'
+
+stages:
+  # ───────────────────────────────────────────────────────────────────
+  - stage: validate
+    displayName: 'Validate (typecheck + tests)'
+    jobs:
+      - job: validate_job
+        displayName: 'Lint, types, unit tests'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+            displayName: 'Setup Node $(NODE_VERSION)'
+
+          - bash: |
+              curl -fsSL https://bun.sh/install | bash -s "bun-v$(BUN_VERSION)"
+              echo "##vso[task.prependpath]$HOME/.bun/bin"
+            displayName: 'Install Bun $(BUN_VERSION)'
+
+          - bash: |
+              cd $(WORKDIR)
+              bun install --frozen-lockfile || bun install
+            displayName: 'Install deps (bun)'
+
+          - bash: |
+              cd $(WORKDIR)
+              bun run typecheck
+            displayName: 'TypeScript typecheck'
+
+          - bash: |
+              cd $(WORKDIR)
+              bun run test:ci
+            displayName: 'Jest unit tests + coverage'
+            env:
+              CI: 'true'
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(WORKDIR)/test-results/jest-junit.xml'
+              testRunTitle: 'Jest unit'
+              failTaskOnFailedTests: true
+
+          - task: PublishCodeCoverageResults@2
+            condition: succeededOrFailed()
+            inputs:
+              summaryFileLocation: '$(WORKDIR)/coverage/lcov.info'
+
+  # ───────────────────────────────────────────────────────────────────
+  - stage: build_preview
+    displayName: 'EAS Build (preview)'
+    dependsOn: validate
+    condition: |
+      and(
+        succeeded(),
+        or(
+          eq(variables['Build.Reason'], 'PullRequest'),
+          eq(variables['Build.SourceBranch'], 'refs/heads/develop')
+        )
+      )
+    jobs:
+      - job: eas_preview
+        displayName: 'eas build --profile preview'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - bash: |
+              npm install -g eas-cli@latest
+            displayName: 'Install eas-cli'
+
+          - bash: |
+              cd $(WORKDIR)
+              npm install --no-audit --no-fund
+            displayName: 'Install deps (npm — eas requires it)'
+
+          - bash: |
+              cd $(WORKDIR)
+              eas build \
+                --platform android \
+                --profile preview \
+                --non-interactive \
+                --no-wait
+            displayName: 'EAS build Android (preview)'
+            env:
+              EXPO_TOKEN: $(EXPO_TOKEN)
+              EXPO_PUBLIC_SUPABASE_URL: $(EXPO_PUBLIC_SUPABASE_URL)
+              EXPO_PUBLIC_SUPABASE_ANON_KEY: $(EXPO_PUBLIC_SUPABASE_ANON_KEY)
+              EXPO_PUBLIC_N8N_WEBHOOK_URL: $(EXPO_PUBLIC_N8N_WEBHOOK_URL)
+
+  # ───────────────────────────────────────────────────────────────────
+  - stage: build_production
+    displayName: 'EAS Build (production)'
+    dependsOn: validate
+    condition: |
+      and(
+        succeeded(),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    jobs:
+      - job: eas_production
+        displayName: 'eas build --profile production (Android + iOS)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - bash: |
+              npm install -g eas-cli@latest
+            displayName: 'Install eas-cli'
+
+          - bash: |
+              cd $(WORKDIR)
+              npm install --no-audit --no-fund
+            displayName: 'Install deps (npm)'
+
+          - bash: |
+              cd $(WORKDIR)
+              eas build \
+                --platform all \
+                --profile production \
+                --non-interactive \
+                --no-wait
+            displayName: 'EAS build (production)'
+            env:
+              EXPO_TOKEN: $(EXPO_TOKEN)
+              EXPO_PUBLIC_SUPABASE_URL: $(EXPO_PUBLIC_SUPABASE_URL)
+              EXPO_PUBLIC_SUPABASE_ANON_KEY: $(EXPO_PUBLIC_SUPABASE_ANON_KEY)
+              EXPO_PUBLIC_N8N_WEBHOOK_URL: $(EXPO_PUBLIC_N8N_WEBHOOK_URL)
