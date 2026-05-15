@@ -72,6 +72,8 @@ luma-app/scripts/*
 luma-app/.cursor/
 # MCP Config (pode conter tokens sensíveis)
 .cursor/mcp.json
+.mcp.json
+!.mcp.json.example
 
 # Supabase (pode conter configs locais e secrets)
 luma-app/supabase/
