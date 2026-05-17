@@ -436,6 +436,7 @@ export default function LumaChatScreen() {
           <View style={styles.inputInnerRow}>
             <View style={styles.inputPill}>
               <TextInput
+                testID="luma-chat-input"
                 value={message}
                 onChangeText={setMessage}
                 placeholder="Message Luma..."
@@ -453,6 +454,7 @@ export default function LumaChatScreen() {
             </View>
 
             <TouchableOpacity
+              testID="luma-send-button"
               style={[
                 styles.sendButton,
                 { backgroundColor: message.trim() && !isPending && !isSendingRef.current ? Colors.primary : Colors.textSecondary + '20' }

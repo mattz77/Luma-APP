@@ -273,7 +273,7 @@ export default function ProfileScreen() {
               </Box>
 
               {isMinor ? (
-                <Box className="mx-6 mb-5 p-6 bg-gradient-to-br from-amber-50 to-yellow-100 rounded-[32px] border border-amber-200 shadow-sm">
+                <Box testID="gamification-card" className="mx-6 mb-5 p-6 bg-gradient-to-br from-amber-50 to-yellow-100 rounded-[32px] border border-amber-200 shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
                     <Trophy size={22} color="#b45309" />
                     <Heading size="lg" className="font-bold text-amber-900">

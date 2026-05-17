@@ -1,0 +1,32 @@
+# Flow: Luma responde OUT_OF_SCOPE para pergunta fora do domínio
+# Tags: luma, smoke
+# Pré-requisito: usuário logado, n8n webhook ativo
+#
+# Valida que perguntas fora do domínio (tarefas/finanças/casa/perfil)
+# recebem a resposta canned de out-of-scope do orquestrador n8n.
+appId: com.luma.app
+---
+- launchApp
+- runFlow: flows/helpers/login.yaml
+
+# Navegar para aba Luma
+- tapOn:
+    text: "Luma"
+
+- waitForAnimationToEnd
+
+# Digitar pergunta fora de escopo
+- tapOn:
+    id: "luma-chat-input"
+- inputText: "Qual a capital da França?"
+
+# Enviar mensagem
+- tapOn:
+    id: "luma-send-button"
+
+- waitForAnimationToEnd
+
+# Validar resposta canned de out-of-scope
+- assertVisible:
+    text: "Posso ajudar com tarefas"
+    timeout: 10000

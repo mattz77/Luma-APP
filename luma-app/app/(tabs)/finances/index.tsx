@@ -426,6 +426,7 @@ export default function FinancesScreen() {
         <Box className="px-6 mb-6">
           <HStack space="md">
             <Pressable
+              testID="btn-nova-despesa"
               onPress={handleOpenExpenseModal}
               className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
             >
@@ -456,6 +457,7 @@ export default function FinancesScreen() {
               return (
                 <Pressable
                   key={key}
+                  testID={`filter-${key}`}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setSelectedFilter(key);

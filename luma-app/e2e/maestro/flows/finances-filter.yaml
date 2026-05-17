@@ -1,0 +1,45 @@
+# Flow: Filtros de despesas (Todas / Pagas / Pendentes)
+# Tags: finances, smoke
+# Pré-requisito: usuário logado com ao menos 1 despesa cadastrada
+appId: com.luma.app
+---
+- launchApp
+- runFlow: flows/helpers/login.yaml
+
+# Navegar para Finanças
+- tapOn:
+    text: "Finanças"
+
+- waitForAnimationToEnd
+
+# Verificar filtro inicial "Todas" visível
+- assertVisible:
+    text: "Todas"
+
+# Tap em Pagas
+- tapOn:
+    id: "filter-paid"
+
+- waitForAnimationToEnd
+
+# Filtro Pagas ativo — Pendentes deve estar visível como inativo
+- assertVisible:
+    text: "Pendentes"
+
+# Tap em Pendentes
+- tapOn:
+    id: "filter-pending"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Pagas"
+
+# Voltar para Todas
+- tapOn:
+    id: "filter-all"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Todas"

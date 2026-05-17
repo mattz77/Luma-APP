@@ -1,0 +1,44 @@
+# Flow: Criar nova despesa via modal
+# Tags: finances, smoke
+# Pré-requisito: usuário logado com acesso a uma casa
+appId: com.luma.app
+---
+- launchApp
+- runFlow: flows/helpers/login.yaml
+
+# Navegar para Finanças
+- tapOn:
+    text: "Finanças"
+
+- waitForAnimationToEnd
+
+# Abrir modal de despesa
+- tapOn:
+    id: "btn-nova-despesa"
+
+- waitForAnimationToEnd
+
+# Preencher descrição
+- tapOn:
+    text: "Ex: Mercado do mês"
+- inputText: "Despesa E2E Teste"
+
+# Preencher valor (numpad monetário)
+- tapOn:
+    text: "Valor (R$)"
+    optional: true
+- tapOn:
+    id: "amount-input"
+    optional: true
+- inputText: "5000"
+
+# Salvar
+- tapOn:
+    id: "expense-submit"
+
+- waitForAnimationToEnd
+
+# Verificar que despesa aparece no histórico
+- assertVisible:
+    text: "Despesa E2E Teste"
+    timeout: 8000
