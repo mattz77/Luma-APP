@@ -1,0 +1,71 @@
+{
+  "name": "Tool: Execute Device Action",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json;\nconst validActions = ['start_cleaning','stop','go_to_room','set_temperature','turn_on','turn_off'];\nconst action = (input.action_type || '').toLowerCase();\nif (!input.device_id) throw new Error('device_id é obrigatório');\nif (!validActions.includes(action)) throw new Error(`action_type inválido: ${action}. Use: ${validActions.join(', ')}`);\nreturn { json: { device_id: input.device_id, action_type: action, house_id: input.house_id, triggered_by: input.triggered_by ?? input.user_id, params: input.params ?? {} } };"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "device_actions",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "device_id",    "fieldValue": "={{ $json.device_id }}" },
+            { "fieldId": "action_type",  "fieldValue": "={{ $json.action_type }}" },
+            { "fieldId": "house_id",     "fieldValue": "={{ $json.house_id }}" },
+            { "fieldId": "triggered_by", "fieldValue": "={{ $json.triggered_by }}" },
+            { "fieldId": "params",       "fieldValue": "={{ JSON.stringify($json.params) }}" },
+            { "fieldId": "status",       "fieldValue": "pending" }
+          ]
+        }
+      },
+      "id": "insert-action",
+      "name": "Insert Device Action",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "result", "name": "result", "value": "={{ $json.error ? 'Erro ao executar ação: ' + $json.error : 'Ação \"' + $('Validate Input').item.json.action_type + '\" enviada ao dispositivo ' + $('Validate Input').item.json.device_id + ' com sucesso.' }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Validate Input",       "type": "main", "index": 0 }]] },
+    "Validate Input":           { "main": [[{ "node": "Insert Device Action", "type": "main", "index": 0 }]] },
+    "Insert Device Action":     { "main": [[{ "node": "Format Response",      "type": "main", "index": 0 }]] }
+  }
+}

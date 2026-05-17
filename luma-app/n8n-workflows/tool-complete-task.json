@@ -1,0 +1,77 @@
+{
+  "name": "Tool: Complete Task",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "task_id", "name": "task_id", "value": "={{ $json.task_id }}", "type": "string" },
+            { "id": "user_id", "name": "user_id", "value": "={{ $json.user_id }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "tasks",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.task_id }}" }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status",       "fieldValue": "DONE" },
+            { "fieldId": "completed_at", "fieldValue": "={{ $now.toISO() }}" }
+          ]
+        }
+      },
+      "id": "update-task",
+      "name": "Update Task Status",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "result", "name": "result", "value": "={{ $json.error ? 'Erro ao concluir tarefa: ' + $json.error : 'Tarefa ' + $('Extract Params').item.json.task_id + ' marcada como concluída com sucesso.' }}", "type": "string" }
+          ]
+        }
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Extract Params",     "type": "main", "index": 0 }]] },
+    "Extract Params":           { "main": [[{ "node": "Update Task Status", "type": "main", "index": 0 }]] },
+    "Update Task Status":       { "main": [[{ "node": "Format Response",    "type": "main", "index": 0 }]] }
+  }
+}

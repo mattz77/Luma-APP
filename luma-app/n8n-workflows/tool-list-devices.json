@@ -1,0 +1,51 @@
+{
+  "name": "Tool: List Devices",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "devices",
+        "filters": {
+          "conditions": [
+            { "keyName": "house_id", "condition": "eq", "keyValue": "={{ $json.house_id }}" }
+          ]
+        },
+        "options": { "limit": 50 }
+      },
+      "id": "get-devices",
+      "name": "Get Devices",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [420, 300],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length || items[0].json.error) {\n  return { json: { devices: [], message: 'Nenhum dispositivo cadastrado nesta casa.' } };\n}\nconst devices = items.map(i => ({\n  id:     i.json.id,\n  name:   i.json.name,\n  type:   i.json.type,\n  status: i.json.status ?? 'unknown'\n}));\nreturn { json: { devices, message: `${devices.length} dispositivo(s) encontrado(s).` } };"
+      },
+      "id": "format-devices",
+      "name": "Format Devices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Get Devices",     "type": "main", "index": 0 }]] },
+    "Get Devices":              { "main": [[{ "node": "Format Devices",  "type": "main", "index": 0 }]] }
+  }
+}

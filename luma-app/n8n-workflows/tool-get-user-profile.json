@@ -1,0 +1,72 @@
+{
+  "name": "Tool: Get User Profile",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "house_members",
+        "filters": {
+          "conditions": [
+            { "keyName": "user_id",  "condition": "eq", "keyValue": "={{ $json.user_id }}" },
+            { "keyName": "house_id", "condition": "eq", "keyValue": "={{ $json.house_id }}" }
+          ]
+        },
+        "options": { "limit": 1 }
+      },
+      "id": "get-member",
+      "name": "Get House Member",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [420, 300],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $('Execute Workflow Trigger').item.json.user_id }}" }
+          ]
+        },
+        "options": { "limit": 1 }
+      },
+      "id": "get-profile",
+      "name": "Get Profile",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [640, 300],
+      "credentials": { "supabaseApi": { "id": "PLACEHOLDER_SUPABASE_CRED", "name": "Supabase account" } },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const member  = $('Get House Member').item?.json ?? {};\nconst profile = $('Get Profile').item?.json ?? {};\nreturn { json: {\n  user_id:    profile.id ?? member.user_id,\n  name:       profile.full_name ?? profile.name ?? 'Usuário',\n  role:       member.role ?? 'MEMBER',\n  xp:         member.xp ?? 0,\n  level:      member.level ?? 1,\n  badges:     member.badges ?? [],\n  streak:     member.streak_days ?? 0,\n  is_minor:   member.is_minor ?? false,\n  joined_at:  member.created_at ?? null\n}};"
+      },
+      "id": "merge-profile",
+      "name": "Merge Profile Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": { "main": [[{ "node": "Get House Member",   "type": "main", "index": 0 }]] },
+    "Get House Member":         { "main": [[{ "node": "Get Profile",        "type": "main", "index": 0 }]] },
+    "Get Profile":              { "main": [[{ "node": "Merge Profile Data", "type": "main", "index": 0 }]] }
+  }
+}
