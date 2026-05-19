@@ -1,19 +1,30 @@
-# Azure Pipelines — Luma APP
+# Azure Pipelines -- Luma APP
 #
-# Pré-requisitos no Azure DevOps:
-#   1. Variable group "luma-secrets" (Project Settings → Library) com:
-#        - EXPO_TOKEN              (token EAS, geração: https://expo.dev/accounts/[acct]/settings/access-tokens)
-#        - EXPO_PUBLIC_SUPABASE_URL
-#        - EXPO_PUBLIC_SUPABASE_ANON_KEY
-#        - EXPO_PUBLIC_N8N_WEBHOOK_URL
-#   2. Service connection "github-luma" (caso queira espelhar artefatos no GH).
-#   3. Branch policy em `main` exigindo este pipeline verde + 1 reviewer.
+# Pre-requisitos no Azure DevOps (Project Settings -> Library -> Variable Groups):
 #
-# Estratégia:
-#   - validate roda em todo PR e push.
-#   - build_preview roda em PRs e push em `develop` → EAS profile "preview".
-#   - build_production roda apenas em push em `main` → EAS profile "production".
-#   - EAS Build executa nos servidores Expo (sem agente Android/iOS no Azure).
+#   Variable group: "luma-secrets"
+#     EXPO_TOKEN                    EAS access token (expo.dev/accounts/nicebytesolutions/settings/access-tokens)
+#     EXPO_PUBLIC_SUPABASE_URL      https://luma-api.nicebyte.ia.br
+#     EXPO_PUBLIC_SUPABASE_ANON_KEY <self-hosted anon JWT>
+#     EXPO_PUBLIC_N8N_WEBHOOK_URL   https://luma-n8n.nicebyte.ia.br
+#     EXPO_PUBLIC_N8N_HMAC_SECRET   <hmac secret from infra/supabase/.env>
+#     EXPO_PUBLIC_N8N_JWT_SECRET    <jwt secret from infra/supabase/.env>
+#
+#   Variable group: "luma-rls-test-secrets"  (used only in validate stage)
+#     RLS_TEST_SUPABASE_URL         https://luma-api.nicebyte.ia.br
+#     RLS_TEST_SUPABASE_ANON_KEY    <self-hosted anon JWT>
+#     RLS_TEST_USER_A_EMAIL         <test user A email>
+#     RLS_TEST_USER_A_PASSWORD      <test user A password>
+#     RLS_TEST_USER_B_EMAIL         <test user B email>
+#     RLS_TEST_USER_B_PASSWORD      <test user B password>
+#     RLS_TEST_HOUSE_A_ID           <house A UUID>
+#     RLS_TEST_HOUSE_B_ID           <house B UUID>
+#
+# Estrategia:
+#   validate       -- typecheck + Jest + RLS tests (todo PR e push)
+#   eas_update     -- OTA push para branch production (push em main, mudancas em luma-app/)
+#   build_preview  -- EAS build preview Android (PRs e develop)
+#   build_production -- EAS build completo (main, apenas quando versao/deps nativas mudarem)
 
 trigger:
   branches:
@@ -39,11 +50,16 @@ variables:
     value: '20.x'
   - name: WORKDIR
     value: 'luma-app'
+  - name: EAS_ACCOUNT
+    value: 'nicebytesolutions'
+  - name: EAS_PROJECT
+    value: 'luma-app'
 
+# ─────────────────────────────────────────────────────────────────────────────
 stages:
-  # ───────────────────────────────────────────────────────────────────
+
   - stage: validate
-    displayName: 'Validate (typecheck + tests)'
+    displayName: 'Validate (typecheck + tests + RLS)'
     jobs:
       - job: validate_job
         displayName: 'Lint, types, unit tests'
@@ -63,17 +79,18 @@ stages:
           - bash: |
               cd $(WORKDIR)
               bun install --frozen-lockfile || bun install
-            displayName: 'Install deps (bun)'
+            displayName: 'Install deps'
 
           - bash: |
               cd $(WORKDIR)
               bun run typecheck
             displayName: 'TypeScript typecheck'
+            continueOnError: false
 
           - bash: |
               cd $(WORKDIR)
               bun run test:ci
-            displayName: 'Jest unit tests + coverage'
+            displayName: 'Jest unit tests'
             env:
               CI: 'true'
 
@@ -90,7 +107,87 @@ stages:
             inputs:
               summaryFileLocation: '$(WORKDIR)/coverage/lcov.info'
 
-  # ───────────────────────────────────────────────────────────────────
+      - job: rls_tests
+        displayName: 'RLS integration tests'
+        pool:
+          vmImage: 'ubuntu-latest'
+        condition: eq(variables['Build.SourceBranch'], 'refs/heads/main')
+        variables:
+          - group: luma-rls-test-secrets
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - bash: |
+              curl -fsSL https://bun.sh/install | bash -s "bun-v$(BUN_VERSION)"
+              echo "##vso[task.prependpath]$HOME/.bun/bin"
+            displayName: 'Install Bun'
+
+          - bash: |
+              cd $(WORKDIR)
+              bun install --frozen-lockfile || bun install
+            displayName: 'Install deps'
+
+          - bash: |
+              cd $(WORKDIR)
+              bun run test:rls
+            displayName: 'RLS tests (self-hosted Supabase)'
+            env:
+              RLS_TEST_SUPABASE_URL: $(RLS_TEST_SUPABASE_URL)
+              RLS_TEST_SUPABASE_ANON_KEY: $(RLS_TEST_SUPABASE_ANON_KEY)
+              RLS_TEST_USER_A_EMAIL: $(RLS_TEST_USER_A_EMAIL)
+              RLS_TEST_USER_A_PASSWORD: $(RLS_TEST_USER_A_PASSWORD)
+              RLS_TEST_USER_B_EMAIL: $(RLS_TEST_USER_B_EMAIL)
+              RLS_TEST_USER_B_PASSWORD: $(RLS_TEST_USER_B_PASSWORD)
+              RLS_TEST_HOUSE_A_ID: $(RLS_TEST_HOUSE_A_ID)
+              RLS_TEST_HOUSE_B_ID: $(RLS_TEST_HOUSE_B_ID)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  - stage: eas_update
+    displayName: 'EAS Update (OTA -> production)'
+    dependsOn: validate
+    condition: |
+      and(
+        succeeded(),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+        ne(variables['Build.Reason'], 'PullRequest')
+      )
+    jobs:
+      - job: ota_push
+        displayName: 'eas update --branch production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(NODE_VERSION)
+
+          - bash: |
+              npm install -g eas-cli@latest
+            displayName: 'Install eas-cli'
+
+          - bash: |
+              cd $(WORKDIR)
+              npm install --no-audit --no-fund
+            displayName: 'Install deps'
+
+          - bash: |
+              cd $(WORKDIR)
+              eas update \
+                --branch production \
+                --message "Azure CI: $(Build.SourceVersionMessage)" \
+                --non-interactive
+            displayName: 'EAS OTA update'
+            env:
+              EXPO_TOKEN: $(EXPO_TOKEN)
+              EXPO_PUBLIC_SUPABASE_URL: $(EXPO_PUBLIC_SUPABASE_URL)
+              EXPO_PUBLIC_SUPABASE_ANON_KEY: $(EXPO_PUBLIC_SUPABASE_ANON_KEY)
+              EXPO_PUBLIC_N8N_WEBHOOK_URL: $(EXPO_PUBLIC_N8N_WEBHOOK_URL)
+              EXPO_PUBLIC_N8N_HMAC_SECRET: $(EXPO_PUBLIC_N8N_HMAC_SECRET)
+              EXPO_PUBLIC_N8N_JWT_SECRET: $(EXPO_PUBLIC_N8N_JWT_SECRET)
+
+  # ─────────────────────────────────────────────────────────────────────────
   - stage: build_preview
     displayName: 'EAS Build (preview)'
     dependsOn: validate
@@ -104,7 +201,7 @@ stages:
       )
     jobs:
       - job: eas_preview
-        displayName: 'eas build --profile preview'
+        displayName: 'eas build --profile preview (Android APK)'
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -119,7 +216,7 @@ stages:
           - bash: |
               cd $(WORKDIR)
               npm install --no-audit --no-fund
-            displayName: 'Install deps (npm — eas requires it)'
+            displayName: 'Install deps'
 
           - bash: |
               cd $(WORKDIR)
@@ -128,17 +225,20 @@ stages:
                 --profile preview \
                 --non-interactive \
                 --no-wait
-            displayName: 'EAS build Android (preview)'
+            displayName: 'EAS build Android preview'
             env:
               EXPO_TOKEN: $(EXPO_TOKEN)
               EXPO_PUBLIC_SUPABASE_URL: $(EXPO_PUBLIC_SUPABASE_URL)
               EXPO_PUBLIC_SUPABASE_ANON_KEY: $(EXPO_PUBLIC_SUPABASE_ANON_KEY)
               EXPO_PUBLIC_N8N_WEBHOOK_URL: $(EXPO_PUBLIC_N8N_WEBHOOK_URL)
+              EXPO_PUBLIC_N8N_HMAC_SECRET: $(EXPO_PUBLIC_N8N_HMAC_SECRET)
+              EXPO_PUBLIC_N8N_JWT_SECRET: $(EXPO_PUBLIC_N8N_JWT_SECRET)
 
-  # ───────────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────
   - stage: build_production
-    displayName: 'EAS Build (production)'
+    displayName: 'EAS Build (production — native changes only)'
     dependsOn: validate
+    # Only run when app version bumped or native deps changed
     condition: |
       and(
         succeeded(),
@@ -146,8 +246,33 @@ stages:
         ne(variables['Build.Reason'], 'PullRequest')
       )
     jobs:
+      - job: check_native_changes
+        displayName: 'Detect native dependency changes'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - bash: |
+              CHANGED=$(git diff HEAD~1 --name-only \
+                luma-app/app.json \
+                luma-app/package.json \
+                luma-app/android/ \
+                luma-app/ios/ \
+                luma-app/eas.json 2>/dev/null | head -1)
+              if [ -n "$CHANGED" ]; then
+                echo "##vso[task.setvariable variable=NATIVE_CHANGED;isOutput=true]true"
+                echo "Native changes detected: $CHANGED"
+              else
+                echo "##vso[task.setvariable variable=NATIVE_CHANGED;isOutput=true]false"
+                echo "No native changes -- skipping full build"
+              fi
+            name: detect
+            displayName: 'Check for native changes'
+
       - job: eas_production
         displayName: 'eas build --profile production (Android + iOS)'
+        dependsOn: check_native_changes
+        condition: |
+          eq(dependencies.check_native_changes.outputs['detect.NATIVE_CHANGED'], 'true')
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -162,7 +287,7 @@ stages:
           - bash: |
               cd $(WORKDIR)
               npm install --no-audit --no-fund
-            displayName: 'Install deps (npm)'
+            displayName: 'Install deps'
 
           - bash: |
               cd $(WORKDIR)
@@ -171,9 +296,11 @@ stages:
                 --profile production \
                 --non-interactive \
                 --no-wait
-            displayName: 'EAS build (production)'
+            displayName: 'EAS build production (all platforms)'
             env:
               EXPO_TOKEN: $(EXPO_TOKEN)
               EXPO_PUBLIC_SUPABASE_URL: $(EXPO_PUBLIC_SUPABASE_URL)
               EXPO_PUBLIC_SUPABASE_ANON_KEY: $(EXPO_PUBLIC_SUPABASE_ANON_KEY)
               EXPO_PUBLIC_N8N_WEBHOOK_URL: $(EXPO_PUBLIC_N8N_WEBHOOK_URL)
+              EXPO_PUBLIC_N8N_HMAC_SECRET: $(EXPO_PUBLIC_N8N_HMAC_SECRET)
+              EXPO_PUBLIC_N8N_JWT_SECRET: $(EXPO_PUBLIC_N8N_JWT_SECRET)
