@@ -98,11 +98,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
       - name: Install eas-cli
         run: npm install -g eas-cli@latest
 
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: bun install --frozen-lockfile
 
       - name: EAS OTA update
         run: |
@@ -131,11 +135,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
       - name: Install eas-cli
         run: npm install -g eas-cli@latest
 
       - name: Install deps
-        run: npm install --no-audit --no-fund
+        run: bun install --frozen-lockfile
 
       - name: EAS build preview
         run: |
