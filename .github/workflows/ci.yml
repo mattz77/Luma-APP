@@ -110,11 +110,14 @@ jobs:
 
       - name: EAS OTA update
         run: |
+          # Take first line only to avoid multi-line message breaking shell parsing
+          MSG=$(printf '%s' "$COMMIT_MSG" | head -n1)
           eas update \
             --branch production \
-            --message "CI: ${{ github.event.head_commit.message }}" \
+            --message "CI: $MSG" \
             --non-interactive
         env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
