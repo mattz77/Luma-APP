@@ -193,7 +193,7 @@ export default function ForgotPasswordScreen() {
                   value={sanitizedCode}
                   onChangeText={setCode}
                   placeholder={t('auth.forgotPassword.codePlaceholder')}
-                  keyboardType="number-pad"
+                  keyboardType="numeric"
                   error={!!feedbackMessage && !isSuccess}
                 />
                 <Pressable

@@ -258,7 +258,7 @@ export default function ProfileScreen() {
 
                 <Pressable
                   onPress={() => void handleSave()}
-                  isDisabled={isSaving}
+                  disabled={isSaving}
                   className={`flex-row items-center justify-center gap-2 bg-[#FDE047] h-14 rounded-[24px] shadow-lg shadow-yellow-200 active:scale-[0.98] mt-2 ${isSaving ? 'opacity-60' : ''}`}
                 >
                   {isSaving ? (

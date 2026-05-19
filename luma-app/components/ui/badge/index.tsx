@@ -114,7 +114,7 @@ const StyledUIIcon = styled(UIIcon, {
       fill: true,
       color: true,
       stroke: true,
-    },
+    } as any,
   },
 });
 

@@ -336,8 +336,6 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                                     }
                                 }}
                                 // Permitir múltiplos toques rápidos no iOS
-                                delayPressIn={0}
-                                delayPressOut={0}
                                 style={{ zIndex: 2001 }}
                             >
                                 <Box className="w-11 h-11 items-center justify-center">

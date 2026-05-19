@@ -206,7 +206,7 @@ export function CategoryManagerModal({
                 </Button>
               </HStack>
               {errorMessage && (
-                <Alert action="error" variant="solid">
+                <Alert variant="destructive">
                   <AlertText>{errorMessage}</AlertText>
                 </Alert>
               )}

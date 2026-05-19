@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Check, Trash2 } from 'lucide-react-native';
 
-import { useNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useDeleteNotification } from '@/hooks/useNotifications';
+import { useNotificationsList, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, useDeleteNotification } from '@/hooks/useNotifications';
 import { useAuthStore } from '@/stores/auth.store';
 import { cardShadowStyle } from '@/lib/styles';
 import type { Notification } from '@/services/notification.service';
@@ -37,7 +37,7 @@ export default function NotificationsScreen() {
   const { top } = useSafeAreaInsets();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  const { data: notifications, isLoading, isRefetching, refetch } = useNotifications(
+  const { data: notifications, isLoading, isRefetching, refetch } = useNotificationsList(
     user?.id,
     houseId,
     filter === 'unread' ? { isRead: false } : undefined,
@@ -50,7 +50,7 @@ export default function NotificationsScreen() {
     if (notification.isRead) return;
     if (!houseId) return;
     try {
-      await markAsReadMutation.mutateAsync({ id: notification.id, houseId });
+      await markAsReadMutation.mutateAsync({ id: notification.id });
     } catch (error) {
       console.error('Erro ao marcar como lida:', error);
     }
@@ -59,7 +59,7 @@ export default function NotificationsScreen() {
   const handleMarkAllAsRead = async () => {
     if (!user?.id || !houseId) return;
     try {
-      await markAllAsReadMutation.mutateAsync({ userId: user.id, houseId });
+      await markAllAsReadMutation.mutateAsync();
     } catch (error) {
       console.error('Erro ao marcar todas como lidas:', error);
     }
@@ -68,7 +68,7 @@ export default function NotificationsScreen() {
   const handleDelete = async (id: string) => {
     if (!houseId) return;
     try {
-      await deleteMutation.mutateAsync({ id, houseId });
+      await deleteMutation.mutateAsync({ id });
     } catch (error) {
       console.error('Erro ao deletar notificação:', error);
     }

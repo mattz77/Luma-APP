@@ -70,7 +70,7 @@ export async function ensureGameProfileForMinor(userId: string): Promise<UserGam
 
   const { data, error } = await supabase
     .from('user_game_profiles')
-    .insert({ user_id: userId })
+    .insert({ user_id: userId } as any)
     .select()
     .single();
 
@@ -86,7 +86,7 @@ export async function getGameProfile(userId: string): Promise<UserGameProfile | 
     .maybeSingle();
 
   if (error && error.code !== 'PGRST116') throw error;
-  return (data as UserGameProfile) ?? null;
+  return (data as unknown as UserGameProfile) ?? null;
 }
 
 /**

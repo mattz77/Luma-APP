@@ -702,7 +702,7 @@ export default function HouseScreen() {
                     </Heading>
                     <Pressable
                       onPress={() => setCreateModalVisible(false)}
-                      isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                      disabled={createHouseMutation.isPending || isUploadingPhoto}
                       className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
                     >
                       <X size={18} color="#0f172a" />
@@ -783,14 +783,14 @@ export default function HouseScreen() {
                           variant="outline"
                           action="secondary"
                           onPress={() => setCreateModalVisible(false)}
-                          isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                          disabled={createHouseMutation.isPending || isUploadingPhoto}
                         >
                           <ButtonText>Cancelar</ButtonText>
                         </Button>
                         <Button
                           action="primary"
                           onPress={() => void submitCreateHouse()}
-                          isDisabled={createHouseMutation.isPending || isUploadingPhoto}
+                          disabled={createHouseMutation.isPending || isUploadingPhoto}
                         >
                           <ButtonText>
                             {createHouseMutation.isPending || isUploadingPhoto
@@ -841,7 +841,7 @@ export default function HouseScreen() {
                     </Heading>
                     <Pressable
                       onPress={() => setJoinModalVisible(false)}
-                      isDisabled={joinHouseMutation.isPending}
+                      disabled={joinHouseMutation.isPending}
                       className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
                     >
                       <X size={18} color="#0f172a" />
@@ -867,7 +867,7 @@ export default function HouseScreen() {
                         variant="outline"
                         action="secondary"
                         onPress={() => setJoinModalVisible(false)}
-                        isDisabled={joinHouseMutation.isPending}
+                        disabled={joinHouseMutation.isPending}
                       >
                         <ButtonText>Cancelar</ButtonText>
                       </Button>

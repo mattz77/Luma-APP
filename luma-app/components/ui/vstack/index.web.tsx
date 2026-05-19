@@ -9,7 +9,7 @@ type IVStackProps = React.ComponentProps<'div'> &
 
 const VStack = React.forwardRef<React.ComponentRef<'div'>, IVStackProps>(
   function VStack({ className, space, reversed, style, ...props }, ref) {
-    const normalizedStyle = normalizeStyleForDomWeb(style);
+    const normalizedStyle = normalizeStyleForDomWeb(style as any);
     return (
       <div
         className={vstackStyle({
@@ -17,7 +17,7 @@ const VStack = React.forwardRef<React.ComponentRef<'div'>, IVStackProps>(
           reversed: reversed as boolean,
           class: className,
         })}
-        style={normalizedStyle}
+        style={normalizedStyle as any}
         {...props}
         ref={ref}
       />

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   requestNotificationPermission,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
+import { notificationService } from '@/services/notification.service';
 
 /**
  * Hook para gerenciar notificações push
@@ -20,8 +22,8 @@ export function useNotifications() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const houseId = useAuthStore((state) => state.houseId);
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
+  const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
 
   useEffect(() => {
     const initializeNotifications = async () => {
@@ -79,6 +81,69 @@ export function useNotifications() {
 }
 
 /**
+ * Hook para listar notificações do banco de dados
+ */
+export function useNotificationsList(
+  userId: string | null | undefined,
+  houseId: string | null | undefined,
+  options?: { isRead?: boolean; limit?: number },
+) {
+  return useQuery({
+    queryKey: ['notifications', userId, houseId, options],
+    queryFn: () => notificationService.getAll(userId!, houseId!, options),
+    enabled: Boolean(userId && houseId),
+  });
+}
+
+/**
+ * Hook para marcar uma notificação como lida
+ */
+export function useMarkNotificationAsRead() {
+  const queryClient = useQueryClient();
+  const houseId = useAuthStore((state) => state.houseId);
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      notificationService.markAsRead(id, houseId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+/**
+ * Hook para marcar todas as notificações como lidas
+ */
+export function useMarkAllNotificationsAsRead() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const houseId = useAuthStore((state) => state.houseId);
+
+  return useMutation({
+    mutationFn: () => notificationService.markAllAsRead(user!.id, houseId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+/**
+ * Hook para deletar uma notificação
+ */
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+  const houseId = useAuthStore((state) => state.houseId);
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) =>
+      notificationService.remove(id, houseId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+/**
  * Agenda notificação para tarefa próxima do prazo
  */
 export async function scheduleTaskReminder(
@@ -104,9 +169,7 @@ export async function scheduleTaskReminder(
     const notificationId = await scheduleLocalNotification(
       `Tarefa próxima do prazo: ${taskTitle}`,
       `Esta tarefa vence em ${hoursBefore} horas`,
-      {
-        date: reminderDate,
-      }
+      { date: reminderDate } as any
     );
 
     return notificationId;

@@ -56,7 +56,7 @@ export const notificationService = {
       throw error;
     }
 
-    return (data ?? []).map((notification) => mapNotification(notification));
+    return ((data ?? []) as NotificationRow[]).map((notification) => mapNotification(notification));
   },
 
   async getUnreadCount(userId: string, houseId: string): Promise<number> {
@@ -85,7 +85,7 @@ export const notificationService = {
       throw error ?? new Error('Falha ao criar notificação');
     }
 
-    return mapNotification(data);
+    return mapNotification(data as NotificationRow);
   },
 
   async markAsRead(id: string, houseId: string): Promise<Notification> {
@@ -101,7 +101,7 @@ export const notificationService = {
       throw error ?? new Error('Falha ao marcar notificação como lida');
     }
 
-    return mapNotification(data);
+    return mapNotification(data as NotificationRow);
   },
 
   async markAllAsRead(userId: string, houseId: string): Promise<void> {

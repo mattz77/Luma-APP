@@ -10,7 +10,7 @@ export interface RAGMetadata {
   timestamp?: string;
   amount?: number;
   category?: string;
-  status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   user_id?: string;
   [key: string]: unknown;

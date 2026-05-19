@@ -113,7 +113,7 @@ export const houseService = {
     const { data, error } = await supabase.rpc('create_house_with_membership', {
       p_name: name,
       p_address: address,
-    });
+    } as any);
 
     if (error || !data) {
       throw error ?? new Error('Não foi possível criar a casa.');

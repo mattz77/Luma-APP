@@ -24,14 +24,15 @@ type IPressableProps = Omit<
   React.ComponentProps<typeof UIPressable>,
   'context'
 > &
-  VariantProps<typeof pressableStyle> &
-  Partial<Pick<PressableProps, 'delayPressIn' | 'delayPressOut'>>;
+  VariantProps<typeof pressableStyle>;
 const Pressable = React.forwardRef<
   React.ComponentRef<typeof UIPressable>,
   IPressableProps
 >(function Pressable({ className, style, ...props }, ref) {
   const resolvedStyle =
-    Platform.OS === 'web' ? normalizeStyleForDomWeb(style) : style;
+    Platform.OS === 'web'
+      ? normalizeStyleForDomWeb(typeof style === 'function' ? undefined : style)
+      : style;
   return (
     <UIPressable
       {...props}

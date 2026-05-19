@@ -82,7 +82,7 @@ export const n8nClient = {
         const axiosError = error as AxiosError;
         const isTimeout = axiosError.code === 'ECONNABORTED';
         const status = axiosError.response?.status ?? null;
-        const shouldRetry = (isTimeout || status === 429 || status >= 500) && attempt < maxAttempts;
+        const shouldRetry = (isTimeout || status === 429 || (status !== null && status >= 500)) && attempt < maxAttempts;
 
         if (!shouldRetry) {
           console.error('N8N API Error:', axiosError.message, { status });

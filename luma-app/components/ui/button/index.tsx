@@ -131,6 +131,7 @@ type LegacyButtonProps = {
   variant?: ButtonVariant | 'solid';
   size?: ButtonSize | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xs';
   isDisabled?: boolean;
+  disabled?: boolean;
 };
 
 type IButtonProps = Omit<
@@ -234,7 +235,7 @@ const ButtonSpinner = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof UIButton.Spinner>
 >(({ className, size, ...props }, ref) => {
   const { size: parentSize } = useStyleContext(SCOPE);
-  return <UIButton.Spinner ref={ref} {...props} className={buttonSpinnerStyle({ parentVariants: { size: parentSize }, class: className, size })} />;
+  return <UIButton.Spinner ref={ref} {...props} className={buttonSpinnerStyle({ parentVariants: { size: parentSize }, class: className, size: size as any })} />;
 });
 type IButtonIcon = React.ComponentPropsWithoutRef<typeof UIButton.Icon> &
   VariantProps<typeof buttonIconStyle> & {

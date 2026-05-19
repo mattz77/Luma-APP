@@ -18,5 +18,17 @@
     "nativewind-env.d.ts",
     "react-native-css-env.d.ts",
     "./react-native-css-env.d.ts"
+  ],
+  "exclude": [
+    "scripts",
+    "test",
+    "tests",
+    "supabase",
+    "**/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "components/ui"
   ]
 }

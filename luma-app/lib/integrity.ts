@@ -16,7 +16,7 @@ export const verifyAppIntegrity = async (): Promise<IntegrityVerificationResult>
     return { verified: false };
   }
 
-  const tokenResponse = await AppIntegrity.getIntegrityToken();
+  const tokenResponse = await (AppIntegrity as any).getIntegrityToken();
   const token = tokenResponse.token;
 
   if (!token || !integrityVerifyUrl) {

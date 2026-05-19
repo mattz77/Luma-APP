@@ -30,7 +30,7 @@ const mapComment = (comment: TaskCommentRowWithUser): TaskComment => ({
   userId: comment.user_id,
   content: comment.content,
   createdAt: comment.created_at,
-  updatedAt: comment.updated_at,
+  updatedAt: comment.created_at,
   user: comment.user
     ? {
         id: comment.user.id,

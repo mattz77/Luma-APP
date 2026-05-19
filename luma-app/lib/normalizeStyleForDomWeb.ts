@@ -61,8 +61,8 @@ export function normalizeStyleForDomWeb(
     shadowOffset && typeof shadowOffset === 'object'
       ? (shadowOffset.height ?? 0)
       : 0;
-  const blur = shadowRadius ?? 0;
-  const opacity = shadowOpacity ?? 1;
+  const blur = (shadowRadius ?? 0) as number;
+  const opacity = (shadowOpacity ?? 1) as number;
   const color = shadowColorToRgba(shadowColor, opacity);
 
   return {

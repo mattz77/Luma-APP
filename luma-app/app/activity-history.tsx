@@ -116,7 +116,7 @@ export default function ActivityHistoryScreen() {
             }}
             className="w-full"
           >
-            <ButtonIcon as={Calendar} size="md" />
+            <ButtonIcon as={Calendar} size="sm" />
             <ButtonText>{selectedMonthLabel}</ButtonText>
           </Button>
         </Box>

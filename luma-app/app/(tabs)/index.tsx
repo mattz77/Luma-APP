@@ -248,7 +248,7 @@ const StatCard = ({
   /** iOS: card ~100px de altura; `xl` + Dynamic Type estoura e corta o subtext (ex.: % do limite). */
   const valueTextIosStyle =
     Platform.OS === 'ios'
-      ? { fontSize: 16, lineHeight: 20, fontVariant: ['tabular-nums'] as const, flexShrink: 1 }
+      ? { fontSize: 16, lineHeight: 20, fontVariant: ['tabular-nums'] as ('tabular-nums')[], flexShrink: 1 }
       : undefined;
 
   const content = (
@@ -706,7 +706,7 @@ export default function Dashboard() {
                   size="sm"
                   action="primary"
                   onPress={handleMagicInput}
-                  disabled={loading || !magicInput.trim()}
+                  isDisabled={loading || !magicInput.trim()}
                   style={[styles.taskSubmitButton, (!magicInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
                 >
                   {loading ? (
@@ -792,7 +792,7 @@ export default function Dashboard() {
                   <Button
                     action="primary"
                     onPress={handleConfirmMagic}
-                    disabled={showAssigneeSelector && !selectedAssigneeId}
+                    isDisabled={showAssigneeSelector && !selectedAssigneeId}
                     className="flex-1"
                     style={showAssigneeSelector && !selectedAssigneeId ? { opacity: 0.5 } : {}}
                   >
@@ -842,7 +842,7 @@ export default function Dashboard() {
                   size="sm"
                   action="primary"
                   onPress={handleSmartTask}
-                  disabled={loading || !taskInput.trim()}
+                  isDisabled={loading || !taskInput.trim()}
                   style={[styles.taskSubmitButton, (!taskInput.trim() || loading) && styles.taskSubmitButtonDisabled]}
                 >
                   {loading ? (
@@ -913,9 +913,9 @@ export default function Dashboard() {
                     </Box>
                     <Box style={styles.chatLoadingBubble}>
                       <HStack space="xs" className="gap-1">
-                        <Box style={[styles.chatDot, { animationDelay: '0ms' }]} />
-                        <Box style={[styles.chatDot, { animationDelay: '150ms' }]} />
-                        <Box style={[styles.chatDot, { animationDelay: '300ms' }]} />
+                        <Box style={[styles.chatDot, { animationDelay: '0ms' } as any]} />
+                        <Box style={[styles.chatDot, { animationDelay: '150ms' } as any]} />
+                        <Box style={[styles.chatDot, { animationDelay: '300ms' } as any]} />
                       </HStack>
                     </Box>
                   </HStack>
@@ -935,7 +935,7 @@ export default function Dashboard() {
                   size="sm"
                   action="primary"
                   onPress={handleSendMessage}
-                  disabled={!chatInput.trim() || loading}
+                  isDisabled={!chatInput.trim() || loading}
                   style={[styles.chatSendButton, (!chatInput.trim() || loading) && styles.chatSendButtonDisabled]}
                 >
                   <Send size={18} color={Colors.background} />

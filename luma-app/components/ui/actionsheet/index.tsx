@@ -235,7 +235,7 @@ const ActionsheetContent = React.forwardRef<
         class: className,
       })}
       ref={ref}
-      style={[maxHeight !== undefined ? { maxHeight } : null, style]}
+      style={[maxHeight !== undefined ? { maxHeight } as any : null, style]}
       {...props}
     />
   );

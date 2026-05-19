@@ -44,7 +44,7 @@ export const budgetService = {
       return null;
     }
 
-    return mapBudget(data);
+    return mapBudget(data as MonthlyBudgetRow);
   },
 
   async getAll(houseId: string): Promise<MonthlyBudget[]> {
@@ -58,7 +58,7 @@ export const budgetService = {
       throw error;
     }
 
-    return (data ?? []).map((budget) => mapBudget(budget));
+    return ((data ?? []) as MonthlyBudgetRow[]).map((budget) => mapBudget(budget));
   },
 
   async getDefault(houseId: string): Promise<MonthlyBudget | null> {
@@ -77,7 +77,7 @@ export const budgetService = {
       return null;
     }
 
-    return mapBudget(data);
+    return mapBudget(data as MonthlyBudgetRow);
   },
 
   async create(budget: MonthlyBudgetInsert): Promise<MonthlyBudget> {
@@ -91,7 +91,7 @@ export const budgetService = {
       throw error ?? new Error('Falha ao criar orçamento');
     }
 
-    return mapBudget(data);
+    return mapBudget(data as MonthlyBudgetRow);
   },
 
   async update(id: string, updates: MonthlyBudgetUpdate): Promise<MonthlyBudget> {
@@ -106,7 +106,7 @@ export const budgetService = {
       throw error ?? new Error('Falha ao atualizar orçamento');
     }
 
-    return mapBudget(data);
+    return mapBudget(data as MonthlyBudgetRow);
   },
 
   async upsert(budget: MonthlyBudgetInsert): Promise<MonthlyBudget> {
@@ -120,14 +120,14 @@ export const budgetService = {
       throw error ?? new Error('Falha ao salvar orçamento');
     }
 
-    return mapBudget(data);
+    return mapBudget(data as MonthlyBudgetRow);
   },
 
   async upsertDefault(houseId: string, amount: number): Promise<MonthlyBudget> {
     return budgetService.upsert({
       house_id: houseId,
       month: 'default',
-      amount,
+      amount: String(amount),
     });
   },
 
