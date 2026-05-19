@@ -95,7 +95,7 @@ export async function getGameProfile(userId: string): Promise<UserGameProfile | 
 export async function updateUser(userId: string, updates: UserUpdate): Promise<User> {
   const { data, error } = await supabase
     .from('users')
-    .update(updates)
+    .update(updates as any)
     .eq('id', userId)
     .select()
     .single();

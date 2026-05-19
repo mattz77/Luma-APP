@@ -129,7 +129,9 @@ export const taskService = {
 
   async update(id: string, updates: TaskUpdate & { house_id?: string; houseId?: string }): Promise<Task> {
     const houseId = updates.house_id ?? (updates as { houseId?: string }).houseId;
-    let query = supabase.from('tasks').update(updates).eq('id', id);
+    // Strip non-DB fields (houseId is camelCase alias, not a column)
+    const { houseId: _h, ...dbUpdates } = updates as typeof updates & { houseId?: string };
+    let query = supabase.from('tasks').update(dbUpdates as any).eq('id', id);
     if (houseId) {
       query = query.eq('house_id', houseId);
     }
