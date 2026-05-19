@@ -1,0 +1,185 @@
+name: CI - Luma APP
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - luma-app/**
+      - .github/workflows/ci.yml
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - luma-app/**
+      - .github/workflows/ci.yml
+
+env:
+  NODE_VERSION: '20'
+  BUN_VERSION: '1.1.34'
+
+defaults:
+  run:
+    working-directory: luma-app
+
+jobs:
+  # ── Typecheck + Unit Tests ────────────────────────────────────────────────
+  validate:
+    name: Typecheck + Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript typecheck
+        run: bun run typecheck
+
+      - name: Jest unit tests
+        run: bun run test:ci
+        env:
+          CI: true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: luma-app/coverage/lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: luma-app/test-results/**
+          retention-days: 14
+
+  # ── RLS Integration Tests ─────────────────────────────────────────────────
+  rls-tests:
+    name: RLS Integration Tests (self-hosted)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: RLS tests
+        run: bun run test:rls
+        env:
+          RLS_TEST_SUPABASE_URL: ${{ secrets.RLS_TEST_SUPABASE_URL }}
+          RLS_TEST_SUPABASE_ANON_KEY: ${{ secrets.RLS_TEST_SUPABASE_ANON_KEY }}
+          RLS_TEST_USER_A_EMAIL: ${{ secrets.RLS_TEST_USER_A_EMAIL }}
+          RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
+          RLS_TEST_USER_B_EMAIL: ${{ secrets.RLS_TEST_USER_B_EMAIL }}
+          RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
+          RLS_TEST_HOUSE_A_ID: ${{ secrets.RLS_TEST_HOUSE_A_ID }}
+          RLS_TEST_HOUSE_B_ID: ${{ secrets.RLS_TEST_HOUSE_B_ID }}
+
+  # ── EAS OTA (main only) ───────────────────────────────────────────────────
+  eas-update:
+    name: EAS OTA -> production
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli@latest
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+
+      - name: EAS OTA update
+        run: |
+          eas update \
+            --branch production \
+            --message "CI: ${{ github.event.head_commit.message }}" \
+            --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_N8N_WEBHOOK_URL: ${{ secrets.EXPO_PUBLIC_N8N_WEBHOOK_URL }}
+          EXPO_PUBLIC_N8N_HMAC_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_HMAC_SECRET }}
+          EXPO_PUBLIC_N8N_JWT_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_JWT_SECRET }}
+
+  # ── EAS Build preview (PRs) ───────────────────────────────────────────────
+  eas-build-preview:
+    name: EAS Build preview (Android APK)
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli@latest
+
+      - name: Install deps
+        run: npm install --no-audit --no-fund
+
+      - name: EAS build preview
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_N8N_WEBHOOK_URL: ${{ secrets.EXPO_PUBLIC_N8N_WEBHOOK_URL }}
+          EXPO_PUBLIC_N8N_HMAC_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_HMAC_SECRET }}
+          EXPO_PUBLIC_N8N_JWT_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_JWT_SECRET }}
+
+  # ── Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: ESLint
+        run: bun run lint --if-present
+
+  # ── Summary ───────────────────────────────────────────────────────────────
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [validate, lint]
+    if: always()
+    steps:
+      - name: Result
+        run: |
+          echo "validate : ${{ needs.validate.result }}"
+          echo "lint     : ${{ needs.lint.result }}"
+          if [[ "${{ needs.validate.result }}" == "failure" || "${{ needs.lint.result }}" == "failure" ]]; then
+            exit 1
+          fi
