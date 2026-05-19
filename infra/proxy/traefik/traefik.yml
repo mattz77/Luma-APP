@@ -28,6 +28,12 @@ entryPoints:
     http:
       tls: {}
 
+experimental:
+  plugins:
+    crowdsec:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      version: v1.3.5
+
 providers:
   # Docker provider disabled: Docker Desktop 4.x requires API >= 1.40 but
   # Go Docker client defaults to 1.24 and cannot upgrade during negotiation.

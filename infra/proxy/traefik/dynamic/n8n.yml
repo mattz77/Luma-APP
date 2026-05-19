@@ -9,6 +9,7 @@ http:
       tls: {}
       service: n8n-luma-svc
       middlewares:
+        - crowdsec-bouncer@file
         - cloudflare-only@file
         - security-headers@file
 

@@ -31,6 +31,7 @@ http:
       priority: 100
       service: supabase-api-svc
       middlewares:
+        - crowdsec-bouncer@file
         - cloudflare-only@file
         - rate-limit-auth@file
         - security-headers@file
@@ -44,6 +45,7 @@ http:
       priority: 10
       service: supabase-api-svc
       middlewares:
+        - crowdsec-bouncer@file
         - cloudflare-only@file
         - rate-limit-general@file
         - security-headers@file

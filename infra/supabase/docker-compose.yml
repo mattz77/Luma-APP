@@ -280,7 +280,7 @@ services:
 
   # ── Offsite backup sync → Cloudflare R2 ──────────────────────────────────
   rclone-sync:
-    image: rclone/rclone:latest
+    image: rclone/rclone:1.74.1
     restart: unless-stopped
     depends_on:
       supabase-backup:
