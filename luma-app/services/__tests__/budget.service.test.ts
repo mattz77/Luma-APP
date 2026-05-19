@@ -166,7 +166,7 @@ describe('budgetService', () => {
       expect(upsertQuery?.insertPayload).toEqual({
         house_id: 'h1',
         month: 'default',
-        amount: 3000,
+        amount: '3000',
       });
     });
   });

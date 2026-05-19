@@ -32,7 +32,7 @@ describe('n8nClient', () => {
       });
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
-        'https://n8n.example.com/webhook/luma-chat-enhanced',
+        'https://n8n.example.com/webhook/luma-orchestrator',
         expect.objectContaining({
           house_id: 'house-1',
           user_id: 'user-1',
