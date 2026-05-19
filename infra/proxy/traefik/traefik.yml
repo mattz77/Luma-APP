@@ -1,0 +1,38 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+  bufferingSize: 100
+
+api:
+  dashboard: false
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls: {}
+
+providers:
+  # Docker provider disabled: Docker Desktop 4.x requires API >= 1.40 but
+  # Go Docker client defaults to 1.24 and cannot upgrade during negotiation.
+  # All routes use file-based provider instead.
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+

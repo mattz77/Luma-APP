@@ -1,0 +1,71 @@
+http:
+  routers:
+    # BLOCK: admin API — service_role only, never exposed publicly
+    supabase-api-admin-block:
+      rule: "Host(`luma-api.nicebyte.ia.br`) && PathPrefix(`/auth/v1/admin`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      priority: 200
+      service: supabase-api-svc
+      middlewares:
+        - block-admin@file
+
+    # BLOCK: pg-meta — internal Studio only, never via Kong public
+    supabase-api-pgmeta-block:
+      rule: "Host(`luma-api.nicebyte.ia.br`) && PathPrefix(`/pg-meta`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      priority: 200
+      service: supabase-api-svc
+      middlewares:
+        - block-admin@file
+
+    # Auth paths — strict rate limit (brute-force protection)
+    supabase-api-auth:
+      rule: "Host(`luma-api.nicebyte.ia.br`) && PathPrefix(`/auth/v1`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      priority: 100
+      service: supabase-api-svc
+      middlewares:
+        - cloudflare-only@file
+        - rate-limit-auth@file
+        - security-headers@file
+
+    # Public API (mobile app) — general rate limit + RLS
+    supabase-api:
+      rule: "Host(`luma-api.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      priority: 10
+      service: supabase-api-svc
+      middlewares:
+        - cloudflare-only@file
+        - rate-limit-general@file
+        - security-headers@file
+
+    # Studio — internal use, CF Access added at Cloudflare layer
+    supabase-studio:
+      rule: "Host(`luma-studio.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: supabase-studio-svc
+      middlewares:
+        - cloudflare-only@file
+        - security-headers@file
+
+  services:
+    supabase-api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://supabase-supabase-kong-1:8000"
+
+    supabase-studio-svc:
+      loadBalancer:
+        servers:
+          - url: "http://supabase-supabase-studio-1:3000"

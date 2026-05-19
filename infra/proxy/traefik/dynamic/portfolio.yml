@@ -1,0 +1,17 @@
+http:
+  routers:
+    portfolio:
+      rule: "Host(`nicebyte.ia.br`) || Host(`www.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: portfolio-svc
+      middlewares:
+        - cloudflare-only@file
+        - security-headers@file
+
+  services:
+    portfolio-svc:
+      loadBalancer:
+        servers:
+          - url: "http://proxy-portfolio-1:3000"

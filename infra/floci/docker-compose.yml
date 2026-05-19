@@ -1,0 +1,51 @@
+# Floci — Local AWS + Azure emulator (DEV / CI ONLY)
+# https://github.com/floci-io/floci
+#
+# DO NOT run in production — Supabase covers Storage/DB/Functions.
+#
+# Use cases for Luma:
+#   - Lambda: test Edge Functions locally before Deno deploy
+#   - S3: test receipt upload flows without Supabase Storage
+#   - SQS: prototype async queues (XP calc, batch notifications)
+#   - RDS PostgreSQL: isolated DB for CI test runs
+#
+# Usage:
+#   docker compose up -d
+#   aws --endpoint-url=http://localhost:4566 s3 mb s3://receipts
+#   az storage --endpoint http://localhost:4577 ...
+
+services:
+  floci:
+    image: floci/floci:latest
+    restart: unless-stopped
+    ports:
+      # Expose only on loopback — never on 0.0.0.0 in dev
+      - "127.0.0.1:4566:4566"
+    environment:
+      FLOCI_STORAGE_MODE: hybrid
+      # Enable services as needed:
+      SERVICES: s3,lambda,sqs,rds,dynamodb
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    volumes:
+      - ./volumes/floci-data:/app/data
+    networks:
+      - luma-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_floci/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  floci-az:
+    image: floci/floci-az:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4577:4577"
+    networks:
+      - luma-net
+
+networks:
+  luma-net:
+    external: true

@@ -1,0 +1,48 @@
+#!/bin/sh
+# post-merge hook (versionado em infra/hooks/, copiado pra .git/hooks/ via install-hooks.ps1)
+# Após `git pull` bem-sucedido, dispara deploy seletivo:
+#   infra/**          → deploy.ps1 (Docker stacks)
+#   luma-app/** (não docs/tests) → deploy-app.ps1 (EAS OTA)
+
+repo_root=$(git rev-parse --show-toplevel)
+changed=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)
+
+# Detect pwsh
+if command -v pwsh >/dev/null 2>&1; then
+    PS="pwsh"
+else
+    PS="powershell"
+fi
+
+# Infra changes
+infra_changed=$(echo "$changed" | grep '^infra/' | grep -v '^infra/logs/' || true)
+
+# App changes (exclui docs/tests/specs)
+app_changed=$(echo "$changed" \
+    | grep '^luma-app/' \
+    | grep -v '^luma-app/docs/' \
+    | grep -v '^luma-app/e2e/' \
+    | grep -v '\.test\.' \
+    | grep -v '\.spec\.' \
+    | grep -v '\.md$' \
+    || true)
+
+if [ -n "$infra_changed" ]; then
+    echo "[post-merge] infra/ changed → deploy.ps1"
+    "$PS" -NoProfile -ExecutionPolicy Bypass -File "$repo_root/infra/deploy.ps1" || {
+        echo "[post-merge] deploy.ps1 failed"
+        exit 1
+    }
+fi
+
+if [ -n "$app_changed" ]; then
+    echo "[post-merge] luma-app/ changed → deploy-app.ps1"
+    "$PS" -NoProfile -ExecutionPolicy Bypass -File "$repo_root/infra/deploy-app.ps1" || {
+        echo "[post-merge] deploy-app.ps1 failed"
+        exit 1
+    }
+fi
+
+if [ -z "$infra_changed" ] && [ -z "$app_changed" ]; then
+    echo "[post-merge] no deployable changes"
+fi

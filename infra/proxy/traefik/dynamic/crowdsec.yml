@@ -1,0 +1,11 @@
+# CrowdSec bouncer middleware — disabled until Traefik plugin is configured
+# To enable: add experimental.plugins config to traefik.yml
+# See: https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin
+#
+# http:
+#   middlewares:
+#     crowdsec-bouncer:
+#       plugin:
+#         crowdsec:
+#           crowdseclapikey: "${CROWDSEC_API_KEY}"
+#           crowdseclapihost: "crowdsec:8080"

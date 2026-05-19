@@ -1,0 +1,31 @@
+# Replace <TUNNEL_UUID> with output of: cloudflared tunnel create luma
+# Replace credentials-file path accordingly
+tunnel: 2cae17fe-241b-4d0a-9fe0-6fc5d7d660ba
+credentials-file: /etc/cloudflared/2cae17fe-241b-4d0a-9fe0-6fc5d7d660ba.json
+origincert: /etc/cloudflared/cert.pem
+
+originRequest:
+  connectTimeout: 30s
+  originServerName: nicebyte.ia.br
+
+ingress:
+  - hostname: nicebyte.ia.br
+    service: https://traefik:443
+
+  - hostname: www.nicebyte.ia.br
+    service: https://traefik:443
+
+  - hostname: luma-api.nicebyte.ia.br
+    service: https://traefik:443
+
+  - hostname: luma-n8n.nicebyte.ia.br
+    service: https://traefik:443
+
+  - hostname: luma-studio.nicebyte.ia.br
+    service: https://traefik:443
+
+  - hostname: luma-status.nicebyte.ia.br
+    service: https://traefik:443
+
+  # Catch-all
+  - service: http_status:404

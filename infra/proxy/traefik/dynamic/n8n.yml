@@ -1,0 +1,19 @@
+# Static file route for existing CordenaAI n8n (cordenaain8n-n8n-1)
+# Container must be on luma-net: docker network connect luma-net cordenaain8n-n8n-1
+http:
+  routers:
+    n8n-luma:
+      rule: "Host(`luma-n8n.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: n8n-luma-svc
+      middlewares:
+        - cloudflare-only@file
+        - security-headers@file
+
+  services:
+    n8n-luma-svc:
+      loadBalancer:
+        servers:
+          - url: "http://cordenaain8n-n8n-1:5678"

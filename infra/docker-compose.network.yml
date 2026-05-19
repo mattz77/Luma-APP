@@ -1,0 +1,6 @@
+# Shared network for all Luma services
+# Run once: docker compose -f docker-compose.network.yml up -d
+networks:
+  luma-net:
+    driver: bridge
+    name: luma-net

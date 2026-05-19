@@ -1,0 +1,17 @@
+http:
+  routers:
+    uptime:
+      rule: "Host(`luma-status.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: uptime-svc
+      middlewares:
+        - cloudflare-only@file
+        - security-headers@file
+
+  services:
+    uptime-svc:
+      loadBalancer:
+        servers:
+          - url: "http://proxy-uptime-kuma-1:3001"

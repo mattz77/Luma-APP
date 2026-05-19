@@ -50,6 +50,19 @@ luma-app/.env* - Copia.*
 supabase/.branches/
 supabase/.temp/
 
+# Infra — data volumes + secrets (never commit)
+infra/supabase/volumes/db/data/
+infra/supabase/volumes/storage/
+infra/supabase/volumes/backups/
+infra/n8n/volumes/
+infra/proxy/volumes/
+infra/floci/volumes/
+infra/proxy/cloudflared/*.json
+infra/proxy/cloudflared/cert.pem
+infra/proxy/traefik/certs/
+infra/migration/
+infra/**/.env
+
 # Workflows com possiveis segredos
 Luma-workflows/
 
@@ -90,3 +103,6 @@ luma-branding.png
 .continue/
 .windsurf/
 skills-lock.json
+
+# Infra deploy logs
+infra/logs/

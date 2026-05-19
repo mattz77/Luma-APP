@@ -1,0 +1,121 @@
+services:
+  # ── Docker Socket Proxy — kept for future use but Traefik bypasses it ────────
+  # NOTE: tecnativa/docker-socket-proxy 0.3.0 blocks /v1.24/version which
+  # Docker Desktop 4.x (min API 1.40) rejects, causing Traefik provider errors.
+  # Traefik is configured to mount docker.sock directly (safe on home server).
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      NETWORKS: 1
+      INFO: 1
+      VERSION: 1
+      SERVICES: 0
+      TASKS: 0
+      VOLUMES: 0
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-net
+    security_opt:
+      - no-new-privileges:true
+    # read_only: true — removed: haproxy needs write access for PID file
+
+  traefik:
+    image: traefik:v3.4.0
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
+      - traefik-logs:/var/log/traefik
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "traefik.enable=false"
+
+  # ── Tunnel — profile:tunnel (enable after: cloudflared tunnel create luma) ──
+  cloudflared:
+    image: cloudflare/cloudflared:2024.12.0
+    restart: unless-stopped
+    profiles: [tunnel]
+    command: tunnel --config /etc/cloudflared/config.yml run
+    depends_on:
+      - traefik
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  # ── Portfolio — profile:portfolio (enable after: docker build -t luma/portfolio:latest) ──
+  portfolio:
+    image: luma/portfolio:latest
+    restart: unless-stopped
+    profiles: [portfolio]
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portfolio.rule=Host(`nicebyte.ia.br`) || Host(`www.nicebyte.ia.br`)"
+      - "traefik.http.routers.portfolio.entrypoints=websecure"
+      - "traefik.http.routers.portfolio.tls=true"
+      - "traefik.http.routers.portfolio.middlewares=cloudflare-only@file,security-headers@file"
+      - "traefik.http.services.portfolio.loadbalancer.server.port=3000"
+
+  # ── Uptime Kuma ───────────────────────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1.23.15
+    restart: unless-stopped
+    volumes:
+      - ./volumes/uptime-kuma:/app/data
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime.rule=Host(`luma-status.nicebyte.ia.br`)"
+      - "traefik.http.routers.uptime.entrypoints=websecure"
+      - "traefik.http.routers.uptime.tls=true"
+      - "traefik.http.routers.uptime.middlewares=cloudflare-only@file,security-headers@file"
+      - "traefik.http.services.uptime.loadbalancer.server.port=3001"
+
+  # ── CrowdSec — detection only (bouncer plugin: configure later) ───────────
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.6.3
+    restart: unless-stopped
+    environment:
+      GID: "1000"
+      COLLECTIONS: crowdsecurity/traefik crowdsecurity/http-cve
+    volumes:
+      - ./crowdsec/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - crowdsec-db:/var/lib/crowdsec/data
+      - traefik-logs:/var/log/traefik:ro
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  luma-net:
+    external: true
+  socket-net:
+    driver: bridge
+    internal: true
+
+volumes:
+  traefik-logs:
+  crowdsec-db:
