@@ -43,17 +43,18 @@
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      }
-    },
-    "owner": "REPLACE_WITH_EAS_OWNER",
+    "owner": "nicebytesolutions",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID"
+      "url": "https://u.expo.dev/70b6b180-a3d9-4d77-872a-9a339f29ba43"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "70b6b180-a3d9-4d77-872a-9a339f29ba43"
+      }
     }
   }
 }

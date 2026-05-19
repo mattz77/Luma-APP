@@ -144,9 +144,15 @@ export async function uploadImageToStorage(
       return { url: null, error: error.message };
     }
 
-    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    const { data: urlData, error: signedError } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(fileName, 3600); // 1h expiry — no public bucket exposure
 
-    return { url: urlData.publicUrl, error: null };
+    if (signedError) {
+      return { url: null, error: signedError.message };
+    }
+
+    return { url: urlData.signedUrl, error: null };
   } catch (error) {
     return { url: null, error: (error as Error).message };
   }

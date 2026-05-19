@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import axios, { AxiosError } from 'axios';
 
 import { getEnvVar } from '@/lib/utils';
@@ -23,7 +24,21 @@ interface LumaResponse {
 }
 
 const n8nWebhookBaseUrl = getEnvVar('EXPO_PUBLIC_N8N_WEBHOOK_URL');
+const n8nHmacSecret = getEnvVar('EXPO_PUBLIC_N8N_HMAC_SECRET');
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function buildHmacHeaders(body: object): Promise<Record<string, string>> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const sigPayload = `${timestamp}.${JSON.stringify(body)}`;
+  const signature = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${n8nHmacSecret}${sigPayload}`,
+  );
+  return {
+    'X-Luma-Signature': signature,
+    'X-Luma-Timestamp': timestamp.toString(),
+  };
+}
 
 export const n8nClient = {
   async sendMessage(payload: LumaMessagePayload): Promise<LumaResponse> {
@@ -46,11 +61,13 @@ export const n8nClient = {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
+        const hmacHeaders = await buildHmacHeaders(body);
         const { data } = await axios.post<LumaResponse>(url, body, {
           timeout: 60_000, // Aumentado para 60s (workflow pode levar ~30s)
           headers: {
             'Content-Type': 'application/json',
             'X-Request-ID': messageId, // Header para rastreamento
+            ...hmacHeaders,
           },
           // Desabilitar retry automático do axios
           validateStatus: (status) => status < 500, // Não lançar erro para 4xx
