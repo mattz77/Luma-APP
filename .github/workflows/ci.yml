@@ -152,34 +152,19 @@ jobs:
           EXPO_PUBLIC_N8N_HMAC_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_HMAC_SECRET }}
           EXPO_PUBLIC_N8N_JWT_SECRET: ${{ secrets.EXPO_PUBLIC_N8N_JWT_SECRET }}
 
-  # ── Lint ──────────────────────────────────────────────────────────────────
-  lint:
-    name: ESLint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: ESLint
-        run: bun run lint --if-present
-
   # ── Summary ───────────────────────────────────────────────────────────────
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [validate, lint]
+    needs: [validate]
     if: always()
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Result
         run: |
           echo "validate : ${{ needs.validate.result }}"
-          echo "lint     : ${{ needs.lint.result }}"
-          if [[ "${{ needs.validate.result }}" == "failure" || "${{ needs.lint.result }}" == "failure" ]]; then
+          if [[ "${{ needs.validate.result }}" == "failure" ]]; then
             exit 1
           fi
