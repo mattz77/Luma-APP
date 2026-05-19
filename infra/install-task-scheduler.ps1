@@ -5,9 +5,9 @@
 
 [CmdletBinding()]
 param(
-    [int] $IntervalMinutes = 5,
     [string] $TaskName = 'LumaInfraAutoDeploy',
-    [string] $KumaPushUrl  # optional - if passed, saved as user env var
+    [string] $RunAt = '04:00',   # local time (BRT = UTC-3)
+    [string] $KumaPushUrl        # optional - if passed, saved as user env var
 )
 
 $ErrorActionPreference = 'Stop'
@@ -37,8 +37,7 @@ $action = New-ScheduledTaskAction `
     -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" `
     -WorkingDirectory $repoRoot
 
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
-    -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)
+$trigger = New-ScheduledTaskTrigger -Daily -At $RunAt
 
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
@@ -60,7 +59,7 @@ Register-ScheduledTask `
     -Principal $principal `
     -Description "Auto pull + deploy Luma infra ($IntervalMinutes min)"
 
-Write-Host "Task '$TaskName' registered. Runs every $IntervalMinutes min."
+Write-Host "Task '$TaskName' registered. Runs daily at $RunAt (local time)."
 Write-Host "Check: Get-ScheduledTaskInfo -TaskName $TaskName"
 Write-Host "Trigger now: Start-ScheduledTask -TaskName $TaskName"
 Write-Host "Logs: $repoRoot\infra\logs\"
