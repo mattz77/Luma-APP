@@ -5,7 +5,7 @@
 ```
 1. network          → once (shared luma-net)
 2. proxy            → Traefik + cloudflared + monitoring
-3. supabase         → DB + Kong + Auth + Rest + Realtime + Storage + Studio
+3. supabase         → DB + Kong + Auth + Rest + Realtime + Storage + Studio + Backups
 4. n8n              → n8n + its dedicated postgres
 5. floci            → DEV/CI only, do not start in prod
 ```
@@ -157,6 +157,157 @@ eas update --branch production --message "migrate to self-hosted infra"
 
 ---
 
+## 11. Auto-Deploy Pipeline
+
+Automated deployment triggered by git push to `origin/main`. Two mechanisms work in parallel:
+
+### Architecture
+
+```
+git push origin main
+        │
+        ├── Task Scheduler (every 5 min)
+        │   └── auto-pull-deploy.ps1
+        │       ├── git fetch + pull
+        │       ├── infra/** changed → deploy.ps1 (Docker stacks)
+        │       ├── luma-app/** changed → deploy-app.ps1 (EAS OTA)
+        │       └── push heartbeat → Uptime Kuma
+        │
+        └── Manual: git pull
+            └── post-merge hook
+                ├── infra/** changed → deploy.ps1
+                └── luma-app/** changed → deploy-app.ps1
+```
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `infra/deploy.ps1` | Idempotent Docker stack deploy (proxy + supabase + n8n) |
+| `infra/deploy-app.ps1` | EAS Update OTA for luma-app (bun install + eas update) |
+| `infra/auto-pull-deploy.ps1` | Orchestrator: fetch, detect changes, route deploys, push Kuma |
+| `infra/install-task-scheduler.ps1` | Registers Windows Task Scheduler job (5 min interval) |
+| `infra/install-hooks.ps1` | Copies versioned hooks from `infra/hooks/` to `.git/hooks/` |
+| `infra/hooks/post-merge` | Git hook: deploy after `git pull` if infra/ or luma-app/ changed |
+
+### First-time setup (run once)
+
+```powershell
+cd C:\Users\olive\Documents\Luma-APP
+
+# 1. Install git hooks
+powershell -ExecutionPolicy Bypass -File infra\install-hooks.ps1
+
+# 2. Register Task Scheduler + Uptime Kuma push URL
+powershell -ExecutionPolicy Bypass -File infra\install-task-scheduler.ps1 `
+  -KumaPushUrl "https://luma-status.nicebyte.ia.br/api/push/<TOKEN>"
+
+# 3. Ensure EAS CLI is logged in
+cd luma-app
+npx eas-cli login
+```
+
+### Change detection rules
+
+| Path changed | Action | Excludes |
+|---|---|---|
+| `infra/**` | Docker compose up -d (all stacks) | `infra/logs/` |
+| `luma-app/**` | EAS Update (OTA push) | `docs/`, `e2e/`, `*.test.*`, `*.spec.*`, `*.md` |
+| Other paths | Pull only, no deploy | — |
+
+### Manual deploy commands
+
+```powershell
+# Deploy all Docker stacks
+powershell infra/deploy.ps1
+
+# Deploy single stack
+powershell infra/deploy.ps1 -Stacks supabase
+
+# Deploy app (EAS OTA)
+powershell infra/deploy-app.ps1
+
+# Trigger scheduled task manually
+Start-ScheduledTask -TaskName LumaInfraAutoDeploy
+```
+
+### Logs
+
+- `infra/logs/auto-pull-YYYYMMDD.log` — scheduler runs
+- `infra/logs/deploy-YYYYMMDD.log` — Docker stack deploys
+- `infra/logs/deploy-app-YYYYMMDD.log` — EAS update deploys
+
+### Monitoring
+
+Uptime Kuma push monitor at `luma-status.nicebyte.ia.br`:
+- Monitor type: **Push**
+- Heartbeat interval: 300s (5 min)
+- Messages: `up-to-date`, `pulled (no-op)`, `deployed: infra:N, app:N`
+- Alert: heartbeat missed = scheduler stopped or deploy failed
+
+---
+
+## 12. Offsite Backups (Cloudflare R2)
+
+### Architecture
+
+```
+supabase-backup container
+  └── pg_dump every 6h → ./volumes/backups/
+        └── rclone-sync container
+              └── rclone sync → R2 bucket "luma-backups" (every 6h)
+```
+
+### R2 bucket setup (done once)
+
+1. Cloudflare Dashboard → R2 Object Storage → Create Bucket: `luma-backups`
+2. R2 → Manage API Tokens → Create API Token:
+   - Name: `luma-backup-rclone`
+   - Permissions: Object Read & Write
+   - Bucket scope: `luma-backups` only
+3. Copy Access Key ID, Secret Access Key, Endpoint URL
+
+### Environment variables (infra/supabase/.env)
+
+```env
+RCLONE_R2_ACCESS_KEY_ID=<access-key>
+RCLONE_R2_SECRET_ACCESS_KEY=<secret-key>
+RCLONE_R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+```
+
+### Verify backups
+
+```powershell
+# Check local backups exist
+docker exec supabase-supabase-backup-1 ls -la /backups/
+
+# Check rclone-sync logs
+docker compose -f infra/supabase/docker-compose.yml logs rclone-sync --tail 20
+
+# Check R2 bucket (via Cloudflare Dashboard or rclone)
+docker exec supabase-rclone-sync-1 rclone ls r2:luma-backups
+```
+
+### Backup schedule
+
+| What | Schedule | Retention |
+|------|----------|-----------|
+| pg_dump (local) | Every 6h | 7 days / 4 weeks / 6 months |
+| R2 sync (offsite) | Every 6h (after backup) | Mirrors local retention |
+
+### Restore from R2
+
+```bash
+# Download specific backup
+rclone copy r2:luma-backups/daily/postgres-YYYYMMDD.sql.gz ./restore/
+
+# Restore
+gunzip postgres-YYYYMMDD.sql.gz
+docker exec -i supabase-supabase-db-1 psql -U supabase_admin -d postgres < postgres-YYYYMMDD.sql
+```
+
+---
+
 ## Verification checklist
 
 - [ ] `curl https://api.luma.nicebyte.ia.br/rest/v1/` → PostgREST response
@@ -168,6 +319,9 @@ eas update --branch production --message "migrate to self-hosted infra"
 - [ ] HMAC: request without X-Luma-Signature → 401
 - [ ] HMAC replay: timestamp >5min → rejected
 - [ ] 11 auth requests in 1min → Traefik rate-limit blocks
+- [ ] Uptime Kuma → all monitors green (including Infra Auto-Deploy push)
+- [ ] R2 bucket → backup files present
+- [ ] Task Scheduler → `Get-ScheduledTaskInfo -TaskName LumaInfraAutoDeploy` → LastTaskResult: 0
 
 ---
 
@@ -175,3 +329,16 @@ eas update --branch production --message "migrate to self-hosted infra"
 
 All tunnel + DNS steps above (steps 2, 3, 9) require Cloudflare propagation.
 Check: `dig NS nicebyte.ia.br` → should show `albert.ns.cloudflare.com`
+
+---
+
+## Security notes
+
+**Never commit to git:**
+- `infra/**/.env` (all env files with secrets)
+- `infra/proxy/traefik/certs/` (TLS private keys)
+- `infra/proxy/cloudflared/cert.pem` (tunnel certificate)
+- `infra/proxy/cloudflared/*.json` (tunnel credentials)
+- `infra/migration/` (contains user data dumps)
+
+These are enforced via `.gitignore`.
