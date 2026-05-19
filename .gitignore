@@ -4,7 +4,6 @@ npm-debug.log*
 yarn.lock
 package-lock.json
 bun.lockb
-bun.lock
 .expo/
 .expo-shared/
 dist/
