@@ -9,7 +9,7 @@
     "test:changed": "jest --onlyChanged --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:ci": "jest --ci --coverage --maxWorkers=2 --forceExit",
     "test:rls": "bun run test/rls/run-rls-checks.ts",
     "test:e2e:mobile": "maestro test e2e/maestro/flows/",
     "test:e2e:mobile:smoke": "maestro test e2e/maestro/flows/auth-login.yaml e2e/maestro/flows/tasks-create.yaml e2e/maestro/flows/navigation/all-routes-smoke.yaml e2e/maestro/flows/navigation/back-gesture.yaml e2e/maestro/flows/navigation/tabs-navigation.yaml e2e/maestro/flows/navigation/stack-back.yaml",
