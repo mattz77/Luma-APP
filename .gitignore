@@ -60,6 +60,7 @@ infra/floci/volumes/
 infra/proxy/cloudflared/*.json
 infra/proxy/cloudflared/cert.pem
 infra/proxy/traefik/certs/
+infra/proxy/traefik/dynamic/crowdsec.yml
 infra/migration/
 infra/**/.env
 

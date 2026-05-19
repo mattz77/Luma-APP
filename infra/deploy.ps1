@@ -24,6 +24,29 @@ function Write-Log {
 
 Write-Log "Deploy started - stacks: $($Stacks -join ', ')"
 
+# Generate crowdsec.yml from template + proxy/.env (keeps API key out of git)
+function Invoke-GenerateCrowdSec {
+    $templatePath = Join-Path $repoRoot 'infra\proxy\traefik\dynamic\crowdsec.yml.template'
+    $outputPath   = Join-Path $repoRoot 'infra\proxy\traefik\dynamic\crowdsec.yml'
+    $proxyEnv     = Join-Path $repoRoot 'infra\proxy\.env'
+
+    if (-not (Test-Path $templatePath)) { Write-Log "crowdsec template not found, skipping" 'WARN'; return }
+    if (-not (Test-Path $proxyEnv))     { Write-Log "proxy .env not found, skipping crowdsec gen" 'WARN'; return }
+
+    $apiKey = ''
+    foreach ($line in Get-Content $proxyEnv) {
+        if ($line -match '^CROWDSEC_API_KEY=(.+)$') { $apiKey = $Matches[1].Trim(); break }
+    }
+    if (-not $apiKey) { Write-Log "CROWDSEC_API_KEY empty in proxy/.env - crowdsec.yml not generated" 'WARN'; return }
+
+    $content = Get-Content $templatePath -Raw
+    $content = $content -replace '\{\{CROWDSEC_API_KEY\}\}', $apiKey
+    [System.IO.File]::WriteAllText($outputPath, $content, [System.Text.Encoding]::ASCII)
+    Write-Log "crowdsec.yml generated from template"
+}
+
+Invoke-GenerateCrowdSec
+
 # Ensure shared network
 $networkCompose = Join-Path $repoRoot 'infra\docker-compose.network.yml'
 if (Test-Path $networkCompose) {
