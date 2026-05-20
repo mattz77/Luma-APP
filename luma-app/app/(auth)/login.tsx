@@ -62,16 +62,6 @@ export default function LoginScreen() {
     try {
       setErrorMessage(null);
       await signIn(trimmedEmail, password);
-
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user && !userData.user.email_confirmed_at) {
-        router.replace({
-          pathname: '/(auth)/verify-email',
-          params: { email: trimmedEmail },
-        } as any);
-        return;
-      }
-
       router.replace('/(tabs)');
     } catch (error) {
       console.error(error);
