@@ -14,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nicebytesolutions.lumaapp"
     },
     "android": {
+      "package": "com.nicebytesolutions.lumaapp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/luma-icon.png",
         "backgroundColor": "#ffffff"
@@ -26,7 +28,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/luma-icon.png"
     },
     "assetBundlePatterns": [

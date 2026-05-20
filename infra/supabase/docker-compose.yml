@@ -75,8 +75,8 @@ services:
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
-      GOTRUE_SITE_URL: ${API_EXTERNAL_URL}
-      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_SITE_URL: ${GOTRUE_SITE_URL:-https://luma-app.nicebyte.ia.br}
+      GOTRUE_URI_ALLOW_LIST: ${GOTRUE_URI_ALLOW_LIST:-https://luma-app.nicebyte.ia.br,https://luma-app.nicebyte.ia.br/*,lumaapp://,lumaapp://*}
       GOTRUE_DISABLE_SIGNUP: "false"
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated

@@ -75,6 +75,30 @@ services:
       - "traefik.http.routers.portfolio.middlewares=cloudflare-only@file,security-headers@file"
       - "traefik.http.services.portfolio.loadbalancer.server.port=3000"
 
+  # ── Luma Web — profile:luma-web (build: docker compose --profile luma-web build) ──
+  luma-web:
+    image: luma/web:latest
+    build:
+      context: ../..
+      dockerfile: infra/proxy/luma-web/Dockerfile
+    restart: unless-stopped
+    profiles: [luma-web]
+    networks:
+      - luma-net
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.luma-web.rule=Host(`luma-app.nicebyte.ia.br`)"
+      - "traefik.http.routers.luma-web.entrypoints=websecure"
+      - "traefik.http.routers.luma-web.tls=true"
+      - "traefik.http.routers.luma-web.middlewares=cloudflare-only@file,security-headers@file"
+      - "traefik.http.services.luma-web.loadbalancer.server.port=80"
+
   # ── Uptime Kuma ───────────────────────────────────────────────────────────
   uptime-kuma:
     image: louislam/uptime-kuma:1.23.15

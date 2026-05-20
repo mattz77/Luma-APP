@@ -1,0 +1,17 @@
+http:
+  routers:
+    luma-web:
+      rule: "Host(`luma-app.nicebyte.ia.br`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: luma-web-svc
+      middlewares:
+        - cloudflare-only@file
+        - security-headers@file
+
+  services:
+    luma-web-svc:
+      loadBalancer:
+        servers:
+          - url: "http://proxy-luma-web-1:80"

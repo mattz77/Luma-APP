@@ -1,0 +1,34 @@
+# ============================================================
+# WHITELIST approach — exclude everything, include only needed
+# Dockerfile needs: luma-app/ + infra/proxy/luma-web/nginx.conf
+# ============================================================
+
+# 1. Exclude everything
+*
+
+# 2. Include luma-app source
+!luma-app/
+
+# 3. Include nginx config
+!infra/proxy/luma-web/nginx.conf
+
+# 4. Re-exclude heavy/unnecessary dirs inside luma-app
+luma-app/node_modules
+luma-app/.expo
+# luma-app/dist — needed for Dockerfile.prebuilt
+luma-app/build
+luma-app/coverage
+luma-app/gluestack-mcp
+luma-app/e2e
+luma-app/test-results
+luma-app/playwright-report
+luma-app/docs
+luma-app/scripts
+luma-app/supabase
+luma-app/.cursor
+luma-app/.eslintcache
+
+# 5. Secrets — NEVER ship in image
+luma-app/.env
+luma-app/.env.*
+!luma-app/.env.example
