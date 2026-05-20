@@ -3,7 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { getEnvVar } from '@/lib/utils';
+import { SUPABASE_URL } from '@/lib/env';
 import { getUser } from '@/services/user.service';
 import { mergeAuthUserWithDbProfile } from '@/stores/auth-user-merge';
 
@@ -159,7 +159,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
 
     try {
-      const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
+      const supabaseUrl = SUPABASE_URL;
       
       // URL de callback - usar scheme do app para mobile
       const redirectUrl = Platform.select({
@@ -196,7 +196,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
 
     try {
-      const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
+      const supabaseUrl = SUPABASE_URL;
       
       // URL de callback - usar scheme do app para mobile
       const redirectUrl = Platform.select({

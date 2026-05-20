@@ -1,6 +1,13 @@
+import Constants from 'expo-constants';
+
 export const getEnvVar = (key: string): string => {
-  // No Expo, variáveis EXPO_PUBLIC_* são expostas automaticamente via process.env
-  const value = process.env[key];
+  // Try process.env first (works in native + dev server)
+  let value = process.env[key];
+
+  // Fallback: expo-constants expoConfig.extra (works in web production builds)
+  if ((value === undefined || value.length === 0) && Constants.expoConfig?.extra) {
+    value = (Constants.expoConfig.extra as Record<string, string>)[key];
+  }
 
   if (value === undefined || value.length === 0) {
     const errorMessage = `Variável de ambiente ausente: ${key}
