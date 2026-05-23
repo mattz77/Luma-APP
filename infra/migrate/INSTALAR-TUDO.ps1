@@ -140,10 +140,16 @@ if ($state -eq 0) {
         Write-OK "Git instalado"
     }
 
-    # Python
-    if (Test-Cmd 'python') {
+    # Python -- verifica se e real (Windows tem alias falso que abre Store)
+    $pythonReal = $false
+    try {
+        $pyOut = & python --version 2>&1
+        if ($pyOut -match 'Python \d') { $pythonReal = $true }
+    } catch {}
+    if ($pythonReal) {
         Write-OK "Python ja instalado: $(python --version 2>&1)"
     } else {
+        Write-Warn "Instalando Python 3.12..."
         winget install -e --id Python.Python.3.12 --accept-source-agreements --accept-package-agreements --silent
         Write-OK "Python instalado"
     }
