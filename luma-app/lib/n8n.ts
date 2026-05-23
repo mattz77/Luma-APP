@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import axios, { AxiosError } from 'axios';
 
-import { getEnvVar } from '@/lib/utils';
+import { N8N_WEBHOOK_URL, N8N_HMAC_SECRET } from '@/lib/env';
 
 interface LumaMessagePayload {
   house_id: string;
@@ -23,8 +23,8 @@ interface LumaResponse {
   };
 }
 
-const n8nWebhookBaseUrl = getEnvVar('EXPO_PUBLIC_N8N_WEBHOOK_URL');
-const n8nHmacSecret = getEnvVar('EXPO_PUBLIC_N8N_HMAC_SECRET');
+const n8nWebhookBaseUrl = N8N_WEBHOOK_URL;
+const n8nHmacSecret = N8N_HMAC_SECRET;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function buildHmacHeaders(body: object): Promise<Record<string, string>> {

@@ -985,7 +985,8 @@ export default function Dashboard() {
                 <Text size="lg" className="font-semibold text-typography-900">{houseName}</Text>
                 <ChevronDown size={16} color={Colors.textSecondary} />
               </HStack>
-              <Pressable 
+              <Pressable
+                testID="header-avatar-btn"
                 onPress={() => {
                   setModalMode('user_menu');
                 }}

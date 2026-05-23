@@ -40,6 +40,13 @@ function Push-Kuma {
 $startedAt = Get-Date
 Log "Tick"
 
+# DDNS -- atualiza ts.nicebyte.ia.br se IP publico mudou (roda todo tick)
+try {
+    & "$repoRoot\infra\update-ts-dns.ps1" 2>&1 | Out-Null
+} catch {
+    Log "update-ts-dns falhou: $_"
+}
+
 # Silent fetch
 try {
     git fetch $Remote $Branch --quiet 2>&1 | Out-Null

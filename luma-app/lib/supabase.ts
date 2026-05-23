@@ -1,21 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
-import { getEnvVar } from '@/lib/utils';
+import {
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_ANON_KEY,
+} from '@/lib/env';
 import type { Database } from '@/types/supabase';
 
-const supabaseUrl = getEnvVar('EXPO_PUBLIC_SUPABASE_URL');
+const supabaseUrl = SUPABASE_URL;
 
 /** Chave pública do projeto: publishable (`sb_publishable_…`) ou legado `anon` (JWT). */
 const getSupabasePublicKey = (): string => {
-  const publishable = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  if (publishable?.trim()) {
-    return publishable.trim();
-  }
-  if (anon?.trim()) {
-    return anon.trim();
-  }
+  if (SUPABASE_PUBLISHABLE_KEY?.trim()) return SUPABASE_PUBLISHABLE_KEY.trim();
+  if (SUPABASE_ANON_KEY?.trim()) return SUPABASE_ANON_KEY.trim();
   throw new Error(
     'Defina EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ou EXPO_PUBLIC_SUPABASE_ANON_KEY no .env (veja env.example).',
   );
