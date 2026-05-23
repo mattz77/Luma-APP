@@ -6,6 +6,7 @@ services:
   supabase-db:
     image: supabase/postgres:15.8.1.060
     restart: unless-stopped
+    mem_limit: 256m
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "supabase_admin", "-d", "postgres"]
       interval: 10s
@@ -34,6 +35,7 @@ services:
   supabase-kong:
     image: kong:2.8.1
     restart: unless-stopped
+    mem_limit: 256m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -42,8 +44,10 @@ services:
       KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 32k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 8 32k
+      KONG_NGINX_WORKER_PROCESSES: "1"
+      KONG_MEM_CACHE_SIZE: 64m
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
@@ -66,6 +70,7 @@ services:
   supabase-auth:
     image: supabase/gotrue:v2.164.0
     restart: unless-stopped
+    mem_limit: 64m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -101,6 +106,7 @@ services:
   supabase-rest:
     image: postgrest/postgrest:v12.2.0
     restart: unless-stopped
+    mem_limit: 64m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -121,6 +127,7 @@ services:
   supabase-realtime:
     image: supabase/realtime:v2.30.34
     restart: unless-stopped
+    mem_limit: 150m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -152,6 +159,7 @@ services:
   supabase-storage:
     image: supabase/storage-api:v0.46.4
     restart: unless-stopped
+    mem_limit: 128m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -200,6 +208,7 @@ services:
   supabase-meta:
     image: supabase/postgres-meta:v0.83.2
     restart: unless-stopped
+    mem_limit: 128m
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -218,6 +227,7 @@ services:
   supabase-studio:
     image: supabase/studio:20240729-ce42139
     restart: unless-stopped
+    mem_limit: 256m
     healthcheck:
       test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://0.0.0.0:3000/api/profile',r=>{process.exit(r.statusCode<400?0:1)}).on('error',()=>process.exit(1))\""]
       interval: 30s
@@ -258,6 +268,7 @@ services:
   supabase-edge-functions:
     image: supabase/edge-runtime:v1.67.4
     restart: unless-stopped
+    mem_limit: 64m
     volumes:
       - ./volumes/functions:/home/deno/functions:ro
     environment:
@@ -282,6 +293,7 @@ services:
   rclone-sync:
     image: rclone/rclone:1.74.1
     restart: unless-stopped
+    mem_limit: 32m
     depends_on:
       supabase-backup:
         condition: service_started
@@ -312,6 +324,7 @@ services:
   supabase-backup:
     image: prodrigestivill/postgres-backup-local:15
     restart: unless-stopped
+    mem_limit: 64m
     depends_on:
       supabase-db:
         condition: service_healthy
