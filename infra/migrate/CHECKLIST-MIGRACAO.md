@@ -43,6 +43,7 @@ infra/auto-pull-deploy.ps1
 infra/migrate/00-prereqs.ps1
 infra/migrate/01-export.ps1
 infra/migrate/02-restore.ps1
+infra/update-ts-dns.ps1          (DDNS -- integrado no auto-pull-deploy, roda 04h diario)
 ```
 
 **O clone do CordenaAi já traz:**
@@ -79,6 +80,9 @@ Claude\Projects\TS3 Server para CS2 (Self-hosted)\
 | `infra/proxy/traefik/certs/origin.crt` | mesmo caminho |
 | `infra/proxy/traefik/certs/origin.key` | mesmo caminho |
 | `infra/proxy/traefik/certs/origin.pfx` | mesmo caminho |
+
+> `proxy/.env` contém: `CF_DNS_TOKEN` (DDNS ts.nicebyte.ia.br), `CF_ZONE_ID`, `CF_TOKEN_ACCESS`, `CF_TOKEN_WAF`, `CROWDSEC_API_KEY`
+> O DDNS roda via `auto-pull-deploy.ps1` às 04h00 (horário Brasília) — **IP muda = TS3 cai ~60s, renovando às 4h**
 
 ### Supabase
 | Arquivo (origem) | Destino na nova máquina |

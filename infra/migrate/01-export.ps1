@@ -161,6 +161,8 @@ COPIE ESTES ARQUIVOS .ENV MANUALMENTE PARA A NOVA MAQUINA:
   ORIGEM                                                    DESTINO (nova maquina)
   ─────────────────────────────────────────────────────     ──────────────────────────────────────────────
   C:\Users\olive\Documents\Luma-APP\infra\proxy\.env      → <repo>\infra\proxy\.env
+    (contem: CF_DNS_TOKEN, CF_ZONE_ID, CF_TOKEN_ACCESS,
+     CF_TOKEN_WAF, CROWDSEC_API_KEY)
   C:\Users\olive\Documents\Luma-APP\infra\supabase\.env   → <repo>\infra\supabase\.env
   C:\Users\olive\Documents\Luma-APP\infra\n8n\.env        → <repo>\infra\n8n\.env (se usado)
   C:\Users\olive\Documents\CordenaAi\commitBriefing\.env  → CordenaAi\commitBriefing\.env
