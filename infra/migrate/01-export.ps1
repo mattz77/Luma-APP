@@ -205,6 +205,15 @@ COPIE ESTES ARQUIVOS .ENV MANUALMENTE PARA A NOVA MAQUINA:
 "@
 Set-Content -Path "$ExportDir\MANIFEST.txt" -Value $manifest -Encoding utf8
 
+# ── Copia INSTALAR-TUDO.ps1 para raiz do export (ponto de entrada na nova maquina) ──
+$installerSrc = Join-Path $PSScriptRoot "INSTALAR-TUDO.ps1"
+if (Test-Path $installerSrc) {
+    Copy-Item $installerSrc $ExportDir
+    Write-Host "   OK: INSTALAR-TUDO.ps1 incluido no export"
+} else {
+    Write-Host "   AVISO: INSTALAR-TUDO.ps1 nao encontrado" -ForegroundColor Yellow
+}
+
 # ── Resultado ────────────────────────────────────────────────────────────────
 $totalMB = [math]::Round((Get-ChildItem $ExportDir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 0)
 Write-Host ""
