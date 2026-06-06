@@ -1,7 +1,7 @@
 # luma-web — Expo Web hosting
 
 Static export of Expo Router web bundle, served by Nginx behind Traefik +
-Cloudflare Tunnel at `https://luma.nicebyte.ia.br`.
+Cloudflare Tunnel at `https://luma-app.nicebyte.ia.br`.
 
 ## Build
 
@@ -35,5 +35,5 @@ docker compose --profile luma-web up -d --force-recreate luma-web
   `/assets/*`, no-cache for `*.html`.
 - SPA fallback in `nginx.conf` tries `$uri.html` first (Expo Router static
   output) before `/index.html`.
-- Auth redirects: configure Supabase `GOTRUE_SITE_URL=https://luma.nicebyte.ia.br`
-  and `GOTRUE_URI_ALLOW_LIST=https://luma.nicebyte.ia.br,lumaapp://`.
+- Auth redirects: configure Supabase `GOTRUE_SITE_URL=https://luma-app.nicebyte.ia.br`
+  and `GOTRUE_URI_ALLOW_LIST=https://luma-app.nicebyte.ia.br,lumaapp://`.

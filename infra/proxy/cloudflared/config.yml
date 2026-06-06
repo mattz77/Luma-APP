@@ -27,7 +27,7 @@ ingress:
   - hostname: luma-status.nicebyte.ia.br
     service: https://traefik:443
 
-  - hostname: luma.nicebyte.ia.br
+  - hostname: luma-app.nicebyte.ia.br
     service: https://traefik:443
 
   # Catch-all

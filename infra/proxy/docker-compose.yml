@@ -93,7 +93,7 @@ services:
       - /var/run
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.luma-web.rule=Host(`luma.nicebyte.ia.br`)"
+      - "traefik.http.routers.luma-web.rule=Host(`luma-app.nicebyte.ia.br`)"
       - "traefik.http.routers.luma-web.entrypoints=websecure"
       - "traefik.http.routers.luma-web.tls=true"
       - "traefik.http.routers.luma-web.middlewares=cloudflare-only@file,security-headers@file"
