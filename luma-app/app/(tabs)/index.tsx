@@ -69,6 +69,7 @@ import { useRealtimeExpenses } from '@/hooks/useRealtimeExpenses';
 import { useBudgetLimit } from '@/hooks/useMonthlyBudget';
 import { useQueryClient } from '@tanstack/react-query';
 import { useHouseMembers } from '@/hooks/useHouses';
+import { useIoTFeed } from '@/hooks/useIoTFeed';
 import type { HouseMemberWithUser } from '@/types/models';
 import { Colors } from '@/constants/Colors';
 import { buildDashboardActivityPreview } from '@/lib/buildActivityFeed';
@@ -438,6 +439,7 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useTasks(houseId);
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses(houseId);
   const { data: members = [], isLoading: membersLoading } = useHouseMembers(houseId);
+  const { data: iotFeedItems = [] } = useIoTFeed(houseId);
 
   const isLoading = tasksLoading || expensesLoading || membersLoading;
 
@@ -593,10 +595,10 @@ export default function Dashboard() {
       buildDashboardActivityPreview({
         expenses,
         tasks,
-        iotFeedItems: [],
+        iotFeedItems,
         referenceDate: new Date(),
       }),
-    [expenses, tasks]
+    [expenses, tasks, iotFeedItems]
   );
 
   const dashboardSearchQuery = useDashboardSearchStore((s) => s.query);
@@ -1454,9 +1456,9 @@ export default function Dashboard() {
                 >
                   <HStack space="md" className="items-center">
                     <Box style={[styles.menuIconBg, { backgroundColor: 'rgba(255,79,79,0.1)' }]}>
-                      <LogOut size={20} color="#FF4F4F" />
+                      <LogOut size={20} color="#D64545" />
                     </Box>
-                    <Text size="lg" className="font-medium" style={{ color: '#FF4F4F' }}>Sair da Conta</Text>
+                    <Text size="lg" className="font-medium" style={{ color: '#D64545' }}>Sair da Conta</Text>
                   </HStack>
                 </Pressable>
               </VStack>

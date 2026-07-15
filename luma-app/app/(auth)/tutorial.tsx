@@ -51,7 +51,7 @@ const tutorialSteps: TutorialStep[] = [
     title: 'Adicione Despesas',
     description: 'Registre todas as despesas da casa. Você pode categorizar, dividir entre membros e até anexar comprovantes.',
     icon: Wallet,
-    color: '#10b981',
+    color: '#4CAF82',
     action: 'Dica: Use o botão "+" no dashboard para criar rapidamente',
   },
   {
@@ -59,7 +59,7 @@ const tutorialSteps: TutorialStep[] = [
     title: 'Crie Tarefas',
     description: 'Organize as tarefas domésticas. Atribua responsáveis, defina prazos e acompanhe o progresso de toda a família.',
     icon: CheckCircle,
-    color: '#f59e0b',
+    color: '#F6B51E',
     action: 'Dica: Tarefas concluídas geram pontos para gamificação',
   },
 ];

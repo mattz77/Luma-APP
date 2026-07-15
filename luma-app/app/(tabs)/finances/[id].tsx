@@ -250,7 +250,7 @@ export default function ExpenseDetailScreen() {
                 accessibilityLabel="Excluir despesa"
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Trash2 size={22} color="#ef4444" />
+                <Trash2 size={22} color="#D64545" />
               </TouchableOpacity>
             ) : null}
           </View>

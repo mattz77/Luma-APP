@@ -143,23 +143,23 @@ export function BudgetLimitModal({
               style={sheetOuterStyle}
             >
               <View className="w-full items-center pt-2 pb-2">
-                <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                <View className="w-12 h-1 bg-[#EAE6DC] rounded-full" />
               </View>
 
               <HStack className="justify-between items-center px-8 mb-2">
-                <Heading size="2xl" className="font-bold text-slate-900 tracking-tight flex-1 pr-2">
+                <Heading size="2xl" className="font-bold text-[#1B1725] tracking-tight flex-1 pr-2">
                   Limite mensal
                 </Heading>
                 <Pressable
                   onPress={closeModal}
-                  className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
+                  className="w-10 h-10 rounded-full bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center active:bg-[#F1EEE6]"
                   accessibilityLabel="Fechar"
                 >
-                  <X size={18} color="#0f172a" />
+                  <X size={18} color="#1B1725" />
                 </Pressable>
               </HStack>
 
-              <Text className="text-sm text-slate-500 px-8 mb-4">
+              <Text className="text-sm text-[#6F6A7A] px-8 mb-4">
                 Os números entram da direita para a esquerda (como em caixa eletrônico): apagar remove o último
                 dígito. Use o teclado numérico.
               </Text>
@@ -174,16 +174,16 @@ export function BudgetLimitModal({
               >
                 <VStack space="md" className="pb-4">
                   <VStack space="xs">
-                    <Text className="text-xs text-slate-400 font-bold uppercase tracking-wider text-center">
+                    <Text className="text-xs text-[#A5A0AE] font-bold uppercase tracking-wider text-center">
                       Valor do limite
                     </Text>
-                    <View className="min-h-[80px] border border-slate-200 bg-slate-50 rounded-3xl overflow-hidden relative">
+                    <View className="min-h-[80px] border border-[#EAE6DC] bg-[#F1EEE6] rounded-3xl overflow-hidden relative">
                       <View
                         pointerEvents="none"
                         style={[StyleSheet.absoluteFillObject, styles.valueOverlay]}
                       >
                         <Text
-                          className="text-3xl font-semibold text-slate-900 text-center px-3"
+                          className="text-3xl font-semibold text-[#1B1725] text-center px-3"
                           numberOfLines={1}
                           adjustsFontSizeToFit
                           minimumFontScale={0.65}
@@ -209,23 +209,23 @@ export function BudgetLimitModal({
                   </VStack>
 
                   {localError ? (
-                    <Text className="text-sm text-red-600 text-center px-1">{localError}</Text>
+                    <Text className="text-sm text-[#D64545] text-center px-1">{localError}</Text>
                   ) : null}
 
                   <Pressable
                     onPress={handleSubmit}
                     disabled={isSubmitting}
-                    className={`bg-[#FDE047] h-14 rounded-[24px] flex-row items-center justify-center gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98] mt-2 ${
+                    className={`bg-[#F6B51E] h-14 rounded-[24px] flex-row items-center justify-center gap-2 shadow-lg shadow-amber-200 active:scale-[0.98] mt-2 ${
                       isSubmitting ? 'opacity-60' : ''
                     }`}
                     accessibilityLabel="Salvar limite"
                   >
                     {isSubmitting ? (
-                      <Spinner size="small" color="#0f172a" />
+                      <Spinner size="small" color="#1B1725" />
                     ) : (
                       <>
-                        <Save size={20} color="#0f172a" />
-                        <Text className="text-slate-900 font-bold text-base">Salvar limite</Text>
+                        <Save size={20} color="#1B1725" />
+                        <Text className="text-[#1B1725] font-bold text-base">Salvar limite</Text>
                       </>
                     )}
                   </Pressable>
@@ -236,7 +236,7 @@ export function BudgetLimitModal({
                     className="py-3 items-center active:opacity-70"
                     accessibilityLabel="Cancelar"
                   >
-                    <Text className="text-slate-600 font-semibold text-base">Cancelar</Text>
+                    <Text className="text-[#6F6A7A] font-semibold text-base">Cancelar</Text>
                   </Pressable>
                 </VStack>
               </ScrollView>
@@ -261,6 +261,6 @@ const styles = StyleSheet.create({
     opacity: 0.04,
     fontSize: 28,
     textAlign: 'center',
-    color: '#0f172a',
+    color: '#1B1725',
   },
 });

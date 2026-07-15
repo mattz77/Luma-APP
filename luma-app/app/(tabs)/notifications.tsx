@@ -93,14 +93,14 @@ export default function NotificationsScreen() {
       style={styles.scroll}
       contentContainerStyle={[styles.container, { paddingTop: top + 16 }]}
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1d4ed8" />
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#1B1725" />
       }
     >
       <View style={styles.header}>
         <Text style={styles.title}>Notificações</Text>
         {unreadCount > 0 && (
           <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAllAsRead}>
-            <Check size={16} color="#1d4ed8" />
+            <Check size={16} color="#1B1725" />
             <Text style={styles.markAllText}>Marcar todas como lidas</Text>
           </TouchableOpacity>
         )}
@@ -127,7 +127,7 @@ export default function NotificationsScreen() {
 
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color="#1d4ed8" />
+          <ActivityIndicator size="large" color="#1B1725" />
           <Text style={styles.helperText}>Carregando notificações...</Text>
         </View>
       ) : notifications && notifications.length > 0 ? (
@@ -145,7 +145,7 @@ export default function NotificationsScreen() {
             >
               <View style={styles.notificationContent}>
                 <View style={styles.notificationHeader}>
-                  <Bell size={18} color={notification.isRead ? '#94a3b8' : '#1d4ed8'} />
+                  <Bell size={18} color={notification.isRead ? '#A5A0AE' : '#1B1725'} />
                   <Text style={styles.notificationType}>{notification.type}</Text>
                   <Text style={styles.notificationTime}>{formatDate(notification.createdAt)}</Text>
                 </View>
@@ -159,14 +159,14 @@ export default function NotificationsScreen() {
                 onPress={() => handleDelete(notification.id)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Trash2 size={18} color="#dc2626" />
+                <Trash2 size={18} color="#D64545" />
               </TouchableOpacity>
             </TouchableOpacity>
           ))}
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Bell size={48} color="#94a3b8" />
+          <Bell size={48} color="#A5A0AE" />
           <Text style={styles.emptyTitle}>
             {filter === 'unread' ? 'Nenhuma notificação não lida' : 'Nenhuma notificação'}
           </Text>
@@ -184,7 +184,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F2',
   },
   container: {
     flexGrow: 1,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   markAllButton: {
     flexDirection: 'row',
@@ -214,14 +214,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#FBEED0',
     borderWidth: 1,
-    borderColor: '#1d4ed8',
+    borderColor: '#1B1725',
   },
   markAllText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1d4ed8',
+    color: '#1B1725',
   },
   filterRow: {
     flexDirection: 'row',
@@ -232,21 +232,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F2',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#EAE6DC',
   },
   filterChipActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#1d4ed8',
+    backgroundColor: '#FBEED0',
+    borderColor: '#1B1725',
   },
   filterChipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#6F6A7A',
   },
   filterChipTextActive: {
-    color: '#1d4ed8',
+    color: '#1B1725',
   },
   loadingState: {
     alignItems: 'center',
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F6A7A',
   },
   notificationsList: {
     gap: 12,
@@ -266,12 +266,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#EAE6DC',
   },
   notificationCardUnread: {
     borderLeftWidth: 4,
-    borderLeftColor: '#1d4ed8',
-    backgroundColor: '#f0f9ff',
+    borderLeftColor: '#1B1725',
+    backgroundColor: '#FBEED0',
   },
   notificationContent: {
     flex: 1,
@@ -285,25 +285,25 @@ const styles = StyleSheet.create({
   notificationType: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#6F6A7A',
     textTransform: 'uppercase',
     flex: 1,
   },
   notificationTime: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#A5A0AE',
   },
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   notificationTitleUnread: {
     fontWeight: '700',
   },
   notificationBody: {
     fontSize: 14,
-    color: '#475569',
+    color: '#6F6A7A',
     lineHeight: 20,
   },
   deleteButton: {
@@ -318,12 +318,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#1B1725',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F6A7A',
     textAlign: 'center',
     marginTop: 4,
   },

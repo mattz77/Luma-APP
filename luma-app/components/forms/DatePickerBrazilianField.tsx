@@ -25,7 +25,7 @@ export interface DatePickerBrazilianFieldProps {
   placeholder?: string;
   accessibilityLabel?: string;
   testID?: string;
-  /** Fundo suave (#F0F2F5) para alinhar com inputs dos modais de formulário. */
+  /** Fundo suave (#F1EEE6) para alinhar com inputs dos modais de formulário. */
   tone?: 'default' | 'soft';
 }
 
@@ -84,8 +84,8 @@ export function DatePickerBrazilianField({
 
   const fieldSurfaceClass =
     tone === 'soft'
-      ? 'border border-slate-200/80 bg-[#F0F2F5]'
-      : 'border border-slate-200 bg-white';
+      ? 'border border-[#EAE6DC]/80 bg-[#F1EEE6]'
+      : 'border border-[#EAE6DC] bg-white';
 
   if (Platform.OS === 'web') {
     const isoForInput = /^\d{4}-\d{2}-\d{2}$/.test(valueIso.trim().slice(0, 10))
@@ -100,12 +100,12 @@ export function DatePickerBrazilianField({
           importantForAccessibility="no-hide-descendants"
         >
           <Text
-            className={`flex-1 text-base font-medium ${displayText ? 'text-slate-900' : 'text-slate-400'}`}
+            className={`flex-1 text-base font-medium ${displayText ? 'text-[#1B1725]' : 'text-[#A5A0AE]'}`}
             numberOfLines={1}
           >
             {displayText || placeholder}
           </Text>
-          <Calendar size={18} color="#94a3b8" />
+          <Calendar size={18} color="#A5A0AE" />
         </View>
         {createElement('input', {
           type: 'date',
@@ -146,12 +146,12 @@ export function DatePickerBrazilianField({
         className={`h-14 w-full flex-row items-center justify-between rounded-2xl px-3 active:opacity-90 ${fieldSurfaceClass}`}
       >
         <Text
-          className={`flex-1 text-base font-medium ${displayText ? 'text-slate-900' : 'text-slate-400'}`}
+          className={`flex-1 text-base font-medium ${displayText ? 'text-[#1B1725]' : 'text-[#A5A0AE]'}`}
           numberOfLines={1}
         >
           {displayText || placeholder}
         </Text>
-        <Calendar size={18} color="#94a3b8" />
+        <Calendar size={18} color="#A5A0AE" />
       </Pressable>
 
       {Platform.OS === 'ios' && (
@@ -184,7 +184,7 @@ export function DatePickerBrazilianField({
                   void Haptics.selectionAsync();
                   setIosOpen(false);
                 }}
-                className="mt-3 items-center rounded-2xl bg-slate-900 py-3.5 active:opacity-90"
+                className="mt-3 items-center rounded-2xl bg-[#1B1725] py-3.5 active:opacity-90"
               >
                 <Text className="text-base font-bold text-white">Concluir</Text>
               </Pressable>

@@ -47,8 +47,8 @@ import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 
 // --- Alinhado à tela de Tarefas (tasks/index.tsx) ---
 const THEMES = {
-  yellow: { bg: 'bg-[#FDE047]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
-  lavender: { bg: 'bg-[#DDD6FE]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  yellow: { bg: 'bg-[#F6B51E]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  lavender: { bg: 'bg-[#FBEED0]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
   dark: { bg: 'bg-[#27272A]', text: 'text-white', badge: 'bg-zinc-800 text-zinc-300', iconBg: 'bg-zinc-700' },
 };
 
@@ -78,14 +78,14 @@ const FinanceStatsWidget = ({
   return (
     <Box className="mx-6 mb-8">
       <HStack className="justify-between items-end mb-4">
-        <Heading size="lg" className="font-bold text-slate-900">
+        <Heading size="lg" className="font-bold text-[#1B1725]">
           Resumo do mês
         </Heading>
         <VStack className="items-end max-w-[55%]">
-          <Text className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-0.5">Orçamento</Text>
+          <Text className="text-xs text-[#A5A0AE] font-bold uppercase tracking-wider mb-0.5">Orçamento</Text>
           {hasBudget && budgetAmountFormatted ? (
             <Text
-              className="text-base font-semibold text-slate-900 tracking-tight"
+              className="text-base font-semibold text-[#1B1725] tracking-tight"
               style={TABULAR_NUMS_STYLE}
               numberOfLines={1}
               adjustsFontSizeToFit
@@ -94,12 +94,12 @@ const FinanceStatsWidget = ({
               {budgetAmountFormatted}
             </Text>
           ) : (
-            <Text className="text-sm text-slate-500 font-medium text-right">Sem orçamento definido</Text>
+            <Text className="text-sm text-[#6F6A7A] font-medium text-right">Sem orçamento definido</Text>
           )}
         </VStack>
       </HStack>
 
-      <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+      <Box className="bg-white p-6 rounded-[20px] border border-[#EAE6DC] shadow-sm">
         <HStack className="items-center justify-between mb-6">
           <VStack>
             <AnimatedNumber
@@ -108,15 +108,15 @@ const FinanceStatsWidget = ({
               style={{
                 fontSize: 32,
                 fontWeight: '600',
-                color: '#0f172a',
+                color: '#1B1725',
                 marginBottom: 4,
                 letterSpacing: -0.3,
                 ...TABULAR_NUMS_STYLE,
               }}
             />
-            <Text className="text-sm text-slate-400 font-medium">Total gasto</Text>
+            <Text className="text-sm text-[#A5A0AE] font-medium">Total gasto</Text>
           </VStack>
-          <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
+          <Box className="w-16 h-16 rounded-full border-4 border-[#EAE6DC] items-center justify-center relative">
             <Box
               className="absolute w-full h-full rounded-full rotate-45"
               style={{
@@ -127,37 +127,37 @@ const FinanceStatsWidget = ({
                 borderLeftColor: 'transparent',
               }}
             />
-            <Text className="text-xs font-bold text-slate-900">{pct}%</Text>
+            <Text className="text-xs font-bold text-[#1B1725]">{pct}%</Text>
           </Box>
         </HStack>
 
-        <Text className="text-xs text-slate-400 font-medium mb-3">Do orçamento utilizado</Text>
+        <Text className="text-xs text-[#A5A0AE] font-medium mb-3">Do orçamento utilizado</Text>
 
-        <HStack className="items-center justify-between pt-4 border-t border-slate-100">
+        <HStack className="items-center justify-between pt-4 border-t border-[#EAE6DC]">
           <HStack space="sm" className="items-center flex-1">
             <Box className="w-9 h-9 rounded-xl bg-emerald-500/15 items-center justify-center">
-              <ArrowUpCircle size={18} color="#16a34a" />
+              <ArrowUpCircle size={18} color="#2E7D5B" />
             </Box>
             <VStack>
-              <Text className="text-xs text-slate-400 font-medium">Pago</Text>
+              <Text className="text-xs text-[#A5A0AE] font-medium">Pago</Text>
               <AnimatedNumber
                 value={paid}
                 formatter={formatCurrency}
-                style={{ fontSize: 15, fontWeight: '600', color: '#16a34a', ...TABULAR_NUMS_STYLE }}
+                style={{ fontSize: 15, fontWeight: '600', color: '#2E7D5B', ...TABULAR_NUMS_STYLE }}
               />
             </VStack>
           </HStack>
-          <Box className="w-px h-10 bg-slate-100 mx-2" />
+          <Box className="w-px h-10 bg-[#F1EEE6] mx-2" />
           <HStack space="sm" className="items-center flex-1">
             <Box className="w-9 h-9 rounded-xl bg-red-500/15 items-center justify-center">
-              <ArrowDownCircle size={18} color="#dc2626" />
+              <ArrowDownCircle size={18} color="#D64545" />
             </Box>
             <VStack>
-              <Text className="text-xs text-slate-400 font-medium">Pendente</Text>
+              <Text className="text-xs text-[#A5A0AE] font-medium">Pendente</Text>
               <AnimatedNumber
                 value={pending}
                 formatter={formatCurrency}
-                style={{ fontSize: 15, fontWeight: '600', color: '#dc2626', ...TABULAR_NUMS_STYLE }}
+                style={{ fontSize: 15, fontWeight: '600', color: '#D64545', ...TABULAR_NUMS_STYLE }}
               />
             </VStack>
           </HStack>
@@ -197,7 +197,7 @@ const BentoExpenseCard = React.memo(function BentoExpenseCard({
     <Animated.View entering={FadeInDown.springify()}>
       <Pressable
         onPress={onPress}
-        className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] ${theme.bg}`}
+        className={`p-5 rounded-[20px] mb-4 relative overflow-hidden active:scale-[0.98] ${theme.bg}`}
       >
         <HStack className="justify-between items-start mb-4">
           <Box className={`px-3 py-1 rounded-full ${theme.badge}`}>
@@ -239,10 +239,10 @@ const BentoExpenseCard = React.memo(function BentoExpenseCard({
               expense.isPaid ? (themeKey === 'dark' ? 'bg-emerald-500/25' : 'bg-black') : 'bg-red-500/90'
             }`}
           >
-            <Zap size={12} color={expense.isPaid ? (themeKey === 'dark' ? '#34d399' : '#FDE047') : '#fff'} fill="currentColor" />
+            <Zap size={12} color={expense.isPaid ? (themeKey === 'dark' ? '#4CAF82' : '#F6B51E') : '#fff'} fill="currentColor" />
             <Text
               className={`text-xs font-bold ${
-                expense.isPaid ? (themeKey === 'dark' ? 'text-emerald-400' : 'text-[#FDE047]') : 'text-white'
+                expense.isPaid ? (themeKey === 'dark' ? 'text-emerald-400' : 'text-[#F6B51E]') : 'text-white'
               }`}
             >
               {expense.isPaid ? 'Pago' : 'A pagar'}
@@ -387,21 +387,21 @@ export default function FinancesScreen() {
           <VStack>
             <ScreenGreeting firstName={greetingFirstName} variant="ola" />
             <HStack space="xs" className="items-center">
-              <Heading size="xl" className="font-bold text-slate-900">
+              <Heading size="xl" className="font-bold text-[#1B1725]">
                 Finanças · {formatDayAndMonthLongLocal()}
               </Heading>
-              <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+              <ChevronLeft size={18} className="text-[#A5A0AE] -rotate-90" />
             </HStack>
           </VStack>
           <HStack space="sm">
             <Pressable
               onPress={handleOpenExpenseModal}
-              className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
+              className="w-10 h-10 rounded-full bg-[#F6B51E] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
             >
-              <Plus size={20} className="text-slate-900" />
+              <Plus size={20} className="text-[#1B1725]" />
             </Pressable>
-            <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
-              <Search size={18} className="text-slate-900" />
+            <Pressable className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95]">
+              <Search size={18} className="text-[#1B1725]" />
             </Pressable>
           </HStack>
         </Box>
@@ -428,24 +428,24 @@ export default function FinancesScreen() {
             <Pressable
               testID="btn-nova-despesa"
               onPress={handleOpenExpenseModal}
-              className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
+              className="flex-1 flex-row items-center justify-center bg-[#F6B51E] h-14 rounded-[14px] gap-2 shadow-lg shadow-amber-200 active:scale-[0.98]"
             >
-              <Plus size={20} color="#0f172a" />
-              <Text className="text-slate-900 font-bold text-[15px]">Nova despesa</Text>
+              <Plus size={20} color="#1B1725" />
+              <Text className="text-[#1B1725] font-bold text-[15px]">Nova despesa</Text>
             </Pressable>
             <Pressable
               onPress={() => router.push('/(tabs)/finances/budget' as any)}
-              className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
+              className="flex-1 flex-row items-center justify-center bg-white border border-[#EAE6DC] h-14 rounded-[14px] gap-2 shadow-sm active:scale-[0.98]"
             >
-              <PieChart size={20} color="#0f172a" />
-              <Text className="text-slate-900 font-bold text-[14px]">Orçamento</Text>
+              <PieChart size={20} color="#1B1725" />
+              <Text className="text-[#1B1725] font-bold text-[14px]">Orçamento</Text>
             </Pressable>
           </HStack>
         </Box>
 
         {/* Filtros */}
         <Box className="px-6 mb-4">
-          <HStack className="bg-slate-50 p-1 rounded-2xl border border-slate-100">
+          <HStack className="bg-[#F1EEE6] p-1 rounded-2xl border border-[#EAE6DC]">
             {(
               [
                 { key: 'all' as const, label: 'Todas' },
@@ -462,9 +462,9 @@ export default function FinancesScreen() {
                     Haptics.selectionAsync();
                     setSelectedFilter(key);
                   }}
-                  className={`flex-1 py-2.5 rounded-xl items-center ${active ? 'bg-white shadow-sm border border-slate-100' : ''}`}
+                  className={`flex-1 py-2.5 rounded-xl items-center ${active ? 'bg-white shadow-sm border border-[#EAE6DC]' : ''}`}
                 >
-                  <Text className={`text-xs font-bold ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+                  <Text className={`text-xs font-bold ${active ? 'text-[#1B1725]' : 'text-[#A5A0AE]'}`}>
                     {label}
                   </Text>
                 </Pressable>
@@ -476,10 +476,10 @@ export default function FinancesScreen() {
         {/* Histórico heading */}
         <Box className="px-6">
           <HStack className="justify-between items-center mb-2">
-            <Heading size="xl" className="font-bold text-slate-900">
+            <Heading size="xl" className="font-bold text-[#1B1725]">
               Histórico
             </Heading>
-            <Text className="text-sm text-slate-400 font-medium">
+            <Text className="text-sm text-[#A5A0AE] font-medium">
               {filteredExpenses.length} {filteredExpenses.length === 1 ? 'item' : 'itens'}
             </Text>
           </HStack>
@@ -490,7 +490,7 @@ export default function FinancesScreen() {
           <Box className="px-6">
             <VStack space="md">
               {[1, 2].map((i) => (
-                <Skeleton key={i} className="w-full h-[200px] rounded-[32px]" />
+                <Skeleton key={i} className="w-full h-[200px] rounded-[20px]" />
               ))}
             </VStack>
           </Box>
@@ -517,12 +517,12 @@ export default function FinancesScreen() {
 
   if (!houseId) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center px-6">
         <AlertCircle size={48} color={Colors.textSecondary} />
-        <Heading size="lg" className="text-slate-900 text-center mt-4">
+        <Heading size="lg" className="text-[#1B1725] text-center mt-4">
           Selecione uma casa
         </Heading>
-        <Text className="text-slate-500 text-center mt-2">
+        <Text className="text-[#6F6A7A] text-center mt-2">
           Associe-se a uma casa para gerenciar as finanças compartilhadas.
         </Text>
       </Box>
@@ -531,7 +531,7 @@ export default function FinancesScreen() {
 
   return (
     <ErrorBoundary>
-      <Box className="flex-1 bg-[#FDFBF7]">
+      <Box className="flex-1 bg-[#FAF8F2]">
         <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
           <FlatList
             data={isLoading ? [] : filteredExpenses}
@@ -541,8 +541,8 @@ export default function FinancesScreen() {
             ListEmptyComponent={
               !isLoading ? (
                 <Box className="px-6 py-10 items-center opacity-50">
-                  <Wallet size={48} color="#cbd5e1" />
-                  <Text className="text-slate-400 mt-4 font-medium text-center">
+                  <Wallet size={48} color="#EAE6DC" />
+                  <Text className="text-[#A5A0AE] mt-4 font-medium text-center">
                     Nenhuma despesa neste filtro.
                   </Text>
                 </Box>
@@ -551,7 +551,7 @@ export default function FinancesScreen() {
             contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#FDE047" />
+              <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor="#F6B51E" />
             }
             style={{ flex: 1, minHeight: 0 }}
             ItemSeparatorComponent={null}

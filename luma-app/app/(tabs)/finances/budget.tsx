@@ -28,7 +28,7 @@ const TABULAR_NUMS_STYLE: TextStyle | undefined =
   Platform.OS === 'ios' ? { fontVariant: ['tabular-nums'] } : undefined;
 
 const FieldLabel = ({ children }: { children: string }) => (
-  <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
+  <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
 );
 
 export default function BudgetScreen() {
@@ -101,12 +101,12 @@ export default function BudgetScreen() {
 
   if (!houseId) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
-        <AlertCircle size={48} color="#94a3b8" />
-        <Heading size="lg" className="text-slate-900 text-center mt-4">
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center px-6">
+        <AlertCircle size={48} color="#A5A0AE" />
+        <Heading size="lg" className="text-[#1B1725] text-center mt-4">
           Selecione uma casa
         </Heading>
-        <Text className="text-slate-500 text-center mt-2">
+        <Text className="text-[#6F6A7A] text-center mt-2">
           Associe-se a uma casa para definir o limite de orçamento.
         </Text>
       </Box>
@@ -119,7 +119,7 @@ export default function BudgetScreen() {
 
   return (
     <ErrorBoundary>
-      <Box className="flex-1 bg-[#FDFBF7]">
+      <Box className="flex-1 bg-[#FAF8F2]">
         <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
           <HStack className="px-6 pt-12 pb-6 items-center">
             <Pressable
@@ -127,13 +127,13 @@ export default function BudgetScreen() {
                 Haptics.selectionAsync();
                 router.back();
               }}
-              className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95] mr-3"
+              className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95] mr-3"
             >
-              <ArrowLeft size={20} color="#0f172a" />
+              <ArrowLeft size={20} color="#1B1725" />
             </Pressable>
             <VStack className="flex-1">
               <ScreenGreeting firstName={greetingFirstName} variant="ola" />
-              <Heading size="xl" className="font-bold text-slate-900">
+              <Heading size="xl" className="font-bold text-[#1B1725]">
                 Orçamento
               </Heading>
             </VStack>
@@ -145,29 +145,29 @@ export default function BudgetScreen() {
             contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
           >
             <Box className="mx-6 mb-6">
-              <Heading size="lg" className="font-bold text-slate-900 mb-4">
+              <Heading size="lg" className="font-bold text-[#1B1725] mb-4">
                 Limite do mês
               </Heading>
 
-              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+              <Box className="bg-white p-6 rounded-[20px] border border-[#EAE6DC] shadow-sm">
                 <HStack className="items-start justify-between mb-6">
                   <HStack space="md" className="items-center flex-1">
-                    <Box className="w-14 h-14 rounded-2xl bg-[#DDD6FE] items-center justify-center">
-                      <Wallet size={26} color="#0f172a" />
+                    <Box className="w-14 h-14 rounded-2xl bg-[#FBEED0] items-center justify-center">
+                      <Wallet size={26} color="#1B1725" />
                     </Box>
                     <VStack className="flex-1">
-                      <Text className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">
+                      <Text className="text-xs text-[#A5A0AE] font-bold uppercase tracking-wider mb-1">
                         Limite configurado
                       </Text>
                       <Text
-                        className="text-3xl font-semibold text-slate-900 tracking-tight"
+                        className="text-3xl font-semibold text-[#1B1725] tracking-tight"
                         style={TABULAR_NUMS_STYLE}
                       >
                         {budget?.amount ? formatCurrency(Number(budget.amount)) : '—'}
                       </Text>
                     </VStack>
                   </HStack>
-                  <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
+                  <Box className="w-16 h-16 rounded-full border-4 border-[#EAE6DC] items-center justify-center relative">
                     <Box
                       className="absolute w-full h-full rounded-full rotate-45"
                       style={{
@@ -178,26 +178,26 @@ export default function BudgetScreen() {
                         borderLeftColor: 'transparent',
                       }}
                     />
-                    <Text className="text-xs font-bold text-slate-900">{Math.round(progress)}%</Text>
+                    <Text className="text-xs font-bold text-[#1B1725]">{Math.round(progress)}%</Text>
                   </Box>
                 </HStack>
 
                 <VStack className="mb-4">
-                  <Text className="text-2xl font-semibold text-slate-900 tracking-tight" style={TABULAR_NUMS_STYLE}>
+                  <Text className="text-2xl font-semibold text-[#1B1725] tracking-tight" style={TABULAR_NUMS_STYLE}>
                     {formatCurrency(totalSpent)}
                   </Text>
-                  <Text className="text-sm text-slate-400 font-medium">Gasto total este mês</Text>
+                  <Text className="text-sm text-[#A5A0AE] font-medium">Gasto total este mês</Text>
                 </VStack>
 
-                <Text className="text-xs text-slate-400 font-medium mb-3">Do limite utilizado</Text>
+                <Text className="text-xs text-[#A5A0AE] font-medium mb-3">Do limite utilizado</Text>
 
-                <Box className="h-2 rounded-full bg-slate-100 overflow-hidden mb-4">
+                <Box className="h-2 rounded-full bg-[#F1EEE6] overflow-hidden mb-4">
                   <Box className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: progressColor }} />
                 </Box>
 
-                <HStack className="justify-between pt-4 border-t border-slate-100">
-                  <Text className="text-sm text-slate-500">{Math.round(progress)}% utilizado</Text>
-                  <Text className="text-sm font-semibold text-slate-900" style={TABULAR_NUMS_STYLE}>
+                <HStack className="justify-between pt-4 border-t border-[#EAE6DC]">
+                  <Text className="text-sm text-[#6F6A7A]">{Math.round(progress)}% utilizado</Text>
+                  <Text className="text-sm font-semibold text-[#1B1725]" style={TABULAR_NUMS_STYLE}>
                     Restante: {budget?.amount ? formatCurrency(remaining) : '—'}
                   </Text>
                 </HStack>
@@ -205,7 +205,7 @@ export default function BudgetScreen() {
             </Box>
 
             <Box className="px-6 mb-6">
-              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+              <Box className="bg-white p-6 rounded-[20px] border border-[#EAE6DC] shadow-sm">
                 {isLoading ? (
                   <Box className="py-12 items-center">
                     <Spinner size="large" />
@@ -215,19 +215,19 @@ export default function BudgetScreen() {
                     <FieldLabel>Atualizar limite geral</FieldLabel>
                     <Pressable
                       onPress={openLimitModal}
-                      className="flex-row items-center justify-between min-h-[56px] px-4 py-3 rounded-2xl border border-slate-200 bg-white active:bg-slate-50 active:scale-[0.99]"
+                      className="flex-row items-center justify-between min-h-[56px] px-4 py-3 rounded-2xl border border-[#EAE6DC] bg-white active:bg-[#F1EEE6] active:scale-[0.99]"
                       accessibilityRole="button"
                       accessibilityLabel="Abrir para editar limite mensal"
                     >
                       <Text
                         className={`flex-1 text-base font-semibold mr-2 ${
-                          budget?.amount ? 'text-slate-900' : 'text-slate-400'
+                          budget?.amount ? 'text-[#1B1725]' : 'text-[#A5A0AE]'
                         }`}
                         numberOfLines={1}
                       >
                         {limitSummaryText}
                       </Text>
-                      <ChevronRight size={22} color="#64748b" />
+                      <ChevronRight size={22} color="#6F6A7A" />
                     </Pressable>
                   </VStack>
                 )}
@@ -235,21 +235,21 @@ export default function BudgetScreen() {
             </Box>
 
             <Box className="px-6">
-              <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
-                <Heading size="md" className="font-bold text-slate-900 mb-3">
+              <Box className="bg-white p-6 rounded-[20px] border border-[#EAE6DC] shadow-sm">
+                <Heading size="md" className="font-bold text-[#1B1725] mb-3">
                   Como funciona?
                 </Heading>
-                <Text className="text-sm text-slate-600 leading-6 mb-4">
+                <Text className="text-sm text-[#6F6A7A] leading-6 mb-4">
                   Defina um limite geral de gastos. O Luma usará esse valor como referência mensal para:
                 </Text>
                 <VStack space="sm">
-                  <Text className="text-sm text-slate-600 leading-6">
+                  <Text className="text-sm text-[#6F6A7A] leading-6">
                     • Acompanhar o progresso dos gastos
                   </Text>
-                  <Text className="text-sm text-slate-600 leading-6">
+                  <Text className="text-sm text-[#6F6A7A] leading-6">
                     • Alertar quando estiver perto do limite
                   </Text>
-                  <Text className="text-sm text-slate-600 leading-6">
+                  <Text className="text-sm text-[#6F6A7A] leading-6">
                     • Gerar relatórios e insights personalizados
                   </Text>
                 </VStack>

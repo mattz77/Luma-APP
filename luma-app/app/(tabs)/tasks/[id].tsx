@@ -87,7 +87,7 @@ export default function TaskDetailsScreen() {
 
   if (taskId && isLoading) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center">
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center">
         <Spinner size="large" color={Colors.primary} />
       </Box>
     );
@@ -95,9 +95,9 @@ export default function TaskDetailsScreen() {
 
   if (!taskId || !task) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center px-6">
         <AlertCircle size={48} color={Colors.textSecondary} />
-        <Heading size="lg" className="text-slate-900 text-center mt-4">Tarefa não encontrada</Heading>
+        <Heading size="lg" className="text-[#1B1725] text-center mt-4">Tarefa não encontrada</Heading>
         <Button onPress={() => router.back()} className="mt-4" variant="outline">
           <ButtonText>Voltar</ButtonText>
         </Button>
@@ -108,22 +108,22 @@ export default function TaskDetailsScreen() {
   const isCompleted = task.status === 'COMPLETED';
 
   return (
-    <Box style={{ flex: 1 }} className="bg-[#FDFBF7]">
+    <Box style={{ flex: 1 }} className="bg-[#FAF8F2]">
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View style={{ flex: 1, flexDirection: 'column' }}>
           {/* Header fixo — conteúdo principal no ScrollView (evita layout quebrado no iOS: ScrollView flex + rodapé irmão). */}
           <Box className="px-6 pt-4 pb-4 flex-row items-center justify-between">
             <Pressable
               onPress={() => router.back()}
-              className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
+              className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95]"
             >
               <ArrowLeft size={20} color={Colors.text} />
             </Pressable>
             <Pressable
               onPress={handleDelete}
-              className="w-10 h-10 rounded-full bg-red-50 border border-red-100 items-center justify-center active:scale-[0.95]"
+              className="w-10 h-10 rounded-full bg-[#FBE7E7] border border-red-100 items-center justify-center active:scale-[0.95]"
             >
-              <Trash2 size={20} color="#ef4444" />
+              <Trash2 size={20} color="#D64545" />
             </Pressable>
           </Box>
 
@@ -140,19 +140,19 @@ export default function TaskDetailsScreen() {
             {/* Priority Badge */}
             <Box
               className={`self-start px-3 py-1 rounded-full mb-4 ${
-                task.priority === 'URGENT' ? 'bg-red-100' : task.priority === 'HIGH' ? 'bg-orange-100' : 'bg-blue-100'
+                task.priority === 'URGENT' ? 'bg-[#FBE7E7]' : task.priority === 'HIGH' ? 'bg-orange-100' : 'bg-[#FBEED0]'
               }`}
             >
               <Text
                 className={`text-xs font-bold uppercase tracking-wider ${
-                  task.priority === 'URGENT' ? 'text-red-700' : task.priority === 'HIGH' ? 'text-orange-700' : 'text-blue-700'
+                  task.priority === 'URGENT' ? 'text-red-700' : task.priority === 'HIGH' ? 'text-orange-700' : 'text-[#1B1725]'
                 }`}
               >
                 {task.priority === 'URGENT' ? 'Urgente' : task.priority === 'HIGH' ? 'Alta' : 'Normal'}
               </Text>
             </Box>
 
-            <Heading size="3xl" className="font-bold text-slate-900 mb-6 leading-tight">
+            <Heading size="3xl" className="font-bold text-[#1B1725] mb-6 leading-tight">
               {task.title}
             </Heading>
 
@@ -160,8 +160,8 @@ export default function TaskDetailsScreen() {
               <HStack space="md" className="items-center">
                 <CalendarDays size={META_ICON_SIZE} color={Colors.primary} />
                 <VStack className="flex-1">
-                  <Text className="text-xs text-slate-400 font-bold uppercase">Prazo</Text>
-                  <Text className="text-slate-900 font-medium">
+                  <Text className="text-xs text-[#A5A0AE] font-bold uppercase">Prazo</Text>
+                  <Text className="text-[#1B1725] font-medium">
                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR') : 'Sem prazo'}
                   </Text>
                 </VStack>
@@ -170,31 +170,31 @@ export default function TaskDetailsScreen() {
               <HStack space="md" className="items-center">
                 <User size={META_ICON_SIZE} color={Colors.primary} />
                 <VStack className="flex-1">
-                  <Text className="text-xs text-slate-400 font-bold uppercase">Responsável</Text>
-                  <Text className="text-slate-900 font-medium">{task.assignee?.name || 'Sem responsável'}</Text>
+                  <Text className="text-xs text-[#A5A0AE] font-bold uppercase">Responsável</Text>
+                  <Text className="text-[#1B1725] font-medium">{task.assignee?.name || 'Sem responsável'}</Text>
                 </VStack>
               </HStack>
 
               <HStack space="md" className="items-center">
-                <Zap size={META_ICON_SIZE} color="#FDE047" fill="#FDE047" />
+                <Zap size={META_ICON_SIZE} color="#F6B51E" fill="#F6B51E" />
                 <VStack className="flex-1">
-                  <Text className="text-xs text-slate-400 font-bold uppercase">Recompensa</Text>
-                  <Text className="text-slate-900 font-medium">+{task.points} pontos</Text>
+                  <Text className="text-xs text-[#A5A0AE] font-bold uppercase">Recompensa</Text>
+                  <Text className="text-[#1B1725] font-medium">+{task.points} pontos</Text>
                 </VStack>
               </HStack>
             </VStack>
 
             {task.description ? (
               <VStack space="sm" className="mb-8">
-                <Text className="text-lg font-bold text-slate-900">Descrição</Text>
-                <Text className="text-slate-500 leading-relaxed">{task.description}</Text>
+                <Text className="text-lg font-bold text-[#1B1725]">Descrição</Text>
+                <Text className="text-[#6F6A7A] leading-relaxed">{task.description}</Text>
               </VStack>
             ) : null}
 
             {!isCompleted ? (
               <Button
                 onPress={handleComplete}
-                className="bg-[#D9F99D] h-16 rounded-[24px] active:scale-[0.98] mt-2"
+                className="bg-[#D9F99D] h-16 rounded-[14px] active:scale-[0.98] mt-2"
               >
                 <ButtonIcon as={CheckCircle2} className="text-black mr-2" />
                 <ButtonText className="text-black font-bold text-lg">Concluir Tarefa</ButtonText>

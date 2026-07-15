@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F1EEE6',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
   },
