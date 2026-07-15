@@ -8,5 +8,6 @@ export const useIoTFeed = (houseId: string | null | undefined) => {
     queryKey: ['iot-feed', houseId],
     queryFn: () => (houseId ? deviceActionService.listRecentByHouse(houseId) : Promise.resolve([])),
     enabled: Boolean(houseId),
+    staleTime: 1000 * 60, // 1 minuto - feed IoT muda pouco, evita refetch a cada foco/mount do dashboard
   });
 };
