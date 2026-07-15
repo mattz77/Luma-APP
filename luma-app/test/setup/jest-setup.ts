@@ -3,7 +3,7 @@ jest.mock('@/lib/env', () => ({
   SUPABASE_URL: 'https://test-project.supabase.co',
   SUPABASE_ANON_KEY: 'test-anon-key',
   SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
-  N8N_WEBHOOK_URL: 'https://test-n8n.example.com/webhook/test',
+  N8N_WEBHOOK_URL: 'https://n8n.example.com',
   N8N_HMAC_SECRET: 'test-hmac-secret',
   N8N_JWT_SECRET: 'test-jwt-secret',
   INTEGRITY_VERIFY_URL: 'https://test-integrity.example.com',
