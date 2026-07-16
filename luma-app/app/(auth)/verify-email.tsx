@@ -123,7 +123,7 @@ export default function VerifyEmailScreen() {
 
           {errorMessage && (
             <View style={styles.errorContainer}>
-              <AlertCircle size={20} color="#dc2626" />
+              <AlertCircle size={20} color="#E06C6C" />
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           )}
@@ -217,14 +217,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#FBE7E7',
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
   },
   errorText: {
     fontSize: 14,
-    color: '#dc2626',
+    color: '#E06C6C',
     flex: 1,
   },
   resendButton: {

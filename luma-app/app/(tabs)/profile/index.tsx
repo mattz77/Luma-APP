@@ -126,15 +126,15 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center">
-        <ActivityIndicator size="large" color="#94a3b8" />
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center">
+        <ActivityIndicator size="large" color="#A5A0AE" />
       </Box>
     );
   }
 
   return (
     <ErrorBoundary>
-      <Box className="flex-1 bg-[#FDFBF7]">
+      <Box className="flex-1 bg-[#FAF8F2]">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
           className="flex-1"
@@ -150,22 +150,22 @@ export default function ProfileScreen() {
                 <HStack className="justify-between items-center mb-4">
                   <Pressable
                     onPress={() => router.back()}
-                    className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
+                    className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95]"
                   >
-                    <ArrowLeft size={20} color="#0f172a" />
+                    <ArrowLeft size={20} color="#1B1725" />
                   </Pressable>
                   <Box className="w-[88px]" />
                 </HStack>
                 <ScreenGreeting firstName={greetingFirstName} variant="ola" />
                 <HStack space="xs" className="items-center mt-1">
-                  <Heading size="xl" className="font-bold text-slate-900">
+                  <Heading size="xl" className="font-bold text-[#1B1725]">
                     Meu Perfil
                   </Heading>
-                  <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+                  <ChevronLeft size={18} className="text-[#A5A0AE] -rotate-90" />
                 </HStack>
               </Box>
 
-              <Box className="mx-6 mb-5 p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+              <Box className="mx-6 mb-5 p-6 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm">
                 <ProfilePhotoUpload
                   userId={user?.id || ''}
                   currentAvatarUrl={avatarUrl}
@@ -185,47 +185,47 @@ export default function ProfileScreen() {
                 />
               </Box>
 
-              <Box className="mx-6 mb-5 p-6 bg-white rounded-[32px] border border-slate-100 shadow-sm gap-5">
+              <Box className="mx-6 mb-5 p-6 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm gap-5">
                 <VStack className="gap-2">
                   <HStack className="items-center gap-2">
-                    <User size={20} color="#0f172a" />
-                    <Text className="text-sm font-semibold text-slate-900">Nome</Text>
+                    <User size={20} color="#1B1725" />
+                    <Text className="text-sm font-semibold text-[#1B1725]">Nome</Text>
                   </HStack>
-                  <Input className="h-14 border border-slate-200 bg-slate-50 rounded-2xl">
+                  <Input className="h-14 border border-[#EAE6DC] bg-[#F1EEE6] rounded-2xl">
                     <InputField
                       value={name}
                       onChangeText={setName}
                       placeholder="Seu nome"
-                      className="text-base text-slate-900 px-3"
-                      placeholderTextColor="#94a3b8"
+                      className="text-base text-[#1B1725] px-3"
+                      placeholderTextColor="#A5A0AE"
                     />
                   </Input>
                 </VStack>
 
                 <VStack className="gap-2">
                   <HStack className="items-center gap-2">
-                    <Mail size={20} color="#0f172a" />
-                    <Text className="text-sm font-semibold text-slate-900">E-mail</Text>
+                    <Mail size={20} color="#1B1725" />
+                    <Text className="text-sm font-semibold text-[#1B1725]">E-mail</Text>
                   </HStack>
-                  <Input className="h-14 border border-slate-200 bg-slate-100 rounded-2xl opacity-90">
+                  <Input className="h-14 border border-[#EAE6DC] bg-[#F1EEE6] rounded-2xl opacity-90">
                     <InputField
                       value={user?.email || ''}
                       editable={false}
-                      className="text-base text-slate-500 px-3"
-                      placeholderTextColor="#94a3b8"
+                      className="text-base text-[#6F6A7A] px-3"
+                      placeholderTextColor="#A5A0AE"
                     />
                   </Input>
-                  <Text className="text-xs text-slate-500">O e-mail não pode ser alterado</Text>
+                  <Text className="text-xs text-[#6F6A7A]">O e-mail não pode ser alterado</Text>
                 </VStack>
 
                 <VStack className="gap-2">
                   <HStack className="items-center gap-2">
-                    <Cake size={20} color="#0f172a" />
-                    <Text className="text-sm font-semibold text-slate-900">
+                    <Cake size={20} color="#1B1725" />
+                    <Text className="text-sm font-semibold text-[#1B1725]">
                       Data de nascimento
                     </Text>
                   </HStack>
-                  <Input className="h-14 border border-slate-200 bg-slate-100 rounded-2xl opacity-90">
+                  <Input className="h-14 border border-[#EAE6DC] bg-[#F1EEE6] rounded-2xl opacity-90">
                     <InputField
                       value={
                         birthDate
@@ -234,24 +234,24 @@ export default function ProfileScreen() {
                           : 'Não informada'
                       }
                       editable={false}
-                      className="text-base text-slate-500 px-3"
+                      className="text-base text-[#6F6A7A] px-3"
                     />
                   </Input>
                 </VStack>
 
                 <VStack className="gap-2">
                   <HStack className="items-center gap-2">
-                    <Phone size={20} color="#0f172a" />
-                    <Text className="text-sm font-semibold text-slate-900">Telefone</Text>
+                    <Phone size={20} color="#1B1725" />
+                    <Text className="text-sm font-semibold text-[#1B1725]">Telefone</Text>
                   </HStack>
-                  <Input className="h-14 border border-slate-200 bg-slate-50 rounded-2xl">
+                  <Input className="h-14 border border-[#EAE6DC] bg-[#F1EEE6] rounded-2xl">
                     <InputField
                       value={phone}
                       onChangeText={setPhone}
                       placeholder="(00) 00000-0000"
                       keyboardType="phone-pad"
-                      className="text-base text-slate-900 px-3"
-                      placeholderTextColor="#94a3b8"
+                      className="text-base text-[#1B1725] px-3"
+                      placeholderTextColor="#A5A0AE"
                     />
                   </Input>
                 </VStack>
@@ -259,21 +259,21 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={() => void handleSave()}
                   disabled={isSaving}
-                  className={`flex-row items-center justify-center gap-2 bg-[#FDE047] h-14 rounded-[24px] shadow-lg shadow-yellow-200 active:scale-[0.98] mt-2 ${isSaving ? 'opacity-60' : ''}`}
+                  className={`flex-row items-center justify-center gap-2 bg-[#F6B51E] h-14 rounded-[14px] shadow-lg shadow-amber-200 active:scale-[0.98] mt-2 ${isSaving ? 'opacity-60' : ''}`}
                 >
                   {isSaving ? (
-                    <ActivityIndicator color="#0f172a" />
+                    <ActivityIndicator color="#1B1725" />
                   ) : (
                     <>
-                      <Save size={20} color="#0f172a" />
-                      <Text className="text-slate-900 font-bold text-[16px]">Salvar alterações</Text>
+                      <Save size={20} color="#1B1725" />
+                      <Text className="text-[#1B1725] font-bold text-[16px]">Salvar alterações</Text>
                     </>
                   )}
                 </Pressable>
               </Box>
 
               {isMinor ? (
-                <Box className="mx-6 mb-5 p-6 bg-gradient-to-br from-amber-50 to-yellow-100 rounded-[32px] border border-amber-200 shadow-sm">
+                <Box testID="gamification-card" className="mx-6 mb-5 p-6 bg-gradient-to-br from-amber-50 to-yellow-100 rounded-[20px] border border-amber-200 shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
                     <Trophy size={22} color="#b45309" />
                     <Heading size="lg" className="font-bold text-amber-900">
@@ -296,7 +296,7 @@ export default function ProfileScreen() {
                       <Text className="text-xs text-amber-700">Nível</Text>
                     </VStack>
                     <VStack className="items-center flex-1">
-                      <Flame size={20} color="#dc2626" />
+                      <Flame size={20} color="#D64545" />
                       <Text className="text-2xl font-bold text-amber-900 mt-1">
                         {gameProfile?.streak_days ?? 0}
                       </Text>
@@ -311,22 +311,22 @@ export default function ProfileScreen() {
                 </Box>
               ) : null}
 
-              <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
+              <Box className="mx-6 mb-8 p-5 bg-white rounded-[20px] border border-red-100 shadow-sm">
                 <HStack className="items-center gap-2 mb-2">
-                  <LogOut size={20} color="#dc2626" />
-                  <Heading size="lg" className="font-bold text-red-600">
+                  <LogOut size={20} color="#D64545" />
+                  <Heading size="lg" className="font-bold text-[#D64545]">
                     Sair da conta
                   </Heading>
                 </HStack>
-                <Text className="text-sm text-slate-500 mb-4 leading-5">
+                <Text className="text-sm text-[#6F6A7A] mb-4 leading-5">
                   Encerre sua sessão. Você poderá entrar novamente com seu e-mail e senha.
                 </Text>
                 <Pressable
                   onPress={() => setShowSignOutDialog(true)}
-                  className="flex-row items-center justify-center gap-2 bg-red-50 border border-red-200 h-12 rounded-[24px] active:opacity-90"
+                  className="flex-row items-center justify-center gap-2 bg-[#FBE7E7] border border-red-200 h-12 rounded-[14px] active:opacity-90"
                 >
-                  <LogOut size={18} color="#dc2626" />
-                  <Text className="text-red-600 font-bold">Sair da conta</Text>
+                  <LogOut size={18} color="#D64545" />
+                  <Text className="text-[#D64545] font-bold">Sair da conta</Text>
                 </Pressable>
               </Box>
             </ScrollView>
@@ -338,7 +338,7 @@ export default function ProfileScreen() {
                   <Heading size="lg">Sair da conta</Heading>
                 </AlertDialogHeader>
                 <AlertDialogBody>
-                  <Text className="text-slate-600 leading-6">
+                  <Text className="text-[#6F6A7A] leading-6">
                     Tem certeza que deseja sair? Você precisará entrar novamente com e-mail e senha.
                   </Text>
                 </AlertDialogBody>

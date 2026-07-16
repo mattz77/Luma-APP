@@ -1,40 +1,47 @@
+/**
+ * Compat layer — mapeia a API antiga de Colors para o Luma DS v2 (theme.ts).
+ * Novas telas devem importar de '@/constants/theme'. Este arquivo existe para
+ * não quebrar as ~100 referências legadas enquanto migram.
+ */
+import { light, dark } from './theme';
+
 const palette = {
-  merino: '#F9F5F0', // Main Background (Cream/Beige)
-  white: '#FFFFFF', // Card Background
-  portGore: '#352352', // Primary Text / Strong UI Elements (Deep Purple)
-  festival: '#fbf469', // Primary Accent (Yellow) - Use for highlights/active states
-  razzmatazz: '#e5015c', // Secondary Accent (Pink)
-  fernFrond: '#6b6c20', // Success / Green-ish
-  shadyLady: '#a39fa1', // Secondary Text
-  black: '#1a1a1a',
-  slate: '#64748b',
+  merino: light.paper,
+  white: light.surface,
+  portGore: light.ink,
+  festival: light.accent,
+  razzmatazz: light.accent, // acento único: rosa legado converge para âmbar
+  fernFrond: light.good,
+  shadyLady: light.inkFaint,
+  black: light.ink,
+  slate: light.inkSoft,
 };
 
 export const Colors = {
   light: {
-    text: palette.portGore,
-    background: palette.merino,
-    tint: palette.razzmatazz,
-    tabIconDefault: palette.shadyLady,
-    tabIconSelected: palette.razzmatazz,
+    text: light.ink,
+    background: light.paper,
+    tint: light.accent,
+    tabIconDefault: light.inkFaint,
+    tabIconSelected: light.ink,
   },
   dark: {
-    text: palette.portGore,
-    background: palette.merino,
-    tint: palette.razzmatazz,
-    tabIconDefault: palette.shadyLady,
-    tabIconSelected: palette.razzmatazz,
+    text: dark.ink,
+    background: dark.paper,
+    tint: dark.accent,
+    tabIconDefault: dark.inkFaint,
+    tabIconSelected: dark.ink,
   },
   // Semantic names for usage in app
-  primary: palette.portGore, // Dark purple as primary for text/buttons to contrast with beige
-  accent: palette.festival, // Yellow for highlights
-  secondary: palette.razzmatazz, // Pink for secondary actions
-  background: palette.merino,
-  card: palette.white,
-  text: palette.portGore,
-  textSecondary: palette.slate,
-  success: palette.fernFrond,
-  palette, // Export raw palette if needed
+  primary: light.ink,
+  accent: light.accent,
+  secondary: light.ink, // ações secundárias em tinta, não em cor paralela
+  background: light.paper,
+  card: light.surface,
+  text: light.ink,
+  textSecondary: light.inkSoft,
+  success: light.good,
+  palette,
 };
 
 export default Colors;

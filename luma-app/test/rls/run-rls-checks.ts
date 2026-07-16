@@ -18,6 +18,7 @@ import { runTasksRlsChecks } from './checks/tasks.rls';
 import { runExpensesRlsChecks } from './checks/expenses.rls';
 import { runNotificationsRlsChecks } from './checks/notifications.rls';
 import { runAuthFlowsChecks } from './checks/auth-flows';
+import { runGameProfilesRlsChecks } from './checks/game-profiles.rls';
 
 interface CheckResult {
   table: string;
@@ -54,6 +55,9 @@ async function main() {
 
     console.log('\nExecutando checks de auth flows...');
     results.push({ table: 'auth-flows', passed: await runAuthFlowsChecks(config) });
+
+    console.log('\nExecutando checks RLS para user_game_profiles...');
+    results.push({ table: 'user_game_profiles', passed: await runGameProfilesRlsChecks(config) });
 
   } catch (error) {
     console.error('[RLS] Erro durante execução:', error);

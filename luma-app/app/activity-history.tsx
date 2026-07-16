@@ -32,6 +32,7 @@ import { ArrowLeft, Calendar, Wallet, CheckCircle, Cpu } from 'lucide-react-nati
 // Hooks and services
 import { useTasks } from '@/hooks/useTasks';
 import { useExpenses } from '@/hooks/useExpenses';
+import { useIoTFeed } from '@/hooks/useIoTFeed';
 import { useAuthStore } from '@/stores/auth.store';
 import { Colors } from '@/constants/Colors';
 import { buildActivityFeed } from '@/lib/buildActivityFeed';
@@ -43,6 +44,7 @@ export default function ActivityHistoryScreen() {
   const houseId = useAuthStore((state) => state.houseId);
   const { data: tasks = [] } = useTasks(houseId);
   const { data: expenses = [] } = useExpenses(houseId);
+  const { data: iotFeedItems = [] } = useIoTFeed(houseId);
 
   // State for selected month/year
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -63,10 +65,10 @@ export default function ActivityHistoryScreen() {
       buildActivityFeed({
         expenses,
         tasks,
-        iotFeedItems: [],
+        iotFeedItems,
         referenceDate: selectedDate,
       }),
-    [expenses, tasks, selectedDate]
+    [expenses, tasks, iotFeedItems, selectedDate]
   );
 
   const handleSelectMonth = (monthDate: Date) => {

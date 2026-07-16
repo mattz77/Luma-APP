@@ -13,6 +13,9 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+
+# Stray shell-redirect artifacts (Windows path parsing bugs)
+/CTemp*.json
 *.p8
 *.p12
 *.key

@@ -88,7 +88,7 @@ function DayPill({
     return {
       fontSize: interpolate(p, [0, 1], [18, 24], Extrapolation.CLAMP),
       fontWeight: '700' as const,
-      color: '#0f172a',
+      color: '#1B1725',
       marginBottom: interpolate(p, [0, 0.35, 1], [0, 0, 4], Extrapolation.CLAMP),
     };
   });
@@ -100,9 +100,9 @@ function DayPill({
           animatedShell,
           active
             ? {
-                backgroundColor: '#FDE047',
+                backgroundColor: '#F6B51E',
                 borderWidth: 1,
-                borderColor: '#FDE047',
+                borderColor: '#F6B51E',
                 shadowColor: '#713f12',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.12,
@@ -112,7 +112,7 @@ function DayPill({
             : {
                 backgroundColor: '#ffffff',
                 borderWidth: 1,
-                borderColor: '#e2e8f0',
+                borderColor: '#EAE6DC',
               },
         ]}
       >
@@ -123,7 +123,7 @@ function DayPill({
               fontSize: 10,
               fontWeight: '700',
               textTransform: 'uppercase',
-              color: active ? '#0f172a' : '#94a3b8',
+              color: active ? '#1B1725' : '#A5A0AE',
             }}
             numberOfLines={1}
           >

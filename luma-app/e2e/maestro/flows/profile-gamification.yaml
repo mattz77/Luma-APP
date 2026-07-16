@@ -1,0 +1,48 @@
+# Flow: Card de Conquistas visível para usuário menor de idade
+# Tags: profile, gamification, smoke
+#
+# Pré-requisito: E2E_TEST_MINOR_EMAIL / E2E_TEST_MINOR_PASSWORD deve ser um
+# usuário com is_minor=true (birth_date < 18 anos). Configure no maestro env.
+#
+# Para validar ausência em adulto, trocar credenciais pelo usuário adulto padrão.
+appId: com.luma.app
+---
+- launchApp
+
+# Login com usuário menor
+- tapOn:
+    text: "E-mail"
+- inputText: ${E2E_TEST_MINOR_EMAIL}
+
+- tapOn:
+    text: "Senha"
+- inputText: ${E2E_TEST_MINOR_PASSWORD}
+
+- tapOn:
+    text: "Entrar"
+
+- waitForAnimationToEnd
+
+# Navegar para Perfil
+- tapOn:
+    text: "Perfil"
+    optional: true
+- tapOn:
+    id: "tab-profile"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Card Conquistas deve estar visível para menor
+- assertVisible:
+    id: "gamification-card"
+    timeout: 5000
+
+- assertVisible:
+    text: "Conquistas"
+
+- assertVisible:
+    text: "XP"
+
+- assertVisible:
+    text: "Nível"

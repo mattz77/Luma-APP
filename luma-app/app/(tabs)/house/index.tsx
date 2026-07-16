@@ -27,6 +27,8 @@ import {
   Camera,
   X,
   UserMinus,
+  Cpu,
+  ChevronRight,
 } from 'lucide-react-native';
 
 import {
@@ -367,7 +369,7 @@ export default function HouseScreen() {
 
   return (
     <ErrorBoundary>
-      <Box className="flex-1 bg-[#FDFBF7]">
+      <Box className="flex-1 bg-[#FAF8F2]">
         <SafeAreaView className="flex-1" edges={['top']}>
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -378,42 +380,42 @@ export default function HouseScreen() {
               <HStack className="justify-between items-center mb-4">
                 <Pressable
                   onPress={() => router.back()}
-                  className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]"
+                  className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95]"
                 >
-                  <ArrowLeft size={20} color="#0f172a" />
+                  <ArrowLeft size={20} color="#1B1725" />
                 </Pressable>
                 <Box className="w-[88px]" />
               </HStack>
               <ScreenGreeting firstName={greetingFirstName} variant="ola" />
               <HStack space="xs" className="items-center mt-1">
-                <Heading size="xl" className="font-bold text-slate-900">
+                <Heading size="xl" className="font-bold text-[#1B1725]">
                   Casa & Membros
                 </Heading>
-                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+                <ChevronLeft size={18} className="text-[#A5A0AE] -rotate-90" />
               </HStack>
-              <Text className="text-sm text-slate-500 mt-1">{houses.length} casa(s)</Text>
-              <Text className="text-xs text-slate-400 mt-2 leading-5">
+              <Text className="text-sm text-[#6F6A7A] mt-1">{houses.length} casa(s)</Text>
+              <Text className="text-xs text-[#A5A0AE] mt-2 leading-5">
                 Gerencie membros, convites e permissões da residência.
               </Text>
             </Box>
 
-            <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+            <Box className="mx-6 mb-5 p-5 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm">
               <HStack className="items-center gap-2 mb-4">
-                <Users size={20} color="#0f172a" />
-                <Heading size="lg" className="font-bold text-slate-900">
+                <Users size={20} color="#1B1725" />
+                <Heading size="lg" className="font-bold text-[#1B1725]">
                   Minhas casas
                 </Heading>
               </HStack>
 
               {housesLoading ? (
                 <VStack className="items-center py-8 gap-2">
-                  <ActivityIndicator color="#94a3b8" />
-                  <Text className="text-slate-500 text-sm">Carregando...</Text>
+                  <ActivityIndicator color="#A5A0AE" />
+                  <Text className="text-[#6F6A7A] text-sm">Carregando...</Text>
                 </VStack>
               ) : houses.length === 0 ? (
                 <VStack className="items-center py-8 gap-2">
-                  <Text className="text-slate-900 font-semibold">Nenhuma casa ainda</Text>
-                  <Text className="text-slate-500 text-sm text-center">
+                  <Text className="text-[#1B1725] font-semibold">Nenhuma casa ainda</Text>
+                  <Text className="text-[#6F6A7A] text-sm text-center">
                     Crie uma nova ou entre com um código de convite.
                   </Text>
                 </VStack>
@@ -427,18 +429,18 @@ export default function HouseScreen() {
                         onPress={() => setHouseId(house.id)}
                         className={`flex-row items-center gap-3 p-4 rounded-2xl border ${
                           active
-                            ? 'border-2 border-[#FDE047] bg-[#FDE047]/10'
-                            : 'border border-slate-100 bg-slate-50'
+                            ? 'border-2 border-[#F6B51E] bg-[#F6B51E]/10'
+                            : 'border border-[#EAE6DC] bg-[#F1EEE6]'
                         }`}
                       >
-                        <Box className="w-10 h-10 rounded-xl bg-white border border-slate-100 items-center justify-center">
-                          <HomeIcon size={18} color={active ? '#0f172a' : '#64748b'} />
+                        <Box className="w-10 h-10 rounded-xl bg-white border border-[#EAE6DC] items-center justify-center">
+                          <HomeIcon size={18} color={active ? '#1B1725' : '#6F6A7A'} />
                         </Box>
                         <VStack className="flex-1">
-                          <Text className={`text-base font-semibold ${active ? 'text-slate-900' : 'text-slate-800'}`}>
+                          <Text className={`text-base font-semibold ${active ? 'text-[#1B1725]' : 'text-[#1B1725]'}`}>
                             {house.name}
                           </Text>
-                          <Text className="text-xs text-slate-500 mt-1">
+                          <Text className="text-xs text-[#6F6A7A] mt-1">
                             {membership.role === 'ADMIN' ? 'Admin' : 'Membro'} ·{' '}
                             {new Date(membership.joinedAt).toLocaleDateString('pt-BR', {
                               day: '2-digit',
@@ -462,86 +464,107 @@ export default function HouseScreen() {
                     setHousePhotoMime(null);
                     setCreateModalVisible(true);
                   }}
-                  className="flex-1 flex-row items-center justify-center bg-[#FDE047] h-14 rounded-[24px] gap-2 shadow-lg shadow-yellow-200 active:scale-[0.98]"
+                  className="flex-1 flex-row items-center justify-center bg-[#F6B51E] h-14 rounded-[14px] gap-2 shadow-lg shadow-amber-200 active:scale-[0.98]"
                 >
-                  <Plus size={20} color="#0f172a" />
-                  <Text className="text-slate-900 font-bold text-[15px]">Criar casa</Text>
+                  <Plus size={20} color="#1B1725" />
+                  <Text className="text-[#1B1725] font-bold text-[15px]">Criar casa</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => {
                     setInviteCodeInput('');
                     setJoinModalVisible(true);
                   }}
-                  className="flex-1 flex-row items-center justify-center bg-white border border-slate-100 h-14 rounded-[24px] gap-2 shadow-sm active:scale-[0.98]"
+                  className="flex-1 flex-row items-center justify-center bg-white border border-[#EAE6DC] h-14 rounded-[14px] gap-2 shadow-sm active:scale-[0.98]"
                 >
-                  <LogIn size={20} color="#0f172a" />
-                  <Text className="text-slate-900 font-bold text-[14px]">Entrar</Text>
+                  <LogIn size={20} color="#1B1725" />
+                  <Text className="text-[#1B1725] font-bold text-[14px]">Entrar</Text>
                 </Pressable>
               </HStack>
             </Box>
 
             {currentHouse ? (
               <>
-                <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                <Box className="mx-6 mb-5 p-5 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
-                    <Settings size={20} color="#0f172a" />
-                    <Heading size="lg" className="font-bold text-slate-900">
+                    <Settings size={20} color="#1B1725" />
+                    <Heading size="lg" className="font-bold text-[#1B1725]">
                       Resumo da casa
                     </Heading>
                   </HStack>
                   <HStack className="justify-between items-center py-2">
-                    <Text className="text-sm text-slate-500">Casa atual</Text>
-                    <Text className="text-base font-semibold text-slate-900">{currentHouse.house.name}</Text>
+                    <Text className="text-sm text-[#6F6A7A]">Casa atual</Text>
+                    <Text className="text-base font-semibold text-[#1B1725]">{currentHouse.house.name}</Text>
                   </HStack>
                   <HStack className="justify-between items-center py-2">
-                    <Text className="text-sm text-slate-500">Membros</Text>
-                    <Text className="text-base font-semibold text-slate-900">{members.length}</Text>
+                    <Text className="text-sm text-[#6F6A7A]">Membros</Text>
+                    <Text className="text-base font-semibold text-[#1B1725]">{members.length}</Text>
                   </HStack>
                   <Pressable
                     onPress={() => void copyInviteCode(currentHouse.house.inviteCode)}
-                    className="flex-row items-center justify-center gap-2 bg-[#FDE047] h-12 rounded-[24px] mt-3 shadow-lg shadow-yellow-200 active:scale-[0.98]"
+                    className="flex-row items-center justify-center gap-2 bg-[#F6B51E] h-12 rounded-[14px] mt-3 shadow-lg shadow-amber-200 active:scale-[0.98]"
                   >
-                    <Copy size={18} color="#0f172a" />
-                    <Text className="text-slate-900 font-bold text-sm" numberOfLines={1}>
+                    <Copy size={18} color="#1B1725" />
+                    <Text className="text-[#1B1725] font-bold text-sm" numberOfLines={1}>
                       Copiar código: {currentHouse.house.inviteCode}
                     </Text>
                   </Pressable>
                 </Box>
 
-                <Box className="mx-6 mb-5 p-5 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                <Pressable
+                  testID="house-devices-entry"
+                  onPress={() => router.push('/devices')}
+                  className="mx-6 mb-5 p-5 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm active:scale-[0.99]"
+                >
+                  <HStack className="items-center gap-3">
+                    <Box className="w-11 h-11 rounded-2xl bg-[#FBEED0] items-center justify-center">
+                      <Cpu size={20} color="#1B1725" />
+                    </Box>
+                    <VStack className="flex-1">
+                      <Heading size="lg" className="font-bold text-[#1B1725]">
+                        Dispositivos
+                      </Heading>
+                      <Text className="text-sm text-[#6F6A7A]">
+                        Luzes, clima e limpeza da casa em um toque
+                      </Text>
+                    </VStack>
+                    <ChevronRight size={20} color="#A5A0AE" />
+                  </HStack>
+                </Pressable>
+
+                <Box className="mx-6 mb-5 p-5 bg-white rounded-[20px] border border-[#EAE6DC] shadow-sm">
                   <HStack className="items-center gap-2 mb-4">
-                    <Users size={20} color="#0f172a" />
-                    <Heading size="lg" className="font-bold text-slate-900">
+                    <Users size={20} color="#1B1725" />
+                    <Heading size="lg" className="font-bold text-[#1B1725]">
                       Membros
                     </Heading>
                   </HStack>
                   {membersLoading ? (
                     <Box className="items-center py-8">
-                      <ActivityIndicator color="#94a3b8" />
+                      <ActivityIndicator color="#A5A0AE" />
                     </Box>
                   ) : members.length === 0 ? (
-                    <Text className="text-slate-500 text-sm">Nenhum membro encontrado.</Text>
+                    <Text className="text-[#6F6A7A] text-sm">Nenhum membro encontrado.</Text>
                   ) : (
                     <VStack className="gap-0">
                       {members.map((member, index) => (
                         <HStack
                           key={member.id}
                           className={`items-center gap-3 py-4 ${
-                            index < members.length - 1 ? 'border-b border-slate-100' : ''
+                            index < members.length - 1 ? 'border-b border-[#EAE6DC]' : ''
                           }`}
                         >
-                          <Box className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-100 items-center justify-center">
+                          <Box className="w-9 h-9 rounded-xl bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center">
                             {member.role === 'ADMIN' ? (
-                              <Shield size={16} color="#0f172a" />
+                              <Shield size={16} color="#1B1725" />
                             ) : (
-                              <Users size={16} color="#64748b" />
+                              <Users size={16} color="#6F6A7A" />
                             )}
                           </Box>
                           <VStack className="flex-1">
-                            <Text className="text-base font-semibold text-slate-900">
+                            <Text className="text-base font-semibold text-[#1B1725]">
                               {member.user.name ?? member.user.email}
                             </Text>
-                            <Text className="text-xs text-slate-500 mt-0.5">
+                            <Text className="text-xs text-[#6F6A7A] mt-0.5">
                               {member.user.email} · {formatRole(member.role)}
                             </Text>
                           </VStack>
@@ -549,23 +572,23 @@ export default function HouseScreen() {
                             {member.userId === user?.id ? (
                               <Pressable
                                 onPress={handleLeaveHouse}
-                                className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 items-center justify-center"
+                                className="w-9 h-9 rounded-xl bg-[#FBE7E7] border border-red-100 items-center justify-center"
                               >
-                                <LogOut size={14} color="#ef4444" />
+                                <LogOut size={14} color="#D64545" />
                               </Pressable>
                             ) : isAdmin ? (
                               <>
                                 <Pressable
                                   onPress={() => handleUpdateRole(member)}
-                                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 items-center justify-center"
+                                  className="w-9 h-9 rounded-xl bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center"
                                 >
-                                  <Shield size={14} color="#0f172a" />
+                                  <Shield size={14} color="#1B1725" />
                                 </Pressable>
                                 <Pressable
                                   onPress={() => handleRemoveMember(member)}
-                                  className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 items-center justify-center"
+                                  className="w-9 h-9 rounded-xl bg-[#FBE7E7] border border-red-100 items-center justify-center"
                                 >
-                                  <UserMinus size={14} color="#ef4444" />
+                                  <UserMinus size={14} color="#D64545" />
                                 </Pressable>
                               </>
                             ) : null}
@@ -578,23 +601,23 @@ export default function HouseScreen() {
               </>
             ) : null}
 
-            <Box className="mx-6 mb-8 p-5 bg-white rounded-[32px] border border-red-100 shadow-sm">
+            <Box className="mx-6 mb-8 p-5 bg-white rounded-[20px] border border-red-100 shadow-sm">
               <HStack className="items-center gap-2 mb-2">
-                <LogOut size={20} color="#dc2626" />
-                <Heading size="lg" className="font-bold text-red-600">
+                <LogOut size={20} color="#D64545" />
+                <Heading size="lg" className="font-bold text-[#D64545]">
                   Sair da conta
                 </Heading>
               </HStack>
-              <Text className="text-sm text-slate-500 mb-4 leading-5">
+              <Text className="text-sm text-[#6F6A7A] mb-4 leading-5">
                 Encerre sua sessão. Você poderá entrar novamente com seu e-mail e senha.
               </Text>
               <Pressable
                 onPress={() => setConfirm({ type: 'signOut' })}
-                className="bg-red-50 border border-red-200 min-h-12 rounded-[24px] active:opacity-90 px-5 py-3 justify-center"
+                className="bg-[#FBE7E7] border border-red-200 min-h-12 rounded-[14px] active:opacity-90 px-5 py-3 justify-center"
               >
                 <HStack className="items-center justify-center" space="md">
-                  <LogOut size={18} color="#dc2626" />
-                  <Text className="text-red-600 font-bold text-base tracking-wide">
+                  <LogOut size={18} color="#D64545" />
+                  <Text className="text-[#D64545] font-bold text-base tracking-wide">
                     Sair agora
                   </Text>
                 </HStack>
@@ -609,7 +632,7 @@ export default function HouseScreen() {
                 <Heading size="lg">{confirmTitle}</Heading>
               </AlertDialogHeader>
               <AlertDialogBody>
-                <Text className="text-slate-600 leading-6">{confirmBody}</Text>
+                <Text className="text-[#6F6A7A] leading-6">{confirmBody}</Text>
               </AlertDialogBody>
               <AlertDialogFooter>
                 <Button variant="outline" action="secondary" onPress={closeConfirm}>
@@ -643,7 +666,7 @@ export default function HouseScreen() {
                 <Heading size="lg">Sair da conta</Heading>
               </AlertDialogHeader>
               <AlertDialogBody>
-                <Text className="text-slate-600 leading-6">{confirmBody}</Text>
+                <Text className="text-[#6F6A7A] leading-6">{confirmBody}</Text>
               </AlertDialogBody>
               <AlertDialogFooter>
                 <Button variant="outline" action="secondary" onPress={closeConfirm}>
@@ -694,18 +717,18 @@ export default function HouseScreen() {
                   className="shadow-2xl"
                 >
                   <Box className="w-full items-center pt-2 pb-2">
-                    <Box className="w-12 h-1 bg-slate-200 rounded-full" />
+                    <Box className="w-12 h-1 bg-[#EAE6DC] rounded-full" />
                   </Box>
                   <HStack className="justify-between items-center px-8 mb-4">
-                    <Heading size="2xl" className="font-bold text-slate-900">
+                    <Heading size="2xl" className="font-bold text-[#1B1725]">
                       Nova casa
                     </Heading>
                     <Pressable
                       onPress={() => setCreateModalVisible(false)}
                       disabled={createHouseMutation.isPending || isUploadingPhoto}
-                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
+                      className="w-10 h-10 rounded-full bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center"
                     >
-                      <X size={18} color="#0f172a" />
+                      <X size={18} color="#1B1725" />
                     </Pressable>
                   </HStack>
 
@@ -716,32 +739,32 @@ export default function HouseScreen() {
                   >
                     <VStack className="gap-4 pb-6">
                       <VStack className="gap-2">
-                        <Text className="text-sm text-slate-500 font-medium">Nome da casa</Text>
-                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                        <Text className="text-sm text-[#6F6A7A] font-medium">Nome da casa</Text>
+                        <Input className="h-14 border border-[#EAE6DC] bg-white rounded-2xl">
                           <InputField
                             value={houseNameInput}
                             onChangeText={setHouseNameInput}
                             placeholder="Nome"
-                            className="text-base text-slate-900 px-3"
-                            placeholderTextColor="#94a3b8"
+                            className="text-base text-[#1B1725] px-3"
+                            placeholderTextColor="#A5A0AE"
                           />
                         </Input>
                       </VStack>
                       <VStack className="gap-2">
-                        <Text className="text-sm text-slate-500 font-medium">Endereço (opcional)</Text>
-                        <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                        <Text className="text-sm text-[#6F6A7A] font-medium">Endereço (opcional)</Text>
+                        <Input className="h-14 border border-[#EAE6DC] bg-white rounded-2xl">
                           <InputField
                             value={houseAddressInput}
                             onChangeText={setHouseAddressInput}
                             placeholder="Endereço"
-                            className="text-base text-slate-900 px-3"
-                            placeholderTextColor="#94a3b8"
+                            className="text-base text-[#1B1725] px-3"
+                            placeholderTextColor="#A5A0AE"
                           />
                         </Input>
                       </VStack>
 
                       <VStack className="gap-2">
-                        <Text className="text-sm text-slate-500 font-medium">Foto (opcional)</Text>
+                        <Text className="text-sm text-[#6F6A7A] font-medium">Foto (opcional)</Text>
                         {housePhotoUri ? (
                           <Box className="relative w-full h-[120px] rounded-2xl overflow-hidden">
                             <Image source={{ uri: housePhotoUri }} className="w-full h-full" resizeMode="cover" />
@@ -760,18 +783,18 @@ export default function HouseScreen() {
                           <VStack className="gap-2">
                             <Pressable
                               onPress={() => void pickFromGallery()}
-                              className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50"
+                              className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-dashed border-[#EAE6DC] bg-[#F1EEE6]"
                             >
-                              <Camera size={22} color="#0f172a" />
-                              <Text className="text-slate-900 font-medium">Galeria</Text>
+                              <Camera size={22} color="#1B1725" />
+                              <Text className="text-[#1B1725] font-medium">Galeria</Text>
                             </Pressable>
                             {Platform.OS !== 'web' ? (
                               <Pressable
                                 onPress={() => void pickFromCamera()}
-                                className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-slate-200 bg-white"
+                                className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl border border-[#EAE6DC] bg-white"
                               >
-                                <Camera size={22} color="#0f172a" />
-                                <Text className="text-slate-900 font-medium">Câmera</Text>
+                                <Camera size={22} color="#1B1725" />
+                                <Text className="text-[#1B1725] font-medium">Câmera</Text>
                               </Pressable>
                             ) : null}
                           </VStack>
@@ -833,32 +856,32 @@ export default function HouseScreen() {
                   className="shadow-2xl"
                 >
                   <Box className="w-full items-center pt-2 pb-2">
-                    <Box className="w-12 h-1 bg-slate-200 rounded-full" />
+                    <Box className="w-12 h-1 bg-[#EAE6DC] rounded-full" />
                   </Box>
                   <HStack className="justify-between items-center px-8 mb-4">
-                    <Heading size="2xl" className="font-bold text-slate-900">
+                    <Heading size="2xl" className="font-bold text-[#1B1725]">
                       Entrar com código
                     </Heading>
                     <Pressable
                       onPress={() => setJoinModalVisible(false)}
                       disabled={joinHouseMutation.isPending}
-                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center"
+                      className="w-10 h-10 rounded-full bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center"
                     >
-                      <X size={18} color="#0f172a" />
+                      <X size={18} color="#1B1725" />
                     </Pressable>
                   </HStack>
 
                   <VStack className="px-8 pb-8 gap-4" style={{ paddingBottom: Math.max(insets.bottom, 24) }}>
                     <VStack className="gap-2">
-                      <Text className="text-sm text-slate-500 font-medium">Código de convite</Text>
-                      <Input className="h-14 border border-slate-200 bg-white rounded-2xl">
+                      <Text className="text-sm text-[#6F6A7A] font-medium">Código de convite</Text>
+                      <Input className="h-14 border border-[#EAE6DC] bg-white rounded-2xl">
                         <InputField
                           value={inviteCodeInput}
                           onChangeText={setInviteCodeInput}
                           autoCapitalize="none"
                           placeholder="Cole o código"
-                          className="text-base text-slate-900 px-3"
-                          placeholderTextColor="#94a3b8"
+                          className="text-base text-[#1B1725] px-3"
+                          placeholderTextColor="#A5A0AE"
                         />
                       </Input>
                     </VStack>

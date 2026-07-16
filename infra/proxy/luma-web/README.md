@@ -10,12 +10,8 @@ Cloudflare Tunnel at `https://luma-app.nicebyte.ia.br`.
 pwsh infra/proxy/luma-web/build.ps1
 ```
 
-The script:
-1. Reads `EXPO_PUBLIC_*` from `luma-app/.env.local` and sets as env vars
-2. Runs `npx expo export --platform web` locally (generates `luma-app/dist/`)
-3. Builds nginx Docker image with pre-built dist (`Dockerfile.prebuilt`)
-
-Env vars are baked into JS bundle at build time, not runtime.
+The script reads `EXPO_PUBLIC_*` vars from `luma-app/.env.local` and bakes
+them into the JS bundle (build-time, not runtime).
 
 ## Deploy
 

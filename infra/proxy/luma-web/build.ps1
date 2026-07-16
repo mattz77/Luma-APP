@@ -1,4 +1,4 @@
-# Build luma-web Docker image (2-step: local export + nginx image)
+# Build luma-web Docker image with EXPO_PUBLIC_* vars from luma-app/.env.local
 # Usage:  pwsh infra/proxy/luma-web/build.ps1
 # Assumes invoked from repo root.
 $ErrorActionPreference = 'Stop'
@@ -29,39 +29,27 @@ $required = @(
     'EXPO_PUBLIC_N8N_JWT_SECRET'
 )
 
+$buildArgs = @()
 foreach ($key in $required) {
     if (-not $vars.ContainsKey($key)) {
         Write-Error "Missing $key in $envFile"
         exit 1
     }
-    [System.Environment]::SetEnvironmentVariable($key, $vars[$key], 'Process')
+    $buildArgs += '--build-arg'
+    $buildArgs += "$key=$($vars[$key])"
 }
 
-# Step 1: Export web bundle locally with EXPO_PUBLIC_* env vars
-Write-Host "Step 1/2: Exporting Expo web bundle..." -ForegroundColor Cyan
-Push-Location luma-app
-try {
-    if (Test-Path dist) { Remove-Item -Recurse -Force dist }
-    npx expo export --platform web
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Expo export failed (exit $LASTEXITCODE)"
-        exit $LASTEXITCODE
-    }
-} finally {
-    Pop-Location
-}
+Write-Host "Building luma/web:latest with $($required.Count) EXPO_PUBLIC_* vars..." -ForegroundColor Cyan
 
-# Step 2: Build nginx image with pre-built dist
-Write-Host "Step 2/2: Building luma/web:latest Docker image..." -ForegroundColor Cyan
 docker build `
     -t luma/web:latest `
-    -f infra/proxy/luma-web/Dockerfile.prebuilt `
+    -f infra/proxy/luma-web/Dockerfile `
+    @buildArgs `
     .
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "OK. Built luma/web:latest" -ForegroundColor Green
-    Write-Host "Deploy: docker compose --profile luma-web up -d luma-web" -ForegroundColor Yellow
 } else {
-    Write-Error "Docker build failed (exit $LASTEXITCODE)"
+    Write-Error "Build failed (exit $LASTEXITCODE)"
     exit $LASTEXITCODE
 }

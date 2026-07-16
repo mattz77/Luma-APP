@@ -110,7 +110,7 @@ function BrlCentOverlayInput(props: {
   editable?: boolean;
   /** Ícone de moedas à esquerda (campo valor total no modal de despesa). */
   showCoinsIcon?: boolean;
-  /** Fundo suave como no redesign (#F0F2F5). */
+  /** Fundo suave como no redesign (#F1EEE6). */
   softSurface?: boolean;
 }) {
   const {
@@ -129,8 +129,8 @@ function BrlCentOverlayInput(props: {
   const padLeft = showCoinsIcon ? 44 : 12;
   const padRight = 12;
   const surfaceClass = softSurface
-    ? 'border border-slate-200/80 bg-[#F0F2F5]'
-    : 'border border-slate-200 bg-white';
+    ? 'border border-[#EAE6DC]/80 bg-[#F1EEE6]'
+    : 'border border-[#EAE6DC] bg-white';
 
   return (
     <View
@@ -149,7 +149,7 @@ function BrlCentOverlayInput(props: {
             zIndex: 1,
           }}
         >
-          <Coins size={22} color="#64748b" />
+          <Coins size={22} color="#6F6A7A" />
         </View>
       ) : null}
       <View
@@ -160,7 +160,7 @@ function BrlCentOverlayInput(props: {
         ]}
       >
         <Text
-          className="font-semibold text-slate-900"
+          className="font-semibold text-[#1B1725]"
           style={{ fontSize, width: '100%', textAlign }}
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -183,7 +183,7 @@ function BrlCentOverlayInput(props: {
           opacity: 0.04,
           fontSize,
           textAlign,
-          color: '#0f172a',
+          color: '#1B1725',
           paddingLeft: padLeft,
           paddingRight: padRight,
         }}
@@ -193,7 +193,7 @@ function BrlCentOverlayInput(props: {
 }
 
 const FieldLabel = ({ children }: { children: string }) => (
-  <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
+  <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">{children}</Text>
 );
 
 export function ExpenseFormModal({
@@ -643,21 +643,21 @@ export function ExpenseFormModal({
                     accessibilityRole="button"
                     accessibilityLabel="Arrastar para fechar"
                   >
-                    <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                    <View className="w-12 h-1 bg-[#EAE6DC] rounded-full" />
                   </View>
                 </GestureDetector>
 
                 <HStack className="justify-between items-center px-6 mb-3">
                     <Pressable onPress={Keyboard.dismiss}>
-                      <Heading size="2xl" className="font-bold text-[#0f172a] tracking-tight">
+                      <Heading size="2xl" className="font-bold text-[#1B1725] tracking-tight">
                         {title}
                       </Heading>
                     </Pressable>
                     <Pressable
                       onPress={closeModal}
-                      className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
+                      className="w-10 h-10 rounded-full bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center active:bg-[#F1EEE6]"
                     >
-                      <X size={18} color="#0f172a" />
+                      <X size={18} color="#1B1725" />
                     </Pressable>
                   </HStack>
 
@@ -671,13 +671,13 @@ export function ExpenseFormModal({
                     <VStack space="lg" className="pb-8">
                       <VStack space="xs">
                         <FieldLabel>Descrição</FieldLabel>
-                        <Input className="h-14 border-0 bg-[#F0F2F5] rounded-2xl">
+                        <Input className="h-14 border-0 bg-[#F1EEE6] rounded-2xl">
                           <InputField
                             value={description}
                             onChangeText={setDescription}
                             placeholder="Ex: Mercado do mês"
-                            className="text-lg font-medium text-slate-900 px-4"
-                            placeholderTextColor="#94a3b8"
+                            className="text-lg font-medium text-[#1B1725] px-4"
+                            placeholderTextColor="#A5A0AE"
                           />
                         </Input>
                       </VStack>
@@ -714,8 +714,8 @@ export function ExpenseFormModal({
                         </VStack>
                       </HStack>
 
-                      <HStack className="items-center justify-between bg-[#F0F2F5] rounded-full px-4 py-3.5">
-                        <Text className="text-[#0f172a] font-bold text-sm">Marcar como pago</Text>
+                      <HStack className="items-center justify-between bg-[#F1EEE6] rounded-full px-4 py-3.5">
+                        <Text className="text-[#1B1725] font-bold text-sm">Marcar como pago</Text>
                         <Switch value={isPaid} onValueChange={setIsPaid} />
                       </HStack>
 
@@ -733,12 +733,12 @@ export function ExpenseFormModal({
                                 }}
                                 className={`px-4 py-2.5 rounded-full border ${
                                   selected
-                                    ? 'bg-[#FDE047] border-[#FDE047]'
-                                    : 'bg-[#F0F2F5] border-transparent'
+                                    ? 'bg-[#F6B51E] border-[#F6B51E]'
+                                    : 'bg-[#F1EEE6] border-transparent'
                                 }`}
                               >
                                 <Text
-                                  className={`text-xs font-bold ${selected ? 'text-slate-900' : 'text-slate-600'}`}
+                                  className={`text-xs font-bold ${selected ? 'text-[#1B1725]' : 'text-[#6F6A7A]'}`}
                                 >
                                   {category.name}
                                 </Text>
@@ -750,10 +750,10 @@ export function ExpenseFormModal({
                               Haptics.selectionAsync();
                               setIsAddingCategory(true);
                             }}
-                            className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#F0F2F5] border border-slate-200/80"
+                            className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#F1EEE6] border border-[#EAE6DC]/80"
                           >
-                            <Tag size={14} color="#64748b" />
-                            <Text className="text-xs font-bold text-slate-600">+ Nova</Text>
+                            <Tag size={14} color="#6F6A7A" />
+                            <Text className="text-xs font-bold text-[#6F6A7A]">+ Nova</Text>
                           </Pressable>
                         </HStack>
                       </VStack>
@@ -762,29 +762,29 @@ export function ExpenseFormModal({
                         <VStack space="xs">
                           <FieldLabel>Nome da categoria</FieldLabel>
                           <HStack space="sm" className="items-center">
-                            <Input className="flex-1 h-12 border border-slate-200 bg-white rounded-2xl">
+                            <Input className="flex-1 h-12 border border-[#EAE6DC] bg-white rounded-2xl">
                               <InputField
                                 value={newCategoryName}
                                 onChangeText={setNewCategoryName}
                                 placeholder="Ex: Alimentação"
-                                className="text-slate-900 px-3"
-                                placeholderTextColor="#94a3b8"
+                                className="text-[#1B1725] px-3"
+                                placeholderTextColor="#A5A0AE"
                               />
                             </Input>
                             <Pressable
                               onPress={handleAddCategory}
-                              className="bg-[#FDE047] px-4 h-12 rounded-2xl items-center justify-center border border-yellow-200"
+                              className="bg-[#F6B51E] px-4 h-12 rounded-2xl items-center justify-center border border-yellow-200"
                             >
-                              <Text className="text-slate-900 font-bold text-sm">Salvar</Text>
+                              <Text className="text-[#1B1725] font-bold text-sm">Salvar</Text>
                             </Pressable>
                             <Pressable
                               onPress={() => {
                                 setIsAddingCategory(false);
                                 setNewCategoryName('');
                               }}
-                              className="px-3 h-12 rounded-2xl items-center justify-center border border-slate-200 bg-white"
+                              className="px-3 h-12 rounded-2xl items-center justify-center border border-[#EAE6DC] bg-white"
                             >
-                              <Text className="text-slate-500 font-bold text-sm">✕</Text>
+                              <Text className="text-[#6F6A7A] font-bold text-sm">✕</Text>
                             </Pressable>
                           </HStack>
                         </VStack>
@@ -799,9 +799,9 @@ export function ExpenseFormModal({
                               setShowSplitMemberPicker((v) => !v);
                             }}
                             accessibilityLabel="Adicionar pessoa à divisão"
-                            className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-slate-300 items-center justify-center active:border-[#FDE047] active:bg-[#FDE047]/15"
+                            className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-[#EAE6DC] items-center justify-center active:border-[#F6B51E] active:bg-[#F6B51E]/15"
                           >
-                            <Plus size={20} color="#64748b" />
+                            <Plus size={20} color="#6F6A7A" />
                           </Pressable>
                           <ScrollView
                             horizontal
@@ -821,7 +821,7 @@ export function ExpenseFormModal({
                                     void Haptics.selectionAsync();
                                     handleToggleMember(memberId);
                                   }}
-                                  className="flex-row items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[#FDE047] border border-yellow-300/80"
+                                  className="flex-row items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[#F6B51E] border border-yellow-300/80"
                                 >
                                   <Avatar size="sm" className="border-2 border-white">
                                     <AvatarFallbackText>{label.charAt(0)}</AvatarFallbackText>
@@ -829,7 +829,7 @@ export function ExpenseFormModal({
                                       <AvatarImage source={{ uri: member.user.avatarUrl }} />
                                     ) : null}
                                   </Avatar>
-                                  <Text className="text-xs font-bold text-slate-900" numberOfLines={1}>
+                                  <Text className="text-xs font-bold text-[#1B1725]" numberOfLines={1}>
                                     {label}
                                   </Text>
                                 </Pressable>
@@ -856,9 +856,9 @@ export function ExpenseFormModal({
                                       handleToggleMember(member.userId);
                                       setShowSplitMemberPicker(false);
                                     }}
-                                    className="px-4 py-2.5 rounded-full bg-[#F0F2F5] border border-slate-200/80"
+                                    className="px-4 py-2.5 rounded-full bg-[#F1EEE6] border border-[#EAE6DC]/80"
                                   >
-                                    <Text className="text-xs font-bold text-slate-600" numberOfLines={1}>
+                                    <Text className="text-xs font-bold text-[#6F6A7A]" numberOfLines={1}>
                                       + {label}
                                     </Text>
                                   </Pressable>
@@ -871,24 +871,24 @@ export function ExpenseFormModal({
                       {selectedMembers.length > 0 && (
                         <VStack space="sm">
                           <HStack className="justify-between items-center">
-                            <Text className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                            <Text className="text-[#6F6A7A] text-xs font-bold uppercase tracking-wider">
                               Valores individuais
                             </Text>
                             <Pressable onPress={handleDistributeEqually}>
-                              <Text className="text-xs font-bold text-blue-600">Distribuir igualmente</Text>
+                              <Text className="text-xs font-bold text-[#1B1725]">Distribuir igualmente</Text>
                             </Pressable>
                           </HStack>
-                          <VStack space="sm" className="bg-[#F0F2F5] rounded-2xl p-3">
+                          <VStack space="sm" className="bg-[#F1EEE6] rounded-2xl p-3">
                           {selectedMembers.map((memberId) => {
                             const member = memberLookup.get(memberId);
                             if (!member) return null;
                             return (
                               <HStack
                                 key={memberId}
-                                className="items-center justify-between bg-white/90 border border-slate-200/60 rounded-xl px-3 py-2.5"
+                                className="items-center justify-between bg-white/90 border border-[#EAE6DC]/60 rounded-xl px-3 py-2.5"
                               >
                                 <HStack space="sm" className="items-center flex-1 min-w-0">
-                                  <Avatar size="sm" className="border border-slate-200">
+                                  <Avatar size="sm" className="border border-[#EAE6DC]">
                                     <AvatarFallbackText>
                                       {(member.user.name ?? member.user.email ?? 'M').charAt(0)}
                                     </AvatarFallbackText>
@@ -896,7 +896,7 @@ export function ExpenseFormModal({
                                       <AvatarImage source={{ uri: member.user.avatarUrl }} />
                                     ) : null}
                                   </Avatar>
-                                  <Text className="text-slate-900 font-medium flex-1" numberOfLines={1}>
+                                  <Text className="text-[#1B1725] font-medium flex-1" numberOfLines={1}>
                                     {member.user.name ?? member.user.email}
                                   </Text>
                                 </HStack>
@@ -928,15 +928,15 @@ export function ExpenseFormModal({
 
                       <VStack space="xs">
                         <FieldLabel>Notas</FieldLabel>
-                        <Textarea className="border-0 bg-[#F0F2F5] rounded-2xl min-h-[100px]">
+                        <Textarea className="border-0 bg-[#F1EEE6] rounded-2xl min-h-[100px]">
                           <TextareaInput
                             value={notes}
                             onChangeText={setNotes}
                             placeholder="Observações adicionais"
                             multiline
                             textAlignVertical="top"
-                            className="py-3 px-4 text-sm text-slate-900 leading-5"
-                            placeholderTextColor="#94a3b8"
+                            className="py-3 px-4 text-sm text-[#1B1725] leading-5"
+                            placeholderTextColor="#A5A0AE"
                           />
                         </Textarea>
                       </VStack>
@@ -959,31 +959,31 @@ export function ExpenseFormModal({
                             <Pressable
                               onPress={handlePickImage}
                               disabled={isUploadingImage}
-                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F0F2F5] rounded-2xl active:opacity-90"
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F1EEE6] rounded-2xl active:opacity-90"
                             >
-                              <ImageIcon size={18} color="#0f172a" />
-                              <Text className="text-slate-900 font-bold text-sm">Galeria</Text>
+                              <ImageIcon size={18} color="#1B1725" />
+                              <Text className="text-[#1B1725] font-bold text-sm">Galeria</Text>
                             </Pressable>
                             <Pressable
                               onPress={handleTakePhoto}
                               disabled={isUploadingImage}
-                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F0F2F5] rounded-2xl active:opacity-90"
+                              className="flex-1 flex-row items-center justify-center gap-2 h-12 bg-[#F1EEE6] rounded-2xl active:opacity-90"
                             >
-                              <Camera size={18} color="#0f172a" />
-                              <Text className="text-slate-900 font-bold text-sm">Câmera</Text>
+                              <Camera size={18} color="#1B1725" />
+                              <Text className="text-[#1B1725] font-bold text-sm">Câmera</Text>
                             </Pressable>
                           </HStack>
                         )}
                         {isUploadingImage && (
                           <HStack space="sm" className="items-center justify-center py-2">
-                            <Spinner size="small" color="#ca8a04" />
-                            <Text className="text-xs text-slate-500">Enviando imagem...</Text>
+                            <Spinner size="small" color="#E3A410" />
+                            <Text className="text-xs text-[#6F6A7A]">Enviando imagem...</Text>
                           </HStack>
                         )}
                       </VStack>
 
                       {errorMessage && (
-                        <Box className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                        <Box className="bg-[#FBE7E7] border border-red-100 rounded-2xl px-4 py-3">
                           <Text className="text-red-700 text-sm font-medium">{errorMessage}</Text>
                         </Box>
                       )}
@@ -995,7 +995,7 @@ export function ExpenseFormModal({
                             disabled={isDeleting || isSubmitting}
                             className="flex-1 h-14 rounded-[24px] border-2 border-red-200 bg-white items-center justify-center active:opacity-80"
                           >
-                            <Text className="text-red-600 font-bold">
+                            <Text className="text-[#D64545] font-bold">
                               {isDeleting ? 'Removendo...' : 'Excluir'}
                             </Text>
                           </Pressable>
@@ -1004,7 +1004,7 @@ export function ExpenseFormModal({
                             onPress={closeModal}
                             className="flex-1 h-14 rounded-[24px] bg-[#E8EDF2] items-center justify-center active:opacity-90"
                           >
-                            <Text className="text-[#0f172a] font-bold">Cancelar</Text>
+                            <Text className="text-[#1B1725] font-bold">Cancelar</Text>
                           </Pressable>
                         )}
                         <Pressable
@@ -1022,7 +1022,7 @@ export function ExpenseFormModal({
                           }}
                         >
                           <LinearGradient
-                            colors={['#FDE68A', '#EAB308', '#CA8A04']}
+                            colors={['#FBEED0', '#E3A410', '#E3A410']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={{
@@ -1119,7 +1119,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#EAE6DC',
   },
   imagePreview: {
     width: '100%',

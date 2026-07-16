@@ -51,7 +51,7 @@ const chartConfig = {
   propsForDots: {
     r: '6',
     strokeWidth: '2',
-    stroke: '#1d4ed8',
+    stroke: '#1B1725',
   },
 };
 
@@ -128,7 +128,7 @@ export default function ReportsScreen() {
     if (categories.length === 0) return [];
     
     const colors = [
-      '#1d4ed8', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+      '#1B1725', '#10b981', '#f59e0b', '#D64545', '#8b5cf6',
       '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
     ];
     
@@ -139,7 +139,7 @@ export default function ReportsScreen() {
         name: cat.categoryName.length > 15 ? cat.categoryName.substring(0, 15) + '...' : cat.categoryName,
         amount: cat.total,
         color: colors[index % colors.length],
-        legendFontColor: '#64748b',
+        legendFontColor: '#6F6A7A',
         legendFontSize: 12,
       }));
   }, [expensesByCategory]);
@@ -197,14 +197,14 @@ export default function ReportsScreen() {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#0f172a" />
+          <ArrowLeft size={24} color="#1B1725" />
         </TouchableOpacity>
         <Text style={styles.title}>Relatórios Financeiros</Text>
       </View>
 
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color="#1d4ed8" />
+          <ActivityIndicator size="large" color="#1B1725" />
           <Text style={styles.helperText}>Carregando dados...</Text>
         </View>
       ) : (
@@ -228,7 +228,7 @@ export default function ReportsScreen() {
           {expensesByMonth.length > 0 && LineChart && (
             <View style={[styles.chartCard, cardShadowStyle]}>
               <View style={styles.chartHeader}>
-                <TrendingUp size={20} color="#1d4ed8" />
+                <TrendingUp size={20} color="#1B1725" />
                 <Text style={styles.chartTitle}>Evolução Mensal (Últimos 6 meses)</Text>
               </View>
               <LineChart
@@ -252,7 +252,7 @@ export default function ReportsScreen() {
           {expensesByMonth.length > 0 && !LineChart && (
             <View style={[styles.chartCard, cardShadowStyle]}>
               <View style={styles.chartHeader}>
-                <TrendingUp size={20} color="#1d4ed8" />
+                <TrendingUp size={20} color="#1B1725" />
                 <Text style={styles.chartTitle}>Evolução Mensal (Últimos 6 meses)</Text>
               </View>
               <View style={styles.chartPlaceholder}>
@@ -275,7 +275,7 @@ export default function ReportsScreen() {
           {pieChartData.length > 0 && RNPieChart && (
             <View style={[styles.chartCard, cardShadowStyle]}>
               <View style={styles.chartHeader}>
-                <PieChartIcon size={20} color="#1d4ed8" />
+                <PieChartIcon size={20} color="#1B1725" />
                 <Text style={styles.chartTitle}>Gastos por Categoria</Text>
               </View>
               <RNPieChart
@@ -334,7 +334,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F2',
   },
   container: {
     flexGrow: 1,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   loadingState: {
     alignItems: 'center',
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F6A7A',
   },
   summaryCard: {
     backgroundColor: '#fff',
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -391,13 +391,13 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#6F6A7A',
     fontWeight: '600',
   },
   summaryValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: '#1B1725',
   },
   chartCard: {
     backgroundColor: '#fff',
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   chart: {
     marginVertical: 8,
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#EAE6DC',
   },
   categoryInfo: {
     flex: 1,
@@ -445,11 +445,11 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   categoryCount: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#6F6A7A',
   },
   categoryAmount: {
     alignItems: 'flex-end',
@@ -458,11 +458,11 @@ const styles = StyleSheet.create({
   categoryValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: '#1B1725',
   },
   categoryPercentage: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#A5A0AE',
   },
   emptyState: {
     alignItems: 'center',
@@ -472,12 +472,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#1B1725',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F6A7A',
     textAlign: 'center',
     marginTop: 4,
   },
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   chartPlaceholderText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#6F6A7A',
     marginBottom: 16,
   },
   monthlyList: {
@@ -500,18 +500,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F2',
     borderRadius: 8,
   },
   monthlyLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1B1725',
   },
   monthlyValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: '#1B1725',
   },
 });
 

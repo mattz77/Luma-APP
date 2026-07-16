@@ -88,8 +88,8 @@ import { getTabScrollBottomPadding } from '@/lib/screenLayout';
 // --- Constants & Helpers ---
 
 const THEMES = {
-  yellow: { bg: 'bg-[#FDE047]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
-  lavender: { bg: 'bg-[#DDD6FE]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  yellow: { bg: 'bg-[#F6B51E]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
+  lavender: { bg: 'bg-[#FBEED0]', text: 'text-black', badge: 'bg-black/10 text-black', iconBg: 'bg-white/50' },
   dark: { bg: 'bg-[#27272A]', text: 'text-white', badge: 'bg-zinc-800 text-zinc-300', iconBg: 'bg-zinc-700' },
 };
 
@@ -126,20 +126,20 @@ const StatsWidget = ({ totalPoints, completedCount, totalCount }: { totalPoints:
   return (
     <Box className="mx-6 mb-8">
       <HStack className="justify-between items-end mb-4">
-        <Heading size="lg" className="font-bold text-slate-900">Meu Progresso</Heading>
-        <Text className="text-slate-500 text-sm font-medium">{totalCount - completedCount} restantes</Text>
+        <Heading size="lg" className="font-bold text-[#1B1725]">Meu Progresso</Heading>
+        <Text className="text-[#6F6A7A] text-sm font-medium">{totalCount - completedCount} restantes</Text>
       </HStack>
 
-      <Box className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex-row items-center justify-between">
+      <Box className="bg-white p-6 rounded-[20px] border border-[#EAE6DC] shadow-sm flex-row items-center justify-between">
         <VStack>
-          <Text className="text-4xl font-bold text-slate-900 mb-1">{totalPoints}</Text>
-          <Text className="text-sm text-slate-400 font-medium">Pontos totais</Text>
+          <Text className="text-4xl font-bold text-[#1B1725] mb-1">{totalPoints}</Text>
+          <Text className="text-sm text-[#A5A0AE] font-medium">Pontos totais</Text>
         </VStack>
 
         {/* Simple Circular Progress Simulation */}
-        <Box className="w-16 h-16 rounded-full border-4 border-slate-100 items-center justify-center relative">
-          <Box className="absolute w-full h-full rounded-full border-4 border-t-[#FDE047] border-r-[#FDE047] rotate-45" />
-          <Text className="text-xs font-bold text-slate-900">{percentage}%</Text>
+        <Box className="w-16 h-16 rounded-full border-4 border-[#EAE6DC] items-center justify-center relative">
+          <Box className="absolute w-full h-full rounded-full border-4 border-t-[#F6B51E] border-r-[#F6B51E] rotate-45" />
+          <Text className="text-xs font-bold text-[#1B1725]">{percentage}%</Text>
         </Box>
       </Box>
     </Box>
@@ -162,7 +162,7 @@ const BentoTaskCard = ({ task, onPress }: { task: Task, onPress: () => void }) =
       <Pressable
         testID="task-item"
         onPress={onPress}
-        className={`p-5 rounded-[32px] mb-4 relative overflow-hidden active:scale-[0.98] transition-all ${theme.bg}`}
+        className={`p-5 rounded-[20px] mb-4 relative overflow-hidden active:scale-[0.98] transition-all ${theme.bg}`}
       >
         {/* Header Chips */}
         <HStack className="justify-between items-start mb-4">
@@ -210,8 +210,8 @@ const BentoTaskCard = ({ task, onPress }: { task: Task, onPress: () => void }) =
           </HStack>
 
           <Box className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${themeKey === 'dark' ? 'bg-emerald-500/20' : 'bg-black'}`}>
-            <Zap size={12} color={themeKey === 'dark' ? '#34d399' : '#FDE047'} fill="currentColor" />
-            <Text className={`text-xs font-bold ${themeKey === 'dark' ? 'text-emerald-400' : 'text-[#FDE047]'}`}>
+            <Zap size={12} color={themeKey === 'dark' ? '#4CAF82' : '#F6B51E'} fill="currentColor" />
+            <Text className={`text-xs font-bold ${themeKey === 'dark' ? 'text-emerald-400' : 'text-[#F6B51E]'}`}>
               +{task.points} pts
             </Text>
           </Box>
@@ -480,9 +480,9 @@ export default function TasksScreen() {
 
   if (!houseId) {
     return (
-      <Box className="flex-1 bg-[#FDFBF7] items-center justify-center px-6">
+      <Box className="flex-1 bg-[#FAF8F2] items-center justify-center px-6">
         <AlertCircle size={48} color={Colors.textSecondary} />
-        <Heading size="lg" className="text-slate-900 text-center mt-4">Selecione uma casa</Heading>
+        <Heading size="lg" className="text-[#1B1725] text-center mt-4">Selecione uma casa</Heading>
       </Box>
     );
   }
@@ -491,7 +491,7 @@ export default function TasksScreen() {
 
   return (
     <ErrorBoundary>
-      <Box className="flex-1 bg-[#FDFBF7]">
+      <Box className="flex-1 bg-[#FAF8F2]">
         <SafeAreaView className="flex-1" style={{ flex: 1, minHeight: 0 }} edges={['top']}>
 
           {/* Header */}
@@ -499,21 +499,21 @@ export default function TasksScreen() {
             <VStack>
               <ScreenGreeting firstName={greetingFirstName} variant="bomDia" />
               <HStack space="xs" className="items-center">
-                <Heading size="xl" className="font-bold text-slate-900">
+                <Heading size="xl" className="font-bold text-[#1B1725]">
                   Hoje, {formatDayAndMonthLongLocal()}
                 </Heading>
-                <ChevronLeft size={18} className="text-slate-400 -rotate-90" />
+                <ChevronLeft size={18} className="text-[#A5A0AE] -rotate-90" />
               </HStack>
             </VStack>
             <HStack space="sm">
               <Pressable
                 onPress={openCreateModal}
-                className="w-10 h-10 rounded-full bg-[#FDE047] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
+                className="w-10 h-10 rounded-full bg-[#F6B51E] border border-yellow-200 items-center justify-center shadow-sm active:scale-[0.95]"
               >
-                <Plus size={20} className="text-slate-900" />
+                <Plus size={20} className="text-[#1B1725]" />
               </Pressable>
-              <Pressable className="w-10 h-10 rounded-full bg-white border border-slate-100 items-center justify-center shadow-sm active:scale-[0.95]">
-                <Search size={18} className="text-slate-900" />
+              <Pressable className="w-10 h-10 rounded-full bg-white border border-[#EAE6DC] items-center justify-center shadow-sm active:scale-[0.95]">
+                <Search size={18} className="text-[#1B1725]" />
               </Pressable>
             </HStack>
           </Box>
@@ -536,14 +536,14 @@ export default function TasksScreen() {
             {/* Task List */}
             <Box className="px-6 space-y-4">
               <HStack className="justify-between items-center mb-2">
-                <Heading size="xl" className="font-bold text-slate-900">
+                <Heading size="xl" className="font-bold text-[#1B1725]">
                   {showCompleted ? 'Concluídas' : 'Tarefas'}
                 </Heading>
                 <Pressable onPress={() => {
                   Haptics.selectionAsync();
                   setShowCompleted(!showCompleted);
                 }}>
-                  <Text className="text-sm text-yellow-600 font-bold">
+                  <Text className="text-sm text-[#B45309] font-bold">
                     {showCompleted ? 'Ver pendentes' : 'Ver concluídas'}
                   </Text>
                 </Pressable>
@@ -564,8 +564,8 @@ export default function TasksScreen() {
               )}
               {displayedTasks.length === 0 && !isLoading && (
                 <Box className="py-10 items-center opacity-50">
-                  <CheckCircle2 size={48} color="#cbd5e1" />
-                  <Text className="text-slate-400 mt-4 font-medium">
+                  <CheckCircle2 size={48} color="#EAE6DC" />
+                  <Text className="text-[#A5A0AE] mt-4 font-medium">
                     {showCompleted ? 'Nenhuma tarefa concluída ainda.' : 'Tudo feito por hoje!'}
                   </Text>
                 </Box>
@@ -605,19 +605,19 @@ export default function TasksScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Arrastar para fechar"
                       >
-                        <View className="w-12 h-1 bg-slate-200 rounded-full" />
+                        <View className="w-12 h-1 bg-[#EAE6DC] rounded-full" />
                       </View>
                     </GestureDetector>
 
                     <HStack className="justify-between items-center px-6 mb-4">
                   <Pressable onPress={Keyboard.dismiss}>
-                    <Heading size="2xl" className="font-bold text-[#0f172a] tracking-tight">Nova Tarefa</Heading>
+                    <Heading size="2xl" className="font-bold text-[#1B1725] tracking-tight">Nova Tarefa</Heading>
                   </Pressable>
                   <Pressable
                     onPress={closeModal}
-                    className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 items-center justify-center active:bg-slate-100"
+                    className="w-10 h-10 rounded-full bg-[#F1EEE6] border border-[#EAE6DC] items-center justify-center active:bg-[#F1EEE6]"
                   >
-                    <X size={18} color="#0f172a" />
+                    <X size={18} color="#1B1725" />
                   </Pressable>
                 </HStack>
 
@@ -630,15 +630,15 @@ export default function TasksScreen() {
                     >
                   <VStack space="lg" className="flex-1">
                   <VStack space="xs">
-                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
-                    <Input className="h-14 border-0 bg-[#F0F2F5] rounded-2xl">
+                    <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Título</Text>
+                    <Input className="h-14 border-0 bg-[#F1EEE6] rounded-2xl">
                       <InputField
                         testID="task-create-title"
                         placeholder="Ex: Comprar leite..."
                         value={titleInput}
                         onChangeText={setTitleInput}
-                        className="text-lg font-medium text-slate-900 px-4"
-                        placeholderTextColor="#94a3b8"
+                        className="text-lg font-medium text-[#1B1725] px-4"
+                        placeholderTextColor="#A5A0AE"
                         // No iOS, evitamos abrir o teclado junto com a animação do modal
                         autoFocus={Platform.OS !== 'ios'}
                       />
@@ -646,23 +646,23 @@ export default function TasksScreen() {
                   </VStack>
 
                   <VStack space="xs">
-                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Descrição</Text>
-                    <Input className="h-24 border-0 bg-[#F0F2F5] rounded-2xl">
+                    <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Descrição</Text>
+                    <Input className="h-24 border-0 bg-[#F1EEE6] rounded-2xl">
                       <InputField
                         placeholder="Adicione detalhes..."
                         value={descriptionInput}
                         onChangeText={setDescriptionInput}
                         multiline
                         textAlignVertical="top"
-                        className="py-3 px-4 text-sm text-slate-900 leading-5"
-                        placeholderTextColor="#94a3b8"
+                        className="py-3 px-4 text-sm text-[#1B1725] leading-5"
+                        placeholderTextColor="#A5A0AE"
                       />
                     </Input>
                   </VStack>
 
                   {/* Prazo: atalhos + calendário (mesmo padrão do modal de despesa) */}
                   <VStack space="xs">
-                    <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prazo</Text>
+                    <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Prazo</Text>
                     <ScrollView
                       horizontal
                       nestedScrollEnabled={Platform.OS === 'android'}
@@ -682,11 +682,11 @@ export default function TasksScreen() {
                               setDueDateIso(opt.iso);
                             }}
                             className={`px-4 py-2.5 rounded-full border ${isSelected
-                              ? 'bg-[#FDE047] border-[#FDE047]'
-                              : 'bg-white border-slate-200'
+                              ? 'bg-[#F6B51E] border-[#F6B51E]'
+                              : 'bg-white border-[#EAE6DC]'
                               }`}
                           >
-                            <Text className={`text-xs font-bold ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>
+                            <Text className={`text-xs font-bold ${isSelected ? 'text-[#1B1725]' : 'text-[#6F6A7A]'}`}>
                               {opt.label}
                             </Text>
                           </Pressable>
@@ -694,7 +694,7 @@ export default function TasksScreen() {
                       })}
                     </ScrollView>
                     <VStack space="xs">
-                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Data</Text>
+                      <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Data</Text>
                       <DatePickerBrazilianField
                         valueIso={dueDateIso ?? ''}
                         onChangeIso={(iso) => setDueDateIso(iso)}
@@ -707,8 +707,8 @@ export default function TasksScreen() {
 
                   <HStack space="md">
                     <VStack space="xs" className="flex-1">
-                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Prioridade</Text>
-                      <HStack className="bg-[#F0F2F5] p-1 rounded-2xl">
+                      <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Prioridade</Text>
+                      <HStack className="bg-[#F1EEE6] p-1 rounded-2xl">
                         {(['MEDIUM', 'HIGH'] as TaskPriority[]).map(p => (
                           <Pressable
                             key={p}
@@ -719,11 +719,11 @@ export default function TasksScreen() {
                             }}
                             className={`flex-1 py-2.5 rounded-xl items-center ${
                               priorityInput === p
-                                ? 'bg-[#FDE047] border border-yellow-300/80 shadow-sm shadow-yellow-200/80'
+                                ? 'bg-[#F6B51E] border border-yellow-300/80 shadow-sm shadow-amber-200/80'
                                 : ''
                             }`}
                           >
-                            <Text className={`text-xs font-bold ${priorityInput === p ? 'text-slate-900' : 'text-slate-500'}`}>
+                            <Text className={`text-xs font-bold ${priorityInput === p ? 'text-[#1B1725]' : 'text-[#6F6A7A]'}`}>
                               {PRIORITY_LABELS[p]}
                             </Text>
                           </Pressable>
@@ -732,7 +732,7 @@ export default function TasksScreen() {
                     </VStack>
 
                     <VStack space="xs" className="flex-1 min-w-0">
-                      <Text className="text-slate-500 text-xs font-bold ml-1 uppercase tracking-wider">Atribuir a</Text>
+                      <Text className="text-[#6F6A7A] text-xs font-bold ml-1 uppercase tracking-wider">Atribuir a</Text>
                       <VStack space="sm">
                       <HStack space="sm" className="items-center min-h-[50px]">
                         <Pressable
@@ -742,9 +742,9 @@ export default function TasksScreen() {
                             setShowAssigneePicker((v) => !v);
                           }}
                           accessibilityLabel="Escolher outra pessoa"
-                          className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-slate-300 items-center justify-center shrink-0 active:border-[#FDE047] active:bg-[#FDE047]/10"
+                          className="w-11 h-11 rounded-full bg-white border-2 border-dashed border-[#EAE6DC] items-center justify-center shrink-0 active:border-[#F6B51E] active:bg-[#F6B51E]/10"
                         >
-                          <Plus size={20} color="#64748b" />
+                          <Plus size={20} color="#6F6A7A" />
                         </Pressable>
                         <ScrollView
                           horizontal
@@ -763,7 +763,7 @@ export default function TasksScreen() {
                               selectAssignee(m.userId);
                             }}
                           >
-                            <Avatar size="sm" className={`border-2 ${selected ? 'border-[#FDE047]' : 'border-white'}`}>
+                            <Avatar size="sm" className={`border-2 ${selected ? 'border-[#F6B51E]' : 'border-white'}`}>
                               <AvatarFallbackText>{m.user.name?.charAt(0)}</AvatarFallbackText>
                               {m.user.avatarUrl ? <AvatarImage source={{ uri: m.user.avatarUrl }} /> : null}
                             </Avatar>
@@ -787,9 +787,9 @@ export default function TasksScreen() {
                                 <Pressable
                                   key={m.userId}
                                   onPress={() => selectAssignee(m.userId)}
-                                  className="px-3 py-2 rounded-full bg-[#F0F2F5] border border-slate-200/80"
+                                  className="px-3 py-2 rounded-full bg-[#F1EEE6] border border-[#EAE6DC]/80"
                                 >
-                                  <Text className="text-xs font-bold text-slate-600" numberOfLines={1}>
+                                  <Text className="text-xs font-bold text-[#6F6A7A]" numberOfLines={1}>
                                     {label}
                                   </Text>
                                 </Pressable>
@@ -805,7 +805,7 @@ export default function TasksScreen() {
                     testID="task-create-submit"
                     onPress={handleSaveTask}
                     disabled={createTaskMutation.isPending}
-                    className="rounded-[24px] overflow-hidden mb-8 mt-2 active:scale-[0.98] opacity-100 disabled:opacity-60"
+                    className="rounded-[14px] overflow-hidden mb-8 mt-2 active:scale-[0.98] opacity-100 disabled:opacity-60"
                     style={{
                       height: 56,
                       shadowColor: '#b45309',
@@ -816,7 +816,7 @@ export default function TasksScreen() {
                     }}
                   >
                     <LinearGradient
-                      colors={['#FDE68A', '#EAB308', '#CA8A04']}
+                      colors={['#FBEED0', '#E3A410', '#E3A410']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={{
