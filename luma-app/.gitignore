@@ -14,8 +14,8 @@ expo-env.d.ts
 *.orig.*
 *.jks
 
-# Stray shell-redirect artifacts (path parsing bugs on Windows: "C:\Temp\..." -> "CTemp...")
-C*Temp*.json
+# Stray shell-redirect artifacts (Windows path parsing bugs)
+/CTemp*.json
 *.p8
 *.p12
 *.key
