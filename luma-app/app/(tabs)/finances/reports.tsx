@@ -128,7 +128,7 @@ export default function ReportsScreen() {
     if (categories.length === 0) return [];
     
     const colors = [
-      '#1B1725', '#10b981', '#f59e0b', '#D64545', '#1B1725',
+      '#1B1725', '#10b981', '#f59e0b', '#D64545', '#8b5cf6',
       '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
     ];
     
